@@ -1,7 +1,9 @@
 package botfarm.agentserver
 
+import botfarm.apidata.AgentId
 import botfarm.apidata.AgentStepInputs
 import botfarm.apidata.AgentStepResult
+import botfarm.apidata.SimulationId
 import com.aallam.openai.api.http.Timeout
 import com.aallam.openai.api.logging.LogLevel
 import com.aallam.openai.client.LoggingConfig
@@ -58,14 +60,14 @@ class AgentContainer {
    }
 
    private fun buildAgentKey(
-      simulationId: String,
-      agentId: String,
+      simulationId: SimulationId,
+      agentId: AgentId,
       agentType: String
    ) = "$simulationId:$agentId:$agentType"
 
    fun consumePendingResults(
-      simulationId: String,
-      agentId: String,
+      simulationId: SimulationId,
+      agentId: AgentId,
       agentType: String
    ): List<AgentStepResult> {
       val agentKey = this.buildAgentKey(

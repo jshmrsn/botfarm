@@ -5,12 +5,13 @@ import React from "react";
 import {CharacterComponentData, InventoryComponentData} from "../game/CharacterComponentData";
 import {ItemComponentData, ItemConfig} from "../game/ItemComponentData";
 import {UserControlledComponentData} from "../game/userControlledComponentData";
+import {EntityId} from "../simulation/EntityData";
 
 
 interface DebugPanelProps {
   windowHeight: number
   dynamicState: DynamicState
-  selectedEntityId: string | null
+  selectedEntityId: EntityId | null
 }
 
 export function DebugPanel(props: DebugPanelProps) {

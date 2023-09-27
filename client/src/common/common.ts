@@ -1,4 +1,4 @@
-import {ClientSimulationData, Config, EntityComponentData, EntityData} from "../simulation/EntityData";
+import {ClientSimulationData, Config, EntityComponentData, EntityData, EntityId} from "../simulation/EntityData";
 import {ActivityStreamEntry} from "../game/ActivityStreamEntry";
 import {SerializationDiff} from "../misc/serializationDiff";
 import {Vector2} from "../misc/Vector2";
@@ -55,7 +55,7 @@ export interface SimulationSnapshotWebSocketMessage {
 }
 
 export interface EntityComponentWebSocketMessage {
-  entityId: string
+  entityId: EntityId
   componentTypeName: string
   diff: SerializationDiff
   simulationTime: number
@@ -76,7 +76,7 @@ export interface EntityCreatedWebSocketMessage {
 }
 
 export interface EntityDestroyedWebSocketMessage {
-  entityId: string
+  entityId: EntityId
   simulationTime: number
 }
 

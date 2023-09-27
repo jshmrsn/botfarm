@@ -4,6 +4,8 @@ import botfarm.misc.Vector2
 import kotlinx.serialization.Serializable
 
 
+
+
 @Serializable
 class ItemCollectionEntry(
    val itemConfigKey: String,
@@ -17,7 +19,7 @@ class ItemCollection(
 
 @Serializable
 class ObservedSpokenMessage(
-   val entityId: String,
+   val entityId: EntityId,
    val characterName: String,
    val message: String,
    val time: Double,
@@ -37,7 +39,7 @@ class MovementRecord(
 class ActionOnEntityRecord(
    val startedAtTime: Double,
    val actionId: String,
-   val targetEntityId: String,
+   val targetEntityId: EntityId,
    val reason: String?
 )
 
@@ -68,9 +70,12 @@ class ItemInfo(
 class CharacterEntityInfo(
    val name: String,
    val gender: String,
+   val skinColor: String,
    val age: Int,
    val description: String,
-   val equippedItemInfo: ItemInfo? = null
+   val equippedItemInfo: ItemInfo? = null,
+   val hairColor: String? = null,
+   val hairStyle: String? = null
 )
 
 @Serializable
@@ -83,7 +88,7 @@ class ItemEntityInfo(
 @Serializable
 class EntityInfo(
    val observedAtSimulationTime: Double,
-   val entityId: String,
+   val entityId: EntityId,
    val location: Vector2,
    val availableActionIds: List<String>? = null,
    val itemEntityInfo: ItemEntityInfo?,
@@ -97,8 +102,8 @@ class ActivityStreamEntryRecord(
    val message: String? = null,
    val actionType: String? = null,
    val sourceLocation: Vector2? = null,
-   val sourceEntityId: String? = null,
-   val targetEntityId: String? = null
+   val sourceEntityId: EntityId? = null,
+   val targetEntityId: EntityId? = null
 )
 
 @Serializable
@@ -113,7 +118,7 @@ class SelfSpokenMessage(
 class Observations(
    val spokenMessages: List<ObservedSpokenMessage>,
    val selfSpokenMessages: List<SelfSpokenMessage>,
-   val entitiesById: Map<String, EntityInfo>,
+   val entitiesById: Map<EntityId, EntityInfo>,
    val movementRecords: List<MovementRecord>,
    val actionOnEntityRecords: List<ActionOnEntityRecord>,
    val actionOnInventoryItemActionRecords: List<ActionOnInventoryItemRecord>,
@@ -137,9 +142,14 @@ class InventoryInfo(
    val itemStacks: List<ItemStackInfo>
 )
 
+@JvmInline
+@Serializable
+value class AgentId(val value: String)
+
+
 @Serializable
 class SelfInfo(
-   val agentId: String,
+   val agentId: AgentId,
    val entityInfo: EntityInfo,
    val corePersonality: String,
    val initialMemories: List<String>,
@@ -160,7 +170,7 @@ class CraftingRecipe(
 class AgentStepInputs(
    val agentType: String,
    val stepId: String,
-   val simulationId: String,
+   val simulationId: SimulationId,
    val simulationTime: Double,
    val craftingRecipes: List<CraftingRecipe>,
    val selfInfo: SelfInfo,

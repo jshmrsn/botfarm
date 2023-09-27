@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
 class MutableObservations {
    val spokenMessages: MutableList<ObservedSpokenMessage> = mutableListOf()
    val selfSpokenMessages: MutableList<SelfSpokenMessage> = mutableListOf()
-   val entitiesById: MutableMap<String, EntityInfo> = mutableMapOf()
+   val entitiesById: MutableMap<EntityId, EntityInfo> = mutableMapOf()
    val movementRecords: MutableList<MovementRecord> = mutableListOf()
    val actionOnEntityRecords: MutableList<ActionOnEntityRecord> = mutableListOf()
    val actionOnInventoryItemActionRecords: MutableList<ActionOnInventoryItemRecord> = mutableListOf()
@@ -20,14 +20,14 @@ class MutableObservations {
    val activityStreamEntries: MutableList<ActivityStreamEntryRecord> = mutableListOf()
 
    fun toObservations(): Observations = Observations(
-      spokenMessages = spokenMessages,
-      selfSpokenMessages = selfSpokenMessages,
-      entitiesById = entitiesById,
-      movementRecords = movementRecords,
-      actionOnEntityRecords = actionOnEntityRecords,
-      actionOnInventoryItemActionRecords = actionOnInventoryItemActionRecords,
-      craftItemActionRecords = craftItemActionRecords,
-      activityStreamEntries = activityStreamEntries
+      spokenMessages = this.spokenMessages,
+      selfSpokenMessages = this.selfSpokenMessages,
+      entitiesById = this.entitiesById,
+      movementRecords = this.movementRecords,
+      actionOnEntityRecords = this.actionOnEntityRecords,
+      actionOnInventoryItemActionRecords = this.actionOnInventoryItemActionRecords,
+      craftItemActionRecords = this.craftItemActionRecords,
+      activityStreamEntries = this.activityStreamEntries
    )
 }
 
@@ -133,7 +133,7 @@ private suspend fun step(
             // jshmrsn: Currently not limiting distance that agents can "hear" chat messages
             if (otherCharacterComponentData != null) {
                val newMessages = otherCharacterComponentData.recentSpokenMessages.filter {
-                  val age = simulationTimeForStep - it.sentSimulationTime
+//                  val age = simulationTimeForStep - it.sentSimulationTime
                   val tooOldToBeObserved =
                      false // age > 15 jshmrsn: This is dangerous because currently observation logic is run in the coroutine, which can be blocked for a long time waiting for prompts.
                   // Consider running observation in tick

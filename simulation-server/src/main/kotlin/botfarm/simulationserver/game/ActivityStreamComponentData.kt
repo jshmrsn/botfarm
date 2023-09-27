@@ -2,6 +2,7 @@ package botfarm.simulationserver.game
 
 import botfarm.misc.Vector2
 import botfarm.simulationserver.simulation.EntityComponentData
+import botfarm.apidata.EntityId
 
 class ActivityStreamEntry(
    val time: Double,
@@ -13,8 +14,8 @@ class ActivityStreamEntry(
    val sourceLocation: Vector2? = null,
    val sourceIconPath: String? = null,
    val targetIconPath: String? = null,
-   val sourceEntityId: String? = null,
-   val targetEntityId: String? = null
+   val sourceEntityId: EntityId? = null,
+   val targetEntityId: EntityId? = null
 )
 
 data class ActivityStreamComponentData(

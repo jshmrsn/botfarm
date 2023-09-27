@@ -1,5 +1,7 @@
 package botfarm.simulationserver.simulation
 
+import botfarm.apidata.EntityId
+import botfarm.apidata.SimulationId
 import botfarm.misc.buildShortRandomString
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
@@ -294,7 +296,7 @@ abstract class EntityComponentData
 
 @Serializable
 data class EntityData(
-   val entityId: String = buildShortRandomString(),
+   val entityId: EntityId = EntityId(buildShortRandomString()),
    val components: List<EntityComponentData>
 ) {
    fun <T : EntityComponentData> getComponentOrNull(componentType: KClass<T>): T? {
@@ -326,9 +328,9 @@ data class EntityData(
 
 
 data class ClientSimulationData(
-   val simulationId: String = buildShortRandomString(),
+   val simulationId: SimulationId,
    val configs: List<Config>,
-   val entities: List<EntityData> = listOf(),
+   val entities: List<EntityData>,
    val tickedSimulationTime: Double,
    val simulationTime: Double
 )
@@ -345,7 +347,7 @@ class SimulationContainer {
 
    @Serializable
    class CreateSimulationResult(
-      val simulationId: String
+      val simulationId: SimulationId
    )
 
    fun addSimulation(simulation: Simulation): CreateSimulationResult {
@@ -378,7 +380,7 @@ class SimulationContainer {
    ) {
       @Serializable
       class Entry(
-         val simulationId: String
+         val simulationId: SimulationId
       )
    }
 
@@ -392,7 +394,7 @@ class SimulationContainer {
       )
    }
 
-   fun getSimulation(simulationId: String): Simulation? {
+   fun getSimulation(simulationId: SimulationId): Simulation? {
       return this.simulations.find { it.simulationId == simulationId }
    }
 
@@ -401,7 +403,7 @@ class SimulationContainer {
       val success: Boolean
    )
 
-   fun terminateSimulation(simulationId: String): TerminateSimulationResult {
+   fun terminateSimulation(simulationId: SimulationId): TerminateSimulationResult {
       val simulation = this.getSimulation(simulationId)
 
       if (simulation != null) {

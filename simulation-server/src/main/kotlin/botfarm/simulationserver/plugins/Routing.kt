@@ -4,6 +4,7 @@ import botfarm.simulationserver.game.ai.AgentServerIntegration
 import botfarm.simulationserver.game.createGameSimulation
 import botfarm.simulationserver.simulation.ClientSimulationData
 import botfarm.simulationserver.simulation.SimulationContainer
+import botfarm.apidata.SimulationId
 import io.ktor.http.HttpStatusCode
 import io.ktor.resources.Resource
 import io.ktor.server.application.Application
@@ -30,7 +31,7 @@ fun Application.configureRouting(
 ) {
    install(StatusPages) {
       exception<Throwable> { call, cause ->
-         call.respondText(text = "500: $cause", status = HttpStatusCode.InternalServerError)
+         call.respondText(text = "500", status = HttpStatusCode.InternalServerError)
       }
    }
 
@@ -95,6 +96,6 @@ class ListSimulationsRequest()
 
 @Serializable
 class TerminateSerializationRequestData(
-   val simulationId: String
+   val simulationId: SimulationId
 )
 

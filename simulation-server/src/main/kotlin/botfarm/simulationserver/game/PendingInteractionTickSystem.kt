@@ -14,13 +14,13 @@ fun registerPendingInteractionTickSystem() =
       val equippedItemId = characterComponentData.equippedItemConfigKey
       val equippedItemConfig = equippedItemId?.let { simulation.getConfig<ItemConfig>(it) }
 
-      val controlledClientId = context.entity.getComponentOrNull<UserControlledComponentData>()?.data?.userId
-      val controlledClient = controlledClientId?.let { context.simulation.getClient(it) }
+      val controllingUserId = context.entity.getComponentOrNull<UserControlledComponentData>()?.data?.userId
+      val controllingClients = controllingUserId?.let { context.simulation.getClientsForUserId(it) } ?: listOf()
 
       if (characterComponentData.pendingInteractionTargetEntityId != null) {
          fun sendAlertToControlledClient(message: String) {
-            if (controlledClient != null) {
-               simulation.sendAlertMessage(controlledClient, message)
+            for (controllingClient in controllingClients) {
+               simulation.sendAlertMessage(controllingClient, message)
             }
          }
 
@@ -63,14 +63,14 @@ fun registerPendingInteractionTickSystem() =
                         equippedItemConfig != null &&
                         itemConfig.canBeDamagedByItem == equippedItemConfig.key
                      ) {
-                        val result = simulation.interactWithEquippedItem(
+                        val result = simulation.interactWithEntityUsingEquippedItem(
                            interactingEntity = context.entity,
                            targetEntity = targetEntity
                         )
 
                         when (result) {
-                           GameSimulation.InteractWithEquippedItemResult.Success -> {}
-                           GameSimulation.InteractWithEquippedItemResult.TooFar -> sendAlertToControlledClient("Too far away to interact with item")
+                           GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {}
+                           GameSimulation.InteractWithEntityUsingEquippedItemResult.TooFar -> sendAlertToControlledClient("Too far away to interact with item")
                            else -> sendAlertToControlledClient("Can't interact with item: " + result.name)
                         }
                      }

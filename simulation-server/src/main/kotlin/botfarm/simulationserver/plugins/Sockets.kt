@@ -1,6 +1,9 @@
 package botfarm.simulationserver.plugins
 
+import botfarm.simulationserver.simulation.ClientId
 import botfarm.simulationserver.simulation.SimulationContainer
+import botfarm.apidata.SimulationId
+import botfarm.simulationserver.simulation.UserId
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
@@ -10,12 +13,11 @@ import kotlinx.serialization.json.*
 import java.lang.Exception
 import java.time.Duration
 
-
 @Serializable
 class ConnectionRequest(
-   val simulationId: String,
-   val clientId: String,
-   val userId: String
+   val simulationId: SimulationId,
+   val clientId: ClientId,
+   val userId: UserId
 )
 
 fun Application.configureSockets(simulationContainer: SimulationContainer) {
@@ -28,7 +30,7 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
    routing {
       webSocket("/ws") {
          val session: DefaultWebSocketServerSession = this
-         var requestedConnectionToSimulationIdVar: String? = null
+         var requestedConnectionToSimulationIdVar: SimulationId? = null
 
          for (frame in session.incoming) {
             val requestedConnectionToSimulationId = requestedConnectionToSimulationIdVar

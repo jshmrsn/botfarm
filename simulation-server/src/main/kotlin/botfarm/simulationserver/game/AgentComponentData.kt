@@ -1,9 +1,10 @@
 package botfarm.simulationserver.game
 
+import botfarm.apidata.AgentId
 import botfarm.simulationserver.simulation.EntityComponentData
 
 data class AgentComponentData(
-   val agentId: String,
+   val agentId: AgentId,
    val corePersonality: String,
    val initialMemories: List<String> = listOf(),
    val agentType: String = Companion.defaultAgentType,

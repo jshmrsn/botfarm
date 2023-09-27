@@ -10,7 +10,7 @@ import {
 } from "@tabler/icons-react";
 import Phaser from "phaser";
 import {SimulationScene, SimulationSceneContext} from "../game/SimulationScene";
-import {ClientSimulationData} from "../simulation/EntityData";
+import {ClientSimulationData, EntityId} from "../simulation/EntityData";
 import useWebSocket from "react-use-websocket";
 import {generateId} from "../misc/utils";
 import {useWindowSize} from "@react-hook/window-size";
@@ -32,9 +32,10 @@ import {
 } from "../common/PositionComponentData";
 import {Vector2} from "../misc/Vector2";
 import {HelpPanel} from "./HelpPanel";
+import {ClientId, SimulationId, UserId} from "../simulation/Simulation";
 
 interface SimulationProps {
-  simulationId: string
+  simulationId: SimulationId
   shouldAllowWebGl: boolean
   shouldForceWebGl: boolean
   exit: () => void
@@ -55,17 +56,17 @@ function sendWebSocketMessage(webSocket: WebSocket, type: string, data: object) 
 
 export class DynamicState {
   forceRenderIndex: number = 0
-  userId: string
+  userId: UserId
   chatTextArea: HTMLTextAreaElement | null = null
   phaserScene: SimulationScene | null = null
   webSocket: WebSocket | null = null
   simulation: GameSimulation | null = null
-  selectedEntityId: string | null = null
+  selectedEntityId: EntityId | null = null
   setForceUpdateCounter: (counter: number) => void
 
-  readonly clientId: string = generateId()
+  readonly clientId: ClientId = generateId()
 
-  constructor(userId: string, setForceUpdateCounter: (counter: number) => void) {
+  constructor(userId: UserId, setForceUpdateCounter: (counter: number) => void) {
     this.userId = userId
     this.setForceUpdateCounter = setForceUpdateCounter
   }
@@ -107,7 +108,7 @@ export const SimulationComponent = (props: SimulationProps) => {
 
   const storedUserId = localStorage.getItem("userId")
 
-  let userId: string
+  let userId: UserId
   if (storedUserId == null) {
     userId = generateId()
     console.log("Storing userId", userId)

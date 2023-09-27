@@ -35,7 +35,7 @@ fun createGameSimulation(
 
    simulation.createEntity(
       components = listOf(ActivityStreamComponentData()),
-      entityId = "activity-stream"
+      entityId = GameSimulation.activityStreamEntityId
    )
 
    val worldBounds = Vector2(5000.0, 5000.0)

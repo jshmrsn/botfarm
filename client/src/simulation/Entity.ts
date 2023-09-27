@@ -1,6 +1,7 @@
-import {EntityComponentData, EntityData} from "./EntityData";
+import {EntityComponentData, EntityData, EntityId} from "./EntityData";
 import {Simulation} from "./Simulation";
 import {EntityComponent} from "./EntityComponent";
+
 
 export class Entity {
   data: EntityData
@@ -9,7 +10,7 @@ export class Entity {
   readonly componentByServerType: Record<string, EntityComponent<any>>
 
   readonly simulation: Simulation;
-  readonly entityId: string
+  readonly entityId: EntityId
 
   constructor(
     simulation: Simulation,

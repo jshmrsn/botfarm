@@ -3,6 +3,8 @@ package botfarm.simulationserver.simulation
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
+
+
 class Entity(
    data: EntityData,
    val simulation: Simulation

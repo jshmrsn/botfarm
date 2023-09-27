@@ -6,9 +6,10 @@ import {apiRequest} from "../api";
 
 import * as Phaser from 'phaser';
 import {SimulationScene} from "../game/SimulationScene";
+import {SimulationId} from "../simulation/Simulation";
 
 interface ListSimulationsResultEntry {
-  simulationId: string
+  simulationId: SimulationId
 }
 
 interface ListSimulationsResult {
@@ -16,7 +17,7 @@ interface ListSimulationsResult {
 }
 
 interface SelectSimulationProps {
-  simulationSelected: (simulationId: string) => void
+  simulationSelected: (simulationId: SimulationId) => void
   shouldAllowWebGl: boolean
   shouldForceWebGl: boolean
 
@@ -25,7 +26,7 @@ interface SelectSimulationProps {
 }
 
 interface CreateSimulationResponse {
-  simulationId: string
+  simulationId: SimulationId
 }
 
 

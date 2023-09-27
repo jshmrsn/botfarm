@@ -1,11 +1,14 @@
 import {ActivityStreamEntry} from "../game/ActivityStreamEntry";
+import {SimulationId} from "./Simulation";
 
 export interface EntityComponentData {
   type: string
 }
 
+export type EntityId = string
+
 export class EntityData {
-  entityId: string = ""
+  entityId: EntityId = ""
   components: EntityComponentData[] = []
 
   static getComponentOrNull<T>(entity: EntityData, serverSerializationTypeName: string): T | null {
@@ -34,7 +37,7 @@ export interface Config {
 }
 
 export interface ClientSimulationData {
-  simulationId: string
+  simulationId: SimulationId
   entities: EntityData[]
   configs: Config[]
   simulationTime: number

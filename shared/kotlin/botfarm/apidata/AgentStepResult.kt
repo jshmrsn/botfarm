@@ -33,7 +33,7 @@ class ReasonToWalkToAndReason(
 @Serializable
 class ActionOnEntity(
    val actionId: String,
-   val targetEntityId: String,
+   val targetEntityId: EntityId,
    val reason: String? = null
 )
 

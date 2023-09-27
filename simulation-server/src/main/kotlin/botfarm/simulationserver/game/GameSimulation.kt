@@ -1,5 +1,7 @@
 package botfarm.simulationserver.game
 
+import botfarm.apidata.AgentId
+import botfarm.apidata.EntityId
 import botfarm.misc.*
 import botfarm.simulationserver.game.ai.AgentServerIntegration
 import botfarm.simulationserver.common.*
@@ -13,7 +15,7 @@ import kotlin.random.Random
 @Serializable
 class MoveToPointMessage(
    val point: Vector2,
-   val pendingInteractionEntityId: String? = null
+   val pendingInteractionEntityId: EntityId? = null
 )
 
 @Serializable
@@ -32,7 +34,7 @@ class ClearPendingInteractionTargetMessage()
 
 @Serializable
 class PickUpItemMessage(
-   val targetEntityId: String
+   val targetEntityId: EntityId
 )
 
 @Serializable
@@ -56,6 +58,10 @@ class GameSimulation(
    simulationContainer = simulationContainer,
    systems = systems
 ) {
+   companion object {
+      val activityStreamEntityId = EntityId("activity-stream")
+   }
+
    private val collisionMap: List<List<Boolean>>
    val collisionMapRowCount: Int
    val collisionMapColumnCount: Int
@@ -83,7 +89,7 @@ class GameSimulation(
    }
 
    fun getActivityStreamEntity() =
-      this.getEntityOrNull("activity-stream") ?: throw Exception("activity-stream entity not found")
+      this.getEntityOrNull(Companion.activityStreamEntityId) ?: throw Exception("activity-stream entity not found")
 
    fun getActivityStream(): List<ActivityStreamEntry> {
       val activityStreamEntity = this.getActivityStreamEntity()
@@ -470,24 +476,25 @@ class GameSimulation(
       TooFar
    }
 
-   enum class InteractWithEquippedItemResult {
+   enum class InteractWithEntityUsingEquippedItemResult {
       Success,
       NoItemEquipped,
       EquippedItemCannotDamageTarget,
       TooFar
    }
 
-   fun interactWithEquippedItem(
+   fun interactWithEntityUsingEquippedItem(
       interactingEntity: Entity,
       targetEntity: Entity
-   ): InteractWithEquippedItemResult {
-      val characterComponentData = interactingEntity.getComponent<CharacterComponentData>().data
+   ): InteractWithEntityUsingEquippedItemResult {
+      val characterComponent = interactingEntity.getComponent<CharacterComponentData>()
+      val characterComponentData = characterComponent.data
 
       val equippedItemId = characterComponentData.equippedItemConfigKey
       val equippedItemConfig = equippedItemId?.let { this.getConfig<ItemConfig>(it) }
 
       if (equippedItemId == null) {
-         return InteractWithEquippedItemResult.NoItemEquipped
+         return InteractWithEntityUsingEquippedItemResult.NoItemEquipped
       }
 
       val itemComponent = targetEntity.getComponent<ItemComponentData>()
@@ -501,11 +508,11 @@ class GameSimulation(
       val distance = interactingEntityPosition.distance(targetEntityPosition)
 
       if (distance > maxDistance) {
-         return InteractWithEquippedItemResult.TooFar
+         return InteractWithEntityUsingEquippedItemResult.TooFar
       }
 
       if (itemConfig.canBeDamagedByItem != equippedItemId) {
-         return InteractWithEquippedItemResult.EquippedItemCannotDamageTarget
+         return InteractWithEntityUsingEquippedItemResult.EquippedItemCannotDamageTarget
       }
 
       val name = characterComponentData.name
@@ -542,7 +549,7 @@ class GameSimulation(
          damage = 1000
       )
 
-      return InteractWithEquippedItemResult.Success
+      return InteractWithEntityUsingEquippedItemResult.Success
    }
 
    fun applyDamageToEntity(
@@ -822,10 +829,40 @@ class GameSimulation(
       )
    }
 
-   override fun handleClientMessage(client: Client, messageType: String, messageData: JsonObject) {
-      val playerControlledEntity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+   fun spawnAgent(
+      corePersonality: String,
+      initialMemories: List<String>,
+      agentType: String,
+      name: String = "Agent",
+      age: Int = 25,
+      bodySelections: CharacterBodySelections = this.buildRandomCharacterBodySelections(),
+      location: Vector2
+   ) {
+      this.createEntity(
+         listOf(
+            AgentComponentData(
+               agentId = AgentId(buildShortRandomString()),
+               corePersonality = corePersonality,
+               initialMemories = initialMemories,
+               agentType = agentType
+            ),
+            CharacterComponentData(
+               name = name,
+               age = age,
+               bodySelections = bodySelections
+            ),
+            InventoryComponentData(),
+            PositionComponentData(
+               positionAnimation = Vector2Animation.static(location)
+            )
+         )
+      )
+   }
 
-      val playerPosition = playerControlledEntity?.resolvePosition() ?: Vector2.zero
+   override fun handleClientMessage(client: Client, messageType: String, messageData: JsonObject) {
+      val userControlledEntity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+
+      val playerPosition = userControlledEntity?.resolvePosition() ?: Vector2.zero
 
       fun getRandomLocationRelativeToPlayer(scale: Double = 100.0): Vector2 {
          return playerPosition + Vector2.randomSignedXY(scale, scale)
@@ -835,7 +872,7 @@ class GameSimulation(
          .mapNotNull { otherEntity ->
             val character = otherEntity.getComponentOrNull<CharacterComponentData>()
 
-            if (character != null && otherEntity.entityId != playerControlledEntity?.entityId) {
+            if (character != null && otherEntity.entityId != userControlledEntity?.entityId) {
                val position = otherEntity.resolvePosition()
 
                val distance = position.distance(playerPosition)
@@ -943,13 +980,13 @@ class GameSimulation(
                   val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
                   val stacks = components.getOrNull(3)?.toInt() ?: 1
 
-                  if (playerControlledEntity != null) {
+                  if (userControlledEntity != null) {
                      for (i in 0..(stacks - 1)) {
-                        val remaining = playerControlledEntity.getInventoryItemTotalAmount(
+                        val remaining = userControlledEntity.getInventoryItemTotalAmount(
                            itemConfigKey = configKey
                         )
 
-                        playerControlledEntity.takeInventoryItem(
+                        userControlledEntity.takeInventoryItem(
                            itemConfigKey = configKey,
                            amount = Math.min(amountPerStack, remaining)
                         )
@@ -962,9 +999,9 @@ class GameSimulation(
                   val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
                   val stacks = components.getOrNull(3)?.toInt() ?: 1
 
-                  if (playerControlledEntity != null) {
+                  if (userControlledEntity != null) {
                      for (i in 0..(stacks - 1)) {
-                        playerControlledEntity.giveInventoryItem(
+                        userControlledEntity.giveInventoryItem(
                            itemConfigKey = configKey,
                            amount = amountPerStack
                         )
@@ -996,107 +1033,45 @@ class GameSimulation(
 
                   when (type) {
                      "1" -> {
-                        this.createEntity(
-                           listOf(
-                              AgentComponentData(
-                                 agentId = buildShortRandomString(),
-                                 corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
-                                 initialMemories = listOf(
-                                    "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
-                                    "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
-                                 ),
-                                 agentType = agentType
-                              ),
-                              CharacterComponentData(
-                                 name = name ?: "Joe",
-                                 gender = "male",
-                                 age = 25,
-                                 bodySelections = this.buildRandomCharacterBodySelections("male")
-                              ),
-                              InventoryComponentData(),
-                              PositionComponentData(
-                                 positionAnimation = Vector2Animation.static(spawnLocation)
-                              )
-                           )
+                        this.spawnAgent(
+                           name = name ?: "Joe",
+                           corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
+                           initialMemories = listOf(
+                              "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
+                              "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
+                           ),
+                           agentType = agentType,
+                           bodySelections = this.buildRandomCharacterBodySelections("male"),
+                           age = 25,
+                           location = spawnLocation
                         )
                      }
 
                      "2" -> {
-                        this.createEntity(
-                           listOf(
-                              AgentComponentData(
-                                 agentId = buildShortRandomString(),
-                                 corePersonality = "Friendly and trusting. Always tries to follow requests from other people, even if they don't make sense.",
-                                 initialMemories = listOf(
-                                    "I want to do whatever I'm told to do."
-                                 ),
-                                 agentType = agentType
-                              ),
-                              CharacterComponentData(
-                                 name = name ?: "Bob",
-                                 gender = "male",
-                                 age = 30,
-                                 bodySelections = this.buildRandomCharacterBodySelections("male")
-                              ),
-                              InventoryComponentData(),
-                              PositionComponentData(
-                                 positionAnimation = Vector2Animation.static(spawnLocation)
-                              )
-                           )
+                        this.spawnAgent(
+                           name = name ?: "Bob",
+                           corePersonality = "Friendly and trusting. Always tries to follow requests from other people, even if they don't make sense.",
+                           initialMemories = listOf(
+                              "I want to do whatever I'm told to do."
+                           ),
+                           agentType = agentType,
+                           bodySelections = this.buildRandomCharacterBodySelections("male"),
+                           age = 30,
+                           location = spawnLocation
                         )
                      }
 
                      "3" -> {
-                        this.createEntity(
-                           listOf(
-                              AgentComponentData(
-                                 agentId = buildShortRandomString(),
-                                 corePersonality = "Artsy.",
-                                 initialMemories = listOf(
-                                    "I want to learn how to paint."
-                                 ),
-                                 agentType = agentType
-                              ),
-                              CharacterComponentData(
-                                 name = name ?: "Linda",
-                                 gender = "female",
-                                 age = 24,
-                                 bodySelections = this.buildRandomCharacterBodySelections("female")
-                              ),
-                              InventoryComponentData(),
-                              PositionComponentData(
-                                 positionAnimation = Vector2Animation.static(spawnLocation)
-                              )
-                           )
-                        )
-                     }
-
-                     "4" -> {
-                        this.createEntity(
-                           listOf(
-                              AgentComponentData(
-                                 agentId = buildShortRandomString(),
-                                 corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
-                                 initialMemories = listOf(
-                                    "I want to build a new house",
-                                    "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
-                                 ),
-                                 agentType = agentType
-                              ),
-                              CharacterComponentData(
-                                 name = name ?: "Janet",
-                                 gender = "female",
-                                 age = 25,
-                                 bodySelections = this.buildRandomCharacterBodySelections(
-                                    bodyType = "female",
-                                    skinColor = "amber"
-                                 )
-                              ),
-                              InventoryComponentData(),
-                              PositionComponentData(
-                                 positionAnimation = Vector2Animation.static(spawnLocation)
-                              )
-                           )
+                        this.spawnAgent(
+                           name = name ?: "Linda",
+                           corePersonality = "Artsy.",
+                           initialMemories = listOf(
+                              "I want to learn how to paint."
+                           ),
+                           agentType = agentType,
+                           bodySelections = this.buildRandomCharacterBodySelections("female"),
+                           age = 24,
+                           location = spawnLocation
                         )
                      }
                   }
@@ -1188,7 +1163,6 @@ class GameSimulation(
             ),
             CharacterComponentData(
                name = "Player",
-               gender = "male",
                age = 30,
                bodySelections = this.buildRandomCharacterBodySelections()
             ),
@@ -1205,7 +1179,7 @@ class GameSimulation(
       )
    }
 
-   fun getUserControlledEntities(userId: String) = this.entities.filter {
+   fun getUserControlledEntities(userId: UserId) = this.entities.filter {
       val userControlledComponent = it.getComponentOrNull<UserControlledComponentData>()
 
       if (userControlledComponent != null) {

@@ -23,7 +23,6 @@ class DefaultAgent(
    var previousPromptSendSimulationTime = -1000.0
    var previousPromptDoneUnixTime = -1000.0
 
-
    val memoryState = MemoryState()
 
    init {
@@ -669,7 +668,7 @@ fun buildStateForEntity(
    val characterEntityInfo = entityInfo.characterEntityInfo
 
    return buildJsonObject {
-      put("entityId", entityInfo.entityId)
+      put("entityId", entityInfo.entityId.value)
 
       if (characterEntityInfo != null) {
          put("description", characterEntityInfo.description)

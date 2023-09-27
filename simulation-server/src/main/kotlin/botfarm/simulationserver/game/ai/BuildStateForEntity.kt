@@ -28,7 +28,10 @@ fun buildEntityInfo(
          description = "A human",
          name = characterComponent.name,
          age = characterComponent.age,
-         gender = characterComponent.gender
+         gender = characterComponent.bodySelections.bodyType,
+         hairColor = characterComponent.bodySelections.hair?.variant,
+         hairStyle = characterComponent.bodySelections.hair?.key,
+         skinColor = characterComponent.bodySelections.skinColor
       )
    } else {
       null

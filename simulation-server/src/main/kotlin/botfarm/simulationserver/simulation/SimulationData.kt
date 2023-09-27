@@ -1,5 +1,6 @@
 package botfarm.simulationserver.simulation
 
+import botfarm.apidata.SimulationId
 import botfarm.misc.buildShortRandomString
 import kotlinx.serialization.Serializable
 
@@ -10,7 +11,7 @@ abstract class Config {
 
 @Serializable
 data class SimulationData(
-   val simulationId: String = buildShortRandomString(),
+   val simulationId: SimulationId = SimulationId(buildShortRandomString()),
    val configs: List<Config>,
    val entities: List<EntityData> = listOf(),
    val tickedSimulationTime: Double = 0.0,

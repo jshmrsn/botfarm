@@ -47,7 +47,7 @@ class AgentServerIntegration {
             })
          }
       }.use {
-         println("Sending post request for remoteStep: " + inputs.selfInfo.agentId)
+//         println("Sending post request for remoteStep: " + inputs.selfInfo.agentId)
          it.post(agentServerEndpoint + "/api/step") {
             contentType(ContentType.Application.Json)
             val bodyString = Json.encodeToString(request)
@@ -55,7 +55,7 @@ class AgentServerIntegration {
          }
       }
 
-      println("httpResponse: $httpResponse")
+//      println("httpResponse: $httpResponse")
 
       val response = try {
          httpResponse.body<RemoteStepResponse>()

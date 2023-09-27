@@ -66,18 +66,38 @@ object DynamicSerialization {
 
       val newClass = value::class
 
-      if (value is JsonElement) {
-         return value
-      } else if (value is Number) {
-         return JsonPrimitive(value)
-      } else if (value is String) {
-         return JsonPrimitive(value)
-      } else if (value is Boolean) {
-         return JsonPrimitive(value)
-      } else if (value is List<*>) {
+      val resolvedValue = if (newClass.isValue) {
+         // jshmrsn: I am confused why inline values class instances are represented using their custom classes
+         // instead of their underlying value class. I would expect the runtime instances to just be the inline
+         // values, in which this getter call would not be needed. Maybe this doesn't happen in unoptimized builds?
+         @Suppress("UNCHECKED_CAST")
+         val valueProperty = newClass.declaredMemberProperties.first() as KProperty1<Any, *>
+         val valueFromValueProperty = valueProperty.get(value)
+
+         if (valueFromValueProperty == null) {
+            // jshmrsn: Apparently null inline values are sometimes boxed as InlineValueClass(null) instead of just null
+            return JsonNull
+         }
+
+         valueFromValueProperty
+      } else {
+         value
+      }
+
+      if (resolvedValue is JsonElement) {
+         return resolvedValue
+      } else if (resolvedValue is Enum<*>) {
+         return JsonPrimitive(resolvedValue.name)
+      } else if (resolvedValue is Number) {
+         return JsonPrimitive(resolvedValue)
+      } else if (resolvedValue is String) {
+         return JsonPrimitive(resolvedValue)
+      } else if (resolvedValue is Boolean) {
+         return JsonPrimitive(resolvedValue)
+      } else if (resolvedValue is List<*>) {
          return buildJsonArray {
             @Suppress("UNCHECKED_CAST")
-            val list = value as List<Any>
+            val list = resolvedValue as List<Any>
 
             list.forEach { containedValue ->
                val serializedValue = serialize(
@@ -90,10 +110,10 @@ object DynamicSerialization {
                add(serializedValue)
             }
          }
-      } else if (value is  Map<*, *>) {
+      } else if (resolvedValue is Map<*, *>) {
          return buildJsonObject {
             @Suppress("UNCHECKED_CAST")
-            val map = value as Map<Any, Any>
+            val map = resolvedValue as Map<Any, Any>
 
             map.forEach { containedKey, containedValue ->
                val serializedKey = containedKey as? String
@@ -119,23 +139,28 @@ object DynamicSerialization {
 
                @Suppress("UNCHECKED_CAST")
                val anyProperty = property as KProperty1<Any, *>
-               val propertyValue: Any? = anyProperty.get(value)
+               val propertyValue: Any? = anyProperty.get(resolvedValue)
 
                if (property.name == "type") {
-                  throw Exception("Dynamic-serialized value should not have reserved field name 'type'")
+                  throw Exception("Dynamic-serialized value should not have reserved field name 'type' ('type' is reserved for polymorphic serialization)")
                }
 
+               val fieldClass = anyProperty.returnType.classifier as KClass<*>
+
+               val serializedValue = serialize(
+                  json = json,
+                  baseClass = fieldClass,
+                  baseClassTypeArguments = anyProperty.returnType.arguments
+                     .map {
+                        (it.type?.classifier
+                           ?: throw Exception("Expected classifier for type arguments")) as KClass<*>
+                     },
+                  value = propertyValue
+               )
+
                put(
-                  property.name, serialize(
-                     json = json,
-                     baseClass = anyProperty.returnType.classifier as KClass<*>,
-                     baseClassTypeArguments = anyProperty.returnType.arguments
-                        .map {
-                           (it.type?.classifier
-                              ?: throw Exception("Expected classifier for type arguments")) as KClass<*>
-                        },
-                     value = propertyValue
-                  )
+                  property.name,
+                  serializedValue
                )
             }
 
@@ -255,7 +280,7 @@ object DynamicSerialization {
                null
             } else {
                Diff(
-                  value = buildJsonObject {  }
+                  value = buildJsonObject { }
                )
             }
          }
@@ -327,7 +352,7 @@ object DynamicSerialization {
             val previousPropertyValue: Any? = anyProperty.get(previous)
 
             if (property.name == "type") {
-               throw Exception("Dynamic-serialized value should not have reserved field name 'type'")
+               throw Exception("Dynamic-serialized value should not have reserved field name 'type' ('type'  is reserved for polymorphic serialization)")
             }
 
             val diff = serializeDiff(

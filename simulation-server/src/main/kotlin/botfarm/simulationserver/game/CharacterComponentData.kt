@@ -1,7 +1,9 @@
 package botfarm.simulationserver.game
 
+import botfarm.misc.Vector2
 import botfarm.simulationserver.simulation.Config
 import botfarm.simulationserver.simulation.EntityComponentData
+import botfarm.apidata.EntityId
 
 
 class CharacterBodySelections(
@@ -30,10 +32,9 @@ class CharacterBodySelectionsConfig(
 data class CharacterComponentData(
    val name: String,
    val age: Int = 30,
-   val gender: String = "male",
    val recentSpokenMessages: List<SpokenMessage> = listOf(),
    val facialExpressionEmoji: String? = null,
-   val pendingInteractionTargetEntityId: String? = null,
+   val pendingInteractionTargetEntityId: EntityId? = null,
    val equippedItemConfigKey: String? = null,
    val bodySelections: CharacterBodySelections
 ) : EntityComponentData()

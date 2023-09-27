@@ -1,20 +1,30 @@
 package botfarm.simulationserver.simulation
 
+import botfarm.apidata.EntityId
 import botfarm.misc.DynamicSerialization
 import botfarm.misc.buildShortRandomString
 import botfarm.misc.getCurrentUnixTimeSeconds
 import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 
+@JvmInline
+@Serializable
+value class UserId(val value: String)
+
+@JvmInline
+@Serializable
+value class ClientId(val value: String)
+
 class Client(
    val webSocketSession: DefaultWebSocketServerSession,
-   val clientId: String,
-   val userId: String
+   val clientId: ClientId,
+   val userId: UserId
 )
 
 open class Simulation(
@@ -36,11 +46,11 @@ open class Simulation(
    private val mutableEntities: MutableList<Entity>
    val entities: List<Entity>
 
-   private val mutableEntitiesById = mutableMapOf<String, Entity>()
-   private val mutableDestroyedEntitiesById = mutableMapOf<String, Entity>()
+   private val mutableEntitiesById = mutableMapOf<EntityId, Entity>()
+   private val mutableDestroyedEntitiesById = mutableMapOf<EntityId, Entity>()
 
-   val entitiesById: Map<String, Entity> = this.mutableEntitiesById
-   val destroyedEntitiesById: Map<String, Entity> = this.mutableDestroyedEntitiesById
+   val entitiesById: Map<EntityId, Entity> = this.mutableEntitiesById
+   val destroyedEntitiesById: Map<EntityId, Entity> = this.mutableDestroyedEntitiesById
 
    private val tickSystems = this.systems.registeredTickSystems.map {
       TickSystem(
@@ -136,7 +146,7 @@ open class Simulation(
 
    fun createEntity(
       components: List<EntityComponentData>,
-      entityId: String = buildShortRandomString()
+      entityId: EntityId = EntityId(buildShortRandomString())
    ) {
       if (this.mutableEntitiesById.containsKey(entityId)) {
          throw Exception("Entity already exists for entityId: $entityId")
@@ -197,7 +207,7 @@ open class Simulation(
    }
 
    fun broadcastEntityComponentMessage(
-      entityId: String,
+      entityId: EntityId,
       componentData: EntityComponentData,
       previousBroadcastData: EntityComponentData
    ) {
@@ -227,11 +237,11 @@ open class Simulation(
    }
 
    fun handleNewWebSocketClient(
-      clientId: String,
-      userId: String,
+      clientId: ClientId,
+      userId: UserId,
       webSocketSession: DefaultWebSocketServerSession
    ) {
-      println("handleNewWebSocketClient: $clientId, ${webSocketSession}")
+      println("handleNewWebSocketClient: $clientId, $webSocketSession")
 
       val client = Client(
          clientId = clientId,
@@ -353,13 +363,13 @@ open class Simulation(
    }
 
 
-   fun getEntityOrNull(entityId: String) = this.entitiesById[entityId]
+   fun getEntityOrNull(entityId: EntityId) = this.entitiesById[entityId]
 
-   fun hasEntityExistedBefore(entityId: String) = this.destroyedEntitiesById.containsKey(entityId)
+   fun hasEntityExistedBefore(entityId: EntityId) = this.destroyedEntitiesById.containsKey(entityId)
 
-   fun getDestroyedEntityOrNull(entityId: String) = this.destroyedEntitiesById[entityId]
+   fun getDestroyedEntityOrNull(entityId: EntityId) = this.destroyedEntitiesById[entityId]
 
-   fun getEntity(entityId: String): Entity {
+   fun getEntity(entityId: EntityId): Entity {
       val entity = this.getEntityOrNull(entityId = entityId)
          ?: if (this.destroyedEntitiesById.containsKey(entityId)) {
             throw Exception("getEntity: Entity for $entityId has already been destroyed")
@@ -468,7 +478,11 @@ open class Simulation(
          ?: throw Exception("Config not found for key '$configKey' and type '${T::class}'")
    }
 
-   fun getClient(clientId: String): Client? {
+   fun getClient(clientId: ClientId): Client? {
       return this.clients.find { it.clientId == clientId }
+   }
+
+   fun getClientsForUserId(userId: UserId): List<Client> {
+      return this.clients.filter { it.userId == userId }
    }
 }

@@ -1,4 +1,4 @@
-import {ClientSimulationData, Config} from "./EntityData";
+import {ClientSimulationData, Config, EntityId} from "./EntityData";
 import {getUnixTimeSeconds} from "../misc/utils";
 import {Entity} from "./Entity";
 import {
@@ -9,6 +9,9 @@ import {
 } from "../common/common";
 import {deserializeDiff} from "../misc/serializationDiff";
 
+export type UserId = string
+export type ClientId = string
+export type SimulationId = string
 
 export class Simulation {
   private readonly initialData: ClientSimulationData
@@ -18,7 +21,7 @@ export class Simulation {
   private smoothedSimulationTime: number
   // private smoothedSimulationTimeAtProcessTime: number
 
-  readonly simulationId: string
+  readonly simulationId: SimulationId
   readonly configs: Config[]
   readonly configsByKeyByTypeName: Record<string, Record<string, Config>> = {}
   readonly entities: Entity[]
@@ -68,11 +71,11 @@ export class Simulation {
     this.sendMessageImplementation(type, data)
   }
 
-  getEntityOrNull(entityId: string): Entity | null {
+  getEntityOrNull(entityId: EntityId): Entity | null {
     return this.entitiesById[entityId]
   }
 
-  getEntity(entityId: string): Entity {
+  getEntity(entityId: EntityId): Entity {
     const entity = this.getEntityOrNull(entityId)
     if (entity == null) {
       throw new Error("Entity not found: " + entityId)

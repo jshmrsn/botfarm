@@ -1,9 +1,9 @@
 import Phaser from "phaser";
-import {Config} from "../simulation/EntityData";
+import {Config, EntityId} from "../simulation/EntityData";
 
 import {getUnixTimeSeconds, throwError} from "../misc/utils";
 import {DynamicState} from "../components/SimulationComponent";
-import {Simulation} from "../simulation/Simulation";
+import {Simulation, SimulationId, UserId} from "../simulation/Simulation";
 import {Vector2} from "../misc/Vector2";
 import {Vector2Animation} from "../misc/Vector2Animation";
 import {
@@ -75,7 +75,7 @@ interface SheetDefinition {
 export interface SimulationSceneContext {
   dynamicState: DynamicState,
   sendWebSocketMessage: (type: string, data: object) => void
-  setSelectedEntityId: (entityId: string | null) => void
+  setSelectedEntityId: (entityId: EntityId | null) => void
   closePanels: () => void
   showHelpPanel: () => void
 }
@@ -94,7 +94,7 @@ export interface AutoInteractAction {
 }
 
 export class SimulationScene extends Phaser.Scene {
-  simulationId: string
+  simulationId: SimulationId
   dynamicState: DynamicState
   simulation: Simulation
 
@@ -106,7 +106,7 @@ export class SimulationScene extends Phaser.Scene {
   private onLoadCompleteFunctions: { (): void } [] = []
 
   private simulationContext: SimulationSceneContext;
-  readonly userId: string
+  readonly userId: UserId
 
   uiCamera!: Phaser.Cameras.Scene2D.Camera
   mainCamera!: Phaser.Cameras.Scene2D.Camera

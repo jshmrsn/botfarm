@@ -1,5 +1,6 @@
 package botfarm.simulationserver.simulation
 
+import botfarm.apidata.EntityId
 import kotlinx.serialization.json.JsonElement
 
 abstract class WebSocketMessage()
@@ -9,7 +10,7 @@ class SimulationSnapshotWebSocketMessage(
 ) : WebSocketMessage()
 
 class EntityComponentWebSocketMessage(
-   val entityId: String,
+   val entityId: EntityId,
    val componentTypeName: String,
    val diff: JsonElement,
    val simulationTime: Double
@@ -21,7 +22,7 @@ class EntityCreatedWebSocketMessage(
 ) : WebSocketMessage()
 
 class EntityDestroyedWebSocketMessage(
-   val entityId: String,
+   val entityId: EntityId,
    val simulationTime: Double
 ) : WebSocketMessage()
 

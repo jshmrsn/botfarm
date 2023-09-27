@@ -1,4 +1,5 @@
 import {Vector2} from "../misc/Vector2";
+import {EntityId} from "../simulation/EntityData";
 
 export interface ActivityStreamEntry {
   time: number
@@ -9,6 +10,6 @@ export interface ActivityStreamEntry {
   actionType: string | null
   actionIconPath: string | null
   targetIconPath: string | null
-  sourceEntityId: string | null
-  targetEntityId: string | null
+  sourceEntityId: EntityId | null
+  targetEntityId: EntityId | null
 }

@@ -1,4 +1,4 @@
-import {EntityComponentData} from "../simulation/EntityData";
+import {EntityComponentData, EntityId} from "../simulation/EntityData";
 import {CompositeAnimation} from "./CompositeAnimation";
 
 export interface SpokenMessage {
@@ -24,7 +24,7 @@ export interface CharacterComponentData extends EntityComponentData {
   name: string
   recentSpokenMessages: SpokenMessage[]
   facialExpressionEmoji: string | null,
-  pendingInteractionTargetEntityId: string | null
+  pendingInteractionTargetEntityId: EntityId | null
   equippedItemConfigKey: string | null
   bodySelections: CharacterBodySelections
 }
