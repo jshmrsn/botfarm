@@ -1,0 +1,108 @@
+{
+  "spriteCellWidth": 64,
+  "spriteCellHeight": 64,
+  "animations": [
+    {
+      "frameRate": 10.0,
+      "name": "spellcast",
+      "spriteCellRowIndex": 0,
+      "numberOfFrames": 7
+    },
+    {
+      "frameRate": 10.0,
+      "name": "thrust",
+      "spriteCellRowIndex": 4,
+      "numberOfFrames": 8
+    },
+    {
+      "frameRate": 10.0,
+      "name": "up",
+      "spriteCellRowIndex": 8,
+      "numberOfFrames": 1
+    },
+    {
+      "frameRate": 10.0,
+      "name": "down",
+      "spriteCellRowIndex": 9,
+      "numberOfFrames": 1
+    },
+    {
+      "frameRate": 10.0,
+      "name": "left",
+      "spriteCellRowIndex": 10,
+      "numberOfFrames": 1
+    },
+    {
+      "frameRate": 10.0,
+      "name": "right",
+      "spriteCellRowIndex": 11,
+      "numberOfFrames": 1
+    },
+    {
+      "frameRate": 10.0,
+      "name": "walk-up",
+      "spriteCellRowIndex": 8,
+      "numberOfFrames": 9
+    },
+    {
+      "frameRate": 10.0,
+      "name": "walk-left",
+      "spriteCellRowIndex": 9,
+      "numberOfFrames": 9
+    },
+    {
+      "frameRate": 10.0,
+      "name": "walk-down",
+      "spriteCellRowIndex": 10,
+      "numberOfFrames": 9
+    },
+    {
+      "frameRate": 10.0,
+      "name": "walk-right",
+      "spriteCellRowIndex": 11,
+      "numberOfFrames": 9
+    },
+    {
+      "frameRate": 10.0,
+      "name": "slash-up",
+      "spriteCellRowIndex": 12,
+      "numberOfFrames": 6
+    },
+    {
+      "frameRate": 10.0,
+      "name": "slash-left",
+      "spriteCellRowIndex": 13,
+      "numberOfFrames": 7
+    },
+    {
+      "frameRate": 10.0,
+      "name": "slash-down",
+      "spriteCellRowIndex": 14,
+      "numberOfFrames": 6
+    },
+    {
+      "frameRate": 10.0,
+      "name": "slash-right",
+      "spriteCellRowIndex": 15,
+      "numberOfFrames": 6
+    },
+    {
+      "frameRate": 10.0,
+      "name": "shoot",
+      "spriteCellRowIndex": 16,
+      "numberOfFrames": 13
+    },
+    {
+      "frameRate": 10.0,
+      "name": "hurt",
+      "spriteCellRowIndex": 20,
+      "numberOfFrames": 6
+    },
+    {
+      "frameRate": 10.0,
+      "name": "watering",
+      "spriteCellRowIndex": 4,
+      "numberOfFrames": 4
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "spriteCellWidth": 192,
+  "spriteCellHeight": 192,
+  "animations": [
+    {
+      "frameRate": 10.0,
+      "name": "thrust-up",
+      "spriteCellRowIndex": 0,
+      "numberOfFrames": 6
+    },
+    {
+      "frameRate": 10.0,
+      "name": "thrust-left",
+      "spriteCellRowIndex": 1,
+      "numberOfFrames": 7
+    },
+    {
+      "frameRate": 10.0,
+      "name": "thrust-down",
+      "spriteCellRowIndex": 2,
+      "numberOfFrames": 6
+    },
+    {
+      "frameRate": 10.0,
+      "name": "thrust-right",
+      "spriteCellRowIndex": 3,
+      "numberOfFrames": 6
+    }
+  ]
+}

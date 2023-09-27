@@ -1,0 +1,30 @@
+{
+  "spriteCellWidth": 192,
+  "spriteCellHeight": 192,
+  "animations": [
+    {
+      "frameRate": 10.0,
+      "name": "slash-up",
+      "spriteCellRowIndex": 0,
+      "numberOfFrames": 6
+    },
+    {
+      "frameRate": 10.0,
+      "name": "slash-left",
+      "spriteCellRowIndex": 1,
+      "numberOfFrames": 7
+    },
+    {
+      "frameRate": 10.0,
+      "name": "slash-down",
+      "spriteCellRowIndex": 2,
+      "numberOfFrames": 6
+    },
+    {
+      "frameRate": 10.0,
+      "name": "slash-right",
+      "spriteCellRowIndex": 3,
+      "numberOfFrames": 6
+    }
+  ]
+}
