@@ -10,26 +10,38 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlin.random.Random
 
 @Serializable
-class MoveToPointMessage(
+class MoveToPointRequest(
    val point: Vector2,
+   val pendingUseEquippedToolItemRequest: UseEquippedToolItemRequest? = null,
    val pendingInteractionEntityId: EntityId? = null
 )
 
 @Serializable
-class EquipItemMessage(
-   val itemConfigKey: String?
+class UseEquippedToolItemRequest(
+   val expectedItemConfigKey: String
 )
 
 @Serializable
-class CraftItemMessage(
+class EquipItemRequest(
+   val expectedItemConfigKey: String,
+   val stackIndex: Int
+)
+
+@Serializable
+class UnequipItemRequest(
+   val expectedItemConfigKey: String,
+   val stackIndex: Int
+)
+
+@Serializable
+class CraftItemRequest(
    val itemConfigKey: String
 )
 
 @Serializable
-class ClearPendingInteractionTargetMessage()
+class ClearPendingInteractionTargetRequest()
 
 
 @Serializable
@@ -38,13 +50,14 @@ class PickUpItemMessage(
 )
 
 @Serializable
-class DropItemMessage(
+class DropItemRequest(
    val itemConfigKey: String,
-   val amount: Int? = null
+   val amountFromStack: Int? = null,
+   val stackIndex: Int
 )
 
 @Serializable
-class AddCharacterMessageMessage(
+class AddCharacterMessageRequest(
    val message: String
 )
 
@@ -79,8 +92,8 @@ class GameSimulation(
          collisionMap.add(row)
       }
 
-      val tilewidth = 32 // tilemap.tilewidth
-      val tileheight = 32 // tilemap.tilewidth
+      val tilewidth = 32
+      val tileheight = 32
       this.collisionMap = collisionMap
       this.collisionMapRowCount = rowCount
       this.collisionMapColumnCount = columnCount
@@ -140,21 +153,7 @@ class GameSimulation(
       }
    }
 
-   fun addCharacterMessage(client: Client, message: AddCharacterMessageMessage) {
-      val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
-
-      if (entity == null) {
-         sendAlertMessage(client, "No controlled entity")
-         return
-      }
-
-      this.addCharacterMessage(
-         entity = entity,
-         message = message.message
-      )
-   }
-
-   private fun handleClearPendingInteractionMessage(client: Client, message: ClearPendingInteractionTargetMessage) {
+   private fun handleClearPendingInteractionRequest(client: Client, message: ClearPendingInteractionTargetRequest) {
       val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
 
       if (entity == null) {
@@ -165,7 +164,8 @@ class GameSimulation(
       val characterComponent = entity.getComponent<CharacterComponentData>()
       characterComponent.modifyData {
          it.copy(
-            pendingInteractionTargetEntityId = null
+            pendingInteractionTargetEntityId = null,
+            pendingUseEquippedToolItemRequest = null
          )
       }
    }
@@ -182,11 +182,13 @@ class GameSimulation(
    ): CraftItemResult {
       val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
 
-      val craftingCost = itemConfig.craftingCost
+      val craftableConfig = itemConfig.craftableConfig
 
-      if (craftingCost == null) {
+      if (craftableConfig == null) {
          return CraftItemResult.ItemCannotBeCrafted
       }
+
+      val craftingCost = craftableConfig.craftingCost
 
       val didAfford = entity.takeInventoryItemCollection(craftingCost)
 
@@ -209,17 +211,16 @@ class GameSimulation(
          )
       )
 
-      if (itemConfig.canBePickedUp) {
+      if (itemConfig.storableConfig != null) {
          entity.giveInventoryItem(
             itemConfigKey = itemConfigKey,
-            amount = itemConfig.craftingAmount
+            amount = craftableConfig.craftingAmount
          )
       } else {
          this.spawnItems(
             itemConfigKey = itemConfigKey,
             baseLocation = entityPosition,
-            minAmountPerStack = itemConfig.craftingAmount,
-            maxAmountPerStack = itemConfig.craftingAmount,
+            quantity = RandomItemQuantity.amount(craftableConfig.craftingAmount),
             randomLocationScale = 30.0
          )
       }
@@ -231,55 +232,142 @@ class GameSimulation(
    enum class EquipItemResult {
       ItemCannotBeEquipped,
       ItemNotInInventory,
+      UnexpectedItemInStack,
       Success
    }
 
    fun equipItem(
       entity: Entity,
-      itemConfigKey: String?
+      expectedItemConfigKey: String,
+      requestedStackIndex: Int?
    ): EquipItemResult {
+      val inventoryComponent = entity.getComponent<InventoryComponentData>()
       val characterComponent = entity.getComponent<CharacterComponentData>()
 
-      if (itemConfigKey != null) {
-         val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
+      val itemConfigToEquip = this.getConfig<ItemConfig>(expectedItemConfigKey)
 
-         if (!itemConfig.canBeEquipped) {
-            return EquipItemResult.ItemCannotBeEquipped
-         }
+      if (itemConfigToEquip.equippableConfig == null) {
+         return EquipItemResult.ItemCannotBeEquipped
+      }
 
-         val amount = entity.getInventoryItemTotalAmount(itemConfigKey)
+      val inventory = inventoryComponent.data.inventory
+      val stackIndexToEquip = requestedStackIndex ?: inventory.itemStacks.indexOfFirst {
+         it.itemConfigKey == expectedItemConfigKey
+      }
 
-         if (amount <= 0) {
-            return EquipItemResult.ItemNotInInventory
-         }
+      if (stackIndexToEquip < 0) {
+         return EquipItemResult.ItemNotInInventory
+      }
 
+      val stackToEquip = inventory.itemStacks.getOrNull(stackIndexToEquip)
 
-         val name = characterComponent.data.name
+      if (stackToEquip == null || stackToEquip.itemConfigKey != expectedItemConfigKey) {
+         return EquipItemResult.UnexpectedItemInStack
+      }
 
+      this.applyPerformedAction(
+         entity = entity,
+         actionType = ActionType.EquipItem,
+         targetEntityId = null
+      )
 
-         this.addActivityStreamEntry(
-            ActivityStreamEntry(
-               time = this.getCurrentSimulationTime(),
-               sourceIconPath = null,
-               title = "$name equipped a ${itemConfig.name}",
-               sourceLocation = entity.resolvePosition(),
-               targetIconPath = itemConfig.iconUrl,
-               actionType = "equipItem"
+      inventoryComponent.modifyData {
+         it.copy(
+            inventory = it.inventory.copy(
+               itemStacks = it.inventory.itemStacks.mapIndexed { stackIndex, itemStack ->
+                  itemStack.copy(
+                     isEquipped = if (stackIndex == stackIndexToEquip) {
+                        true
+                     } else if (itemStack.isEquipped) {
+                        val itemConfigInStack = this.getConfig<ItemConfig>(itemStack.itemConfigKey)
+                        itemConfigInStack.equippableConfig != null &&
+                                itemConfigInStack.equippableConfig.equipmentSlot != itemConfigToEquip.equippableConfig.equipmentSlot
+                     } else {
+                        false
+                     }
+                  )
+               }
             )
          )
       }
 
-      characterComponent.modifyData {
-         it.copy(
-            equippedItemConfigKey = itemConfigKey
-         )
-      }
+      val name = characterComponent.data.name
 
+      this.addActivityStreamEntry(
+         ActivityStreamEntry(
+            time = this.getCurrentSimulationTime(),
+            sourceIconPath = null,
+            title = "$name equipped ${itemConfigToEquip.name}",
+            sourceLocation = entity.resolvePosition(),
+            targetIconPath = itemConfigToEquip.iconUrl,
+            actionType = "equipItem"
+         )
+      )
 
       return EquipItemResult.Success
    }
 
-   private fun handleCraftItemMessage(client: Client, message: CraftItemMessage) {
+   fun unequipItem(
+      entity: Entity,
+      expectedItemConfigKey: String,
+      requestedStackIndex: Int?
+   ): EquipItemResult {
+      val inventoryComponent = entity.getComponent<InventoryComponentData>()
+      val characterComponent = entity.getComponent<CharacterComponentData>()
+
+      val itemConfig = this.getConfig<ItemConfig>(expectedItemConfigKey)
+
+      val inventory = inventoryComponent.data.inventory
+      val stackIndexToUnequip = requestedStackIndex ?: inventory.itemStacks.indexOfFirst {
+         it.itemConfigKey == expectedItemConfigKey && it.isEquipped
+      }
+
+      if (stackIndexToUnequip < 0) {
+         return EquipItemResult.ItemNotInInventory
+      }
+
+      val stackToEquip = inventory.itemStacks.getOrNull(stackIndexToUnequip)
+
+      if (stackToEquip == null || stackToEquip.itemConfigKey != expectedItemConfigKey) {
+         return EquipItemResult.UnexpectedItemInStack
+      }
+
+
+      this.applyPerformedAction(
+         entity = entity,
+         actionType = ActionType.EquipItem,
+         targetEntityId = null
+      )
+
+      inventoryComponent.modifyData {
+         it.copy(
+            inventory = it.inventory.copy(
+               itemStacks = it.inventory.itemStacks.mapIndexed { index, itemStack ->
+                  itemStack.copy(
+                     isEquipped = itemStack.isEquipped && index != stackIndexToUnequip
+                  )
+               }
+            )
+         )
+      }
+
+      val name = characterComponent.data.name
+
+      this.addActivityStreamEntry(
+         ActivityStreamEntry(
+            time = this.getCurrentSimulationTime(),
+            sourceIconPath = null,
+            title = "$name unequipped ${itemConfig.name}",
+            sourceLocation = entity.resolvePosition(),
+            targetIconPath = itemConfig.iconUrl,
+            actionType = "unequipItem"
+         )
+      )
+
+      return EquipItemResult.Success
+   }
+
+   private fun handleCraftItemRequest(client: Client, message: CraftItemRequest) {
       val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
 
       if (entity == null) {
@@ -297,7 +385,21 @@ class GameSimulation(
       }
    }
 
-   private fun handleEquipItemMessage(client: Client, message: EquipItemMessage) {
+   private fun handleUseEquippedItemRequest(client: Client, message: UseEquippedToolItemRequest) {
+      val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+
+      if (entity == null) {
+         sendAlertMessage(client, "No controlled entity")
+         return
+      }
+
+      this.useEquippedToolItem(
+         interactingEntity = entity,
+         expectedItemConfigKey = message.expectedItemConfigKey
+      )
+   }
+
+   private fun handleEquipItemRequest(client: Client, message: EquipItemRequest) {
       val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
 
       if (entity == null) {
@@ -307,11 +409,27 @@ class GameSimulation(
 
       this.equipItem(
          entity = entity,
-         itemConfigKey = message.itemConfigKey
+         expectedItemConfigKey = message.expectedItemConfigKey,
+         requestedStackIndex = message.stackIndex
       )
    }
 
-   private fun handleMoveToPointMessage(client: Client, message: MoveToPointMessage) {
+   private fun handleUnequipItemRequest(client: Client, message: UnequipItemRequest) {
+      val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+
+      if (entity == null) {
+         sendAlertMessage(client, "No controlled entity")
+         return
+      }
+
+      this.unequipItem(
+         entity = entity,
+         expectedItemConfigKey = message.expectedItemConfigKey,
+         requestedStackIndex = message.stackIndex
+      )
+   }
+
+   private fun handleMoveToPointRequest(client: Client, message: MoveToPointRequest) {
       val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
 
       if (entity == null) {
@@ -325,21 +443,21 @@ class GameSimulation(
       )
 
       val characterComponent = entity.getComponent<CharacterComponentData>()
-      characterComponent.modifyData {
-         it.copy(
-            pendingInteractionTargetEntityId = null
-         )
-      }
 
       if (result != MoveToResult.Success) {
+         characterComponent.modifyData {
+            it.copy(
+               pendingInteractionTargetEntityId = null,
+               pendingUseEquippedToolItemRequest = null
+            )
+         }
          sendAlertMessage(client, "Move to point failed: " + result.name)
       } else {
-         if (message.pendingInteractionEntityId != null) {
-            characterComponent.modifyData {
-               it.copy(
-                  pendingInteractionTargetEntityId = message.pendingInteractionEntityId
-               )
-            }
+         characterComponent.modifyData {
+            it.copy(
+               pendingInteractionTargetEntityId = message.pendingInteractionEntityId,
+               pendingUseEquippedToolItemRequest = message.pendingUseEquippedToolItemRequest
+            )
          }
       }
    }
@@ -372,7 +490,7 @@ class GameSimulation(
       }
    }
 
-   private fun handleDropItemMessage(client: Client, message: DropItemMessage) {
+   private fun handleDropItemRequest(client: Client, message: DropItemRequest) {
       val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
 
       if (entity == null) {
@@ -380,10 +498,11 @@ class GameSimulation(
          return
       }
 
-      val didDrop = this.dropItem(
+      val didDrop = this.dropItemStack(
          droppingEntity = entity,
-         itemConfigKey = message.itemConfigKey,
-         amount = message.amount
+         expectedItemConfigKey = message.itemConfigKey,
+         amountToDropFromStack = message.amountFromStack,
+         stackIndex = message.stackIndex
       )
 
       if (!didDrop) {
@@ -391,71 +510,78 @@ class GameSimulation(
       }
    }
 
-   fun dropItem(
+   fun dropItemStack(
       droppingEntity: Entity,
-      itemConfigKey: String,
-      amount: Int?
+      expectedItemConfigKey: String,
+      stackIndex: Int,
+      amountToDropFromStack: Int? = null
    ): Boolean {
-      val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
+      val itemConfig = this.getConfig<ItemConfig>(expectedItemConfigKey)
 
-      if (!itemConfig.canBeDropped) {
+      if (itemConfig.storableConfig == null || !itemConfig.storableConfig.canBeDropped) {
          throw Exception("Item cannot be dropped")
       }
 
-      val currentAmount = droppingEntity.getInventoryItemTotalAmount(
-         itemConfigKey = itemConfigKey
-      )
+      val inventoryComponent = droppingEntity.getComponent<InventoryComponentData>()
+      val inventory = inventoryComponent.data.inventory
+      val stack = inventory.itemStacks.getOrNull(stackIndex)
 
-      if (currentAmount <= 0) {
+      if (stack == null || stack.itemConfigKey != expectedItemConfigKey) {
          return false
       }
 
-      val resolvedRequestedAmount = if (itemConfig.maxStackSize != null) {
-         if (amount != null) {
-            Math.min(amount, itemConfig.maxStackSize)
+      val resolvedAmountToDrop: Int
+      if (amountToDropFromStack != null) {
+         if (amountToDropFromStack <= stack.amount) {
+            resolvedAmountToDrop = amountToDropFromStack
          } else {
-            itemConfig.maxStackSize
+            return false
          }
       } else {
-         amount ?: currentAmount
+         resolvedAmountToDrop = stack.amount
       }
 
-      val resolvedAmount = Math.min(
-         resolvedRequestedAmount,
-         currentAmount
-      )
+      val remainingAmount = stack.amount - resolvedAmountToDrop
 
-      val didTake = droppingEntity.takeInventoryItem(
-         itemConfigKey = itemConfigKey,
-         amount = resolvedAmount
-      )
-
-      if (!didTake) {
-         return false
+      if (remainingAmount <= 0) {
+         inventoryComponent.modifyData {
+            it.copy(
+               inventory = it.inventory.copy(
+                  itemStacks = it.inventory.itemStacks.removed(
+                     index = stackIndex
+                  )
+               )
+            )
+         }
+      } else {
+         inventoryComponent.modifyData {
+            it.copy(
+               inventory = it.inventory.copy(
+                  itemStacks = it.inventory.itemStacks.replaced(
+                     index = stackIndex,
+                     value = stack.copy(
+                        amount = remainingAmount
+                     )
+                  )
+               )
+            )
+         }
       }
+
+      this.applyPerformedAction(
+         entity = droppingEntity,
+         actionType = ActionType.DropItem
+      )
+
 
       this.spawnItem(
-         itemConfigKey = itemConfigKey,
-         amount = resolvedAmount,
+         itemConfigKey = stack.itemConfigKey,
+         amount = resolvedAmountToDrop,
          location = droppingEntity.resolvePosition() + Vector2.randomSignedXY(50.0)
       )
 
-
-      val amountAfterDrop = droppingEntity.getInventoryItemTotalAmount(
-         itemConfigKey = itemConfigKey
-      )
-
       val character = droppingEntity.getComponentOrNull<CharacterComponentData>()
-
-      if (amountAfterDrop <= 0 &&
-         character != null &&
-         character.data.equippedItemConfigKey == itemConfigKey
-      ) {
-         this.equipItem(entity = droppingEntity, itemConfigKey = null)
-      }
-
       val name = character?.data?.name ?: "?"
-
 
       this.addActivityStreamEntry(
          ActivityStreamEntry(
@@ -476,11 +602,136 @@ class GameSimulation(
       TooFar
    }
 
+   fun applyPerformedAction(
+      entity: Entity,
+      actionType: ActionType,
+      targetEntityId: EntityId? = null,
+      duration: Double = 0.5
+   ) {
+      val location = entity.resolvePosition()
+
+      entity.getComponentOrNull<CharacterComponentData>()?.modifyData {
+         it.copy(
+            performedAction = PerformedAction(
+               startedAtSimulationTime = this.getCurrentSimulationTime(),
+               actionIndex = (it.performedAction?.actionIndex ?: 0) + 1,
+               actionType = actionType,
+               performedAtLocation = location,
+               targetEntityId = targetEntityId,
+               duration = duration
+            )
+         )
+      }
+   }
+
+   enum class UseEquippedItemResult {
+      Success,
+      UnexpectedEquippedItem,
+      NoActionForEquippedTool,
+      NoToolItemEquipped,
+      Busy,
+      Dead
+   }
+
+   val maxAvailableGrowerDistance = 60.0
+
+   fun useEquippedToolItem(
+      interactingEntity: Entity,
+      expectedItemConfigKey: String?
+   ): UseEquippedItemResult {
+      if (interactingEntity.isDead) {
+         return UseEquippedItemResult.Dead
+      }
+
+      if (!interactingEntity.isAvailableToPerformAction) {
+         return UseEquippedItemResult.Busy
+      }
+
+      val equippedToolItemConfigAndStackIndex = interactingEntity.getEquippedItemConfigAndStackIndex(EquipmentSlot.Tool)
+
+      if (equippedToolItemConfigAndStackIndex == null) {
+         return UseEquippedItemResult.NoToolItemEquipped
+      }
+
+      val equippedStackIndex = equippedToolItemConfigAndStackIndex.first
+      val equippedToolItemConfig = equippedToolItemConfigAndStackIndex.second
+
+      if (expectedItemConfigKey != null &&
+         equippedToolItemConfig.key != expectedItemConfigKey
+      ) {
+         return UseEquippedItemResult.UnexpectedEquippedItem
+      }
+
+      val characterComponent = interactingEntity.getComponent<CharacterComponentData>()
+      val characterComponentData = characterComponent.data
+      val interactingEntityName = characterComponentData.name
+
+
+      val spawnItemOnUseConfig = equippedToolItemConfig.spawnItemOnUseConfig
+      if (spawnItemOnUseConfig != null) {
+         fun getBlockingEntities() = this.getNearestEntities(
+            searchLocation = interactingEntity.resolvePosition(),
+            maxDistance = 100.0,
+            filter = {
+               val itemConfigKey = it.getComponentOrNull<ItemComponentData>()?.data?.itemConfigKey
+
+               if (itemConfigKey != null) {
+                  val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
+                  itemConfig.blocksPlacement
+               } else {
+                  false
+               }
+            }
+         )
+
+
+         if (getBlockingEntities().isEmpty()) {
+            this.applyPerformedAction(
+               entity = interactingEntity,
+               actionType = ActionType.UseEquippedTool,
+               targetEntityId = null
+            )
+
+            this.queueCallbackAfterSimulationTimeDelay(
+               simulationTimeDelay = 0.45,
+               isValid = { !interactingEntity.isDead && getBlockingEntities().isEmpty() }
+            ) {
+               val spawnItemConfig = this.getConfig<ItemConfig>(spawnItemOnUseConfig.spawnItemConfigKey)
+
+               this.addActivityStreamEntry(
+                  ActivityStreamEntry(
+                     time = this.getCurrentSimulationTime(),
+                     sourceIconPath = null,
+                     title = "$interactingEntityName created a ${spawnItemConfig.name}",
+                     sourceLocation = interactingEntity.resolvePosition(),
+                     targetIconPath = spawnItemConfig.iconUrl,
+                     actionType = "spawnOnUse"
+                  )
+               )
+
+               this.spawnItems(
+                  itemConfigKey = spawnItemOnUseConfig.spawnItemConfigKey,
+                  quantity = spawnItemOnUseConfig.quantity,
+                  baseLocation = interactingEntity.resolvePosition(),
+                  randomLocationScale = spawnItemOnUseConfig.randomDistanceScale
+               )
+            }
+         }
+
+         return UseEquippedItemResult.Success
+      }
+
+      return UseEquippedItemResult.NoActionForEquippedTool
+   }
+
    enum class InteractWithEntityUsingEquippedItemResult {
       Success,
-      NoItemEquipped,
-      EquippedItemCannotDamageTarget,
-      TooFar
+      NoToolItemEquipped,
+      NoActionAvailable,
+      TooFar,
+      TargetEntityIsDead,
+      InteractingEntityIsDead,
+      InteractingEntityBusy
    }
 
    fun interactWithEntityUsingEquippedItem(
@@ -490,15 +741,37 @@ class GameSimulation(
       val characterComponent = interactingEntity.getComponent<CharacterComponentData>()
       val characterComponentData = characterComponent.data
 
-      val equippedItemId = characterComponentData.equippedItemConfigKey
-      val equippedItemConfig = equippedItemId?.let { this.getConfig<ItemConfig>(it) }
+      val equippedToolItemConfigAndStackIndex = interactingEntity.getEquippedItemConfigAndStackIndex(EquipmentSlot.Tool)
 
-      if (equippedItemId == null) {
-         return InteractWithEntityUsingEquippedItemResult.NoItemEquipped
+
+      if (equippedToolItemConfigAndStackIndex == null) {
+         return InteractWithEntityUsingEquippedItemResult.NoToolItemEquipped
       }
 
-      val itemComponent = targetEntity.getComponent<ItemComponentData>()
-      val itemConfig = this.getConfig<ItemConfig>(itemComponent.data.itemConfigKey)
+      val equippedStackIndex = equippedToolItemConfigAndStackIndex.first
+      val equippedToolItemConfig = equippedToolItemConfigAndStackIndex.second
+
+
+      val targetEntityIsDead = targetEntity.isDead
+
+      if (targetEntityIsDead) {
+         return InteractWithEntityUsingEquippedItemResult.TargetEntityIsDead
+      }
+
+      val interactingEntityIsKilled = interactingEntity.isDead
+
+      if (interactingEntityIsKilled) {
+         return InteractWithEntityUsingEquippedItemResult.InteractingEntityIsDead
+      }
+
+      if (!interactingEntity.isAvailableToPerformAction) {
+         return InteractWithEntityUsingEquippedItemResult.InteractingEntityBusy
+      }
+
+      val targetItemComponent = targetEntity.getComponent<ItemComponentData>()
+      val targetItemConfig = this.getConfig<ItemConfig>(targetItemComponent.data.itemConfigKey)
+
+      val interactingEntityName = characterComponentData.name
 
       val maxDistance = 50.0
 
@@ -511,45 +784,96 @@ class GameSimulation(
          return InteractWithEntityUsingEquippedItemResult.TooFar
       }
 
-      if (itemConfig.canBeDamagedByItem != equippedItemId) {
-         return InteractWithEntityUsingEquippedItemResult.EquippedItemCannotDamageTarget
+      if (targetItemConfig.killableConfig?.canBeDamagedByToolItemConfigKey != null &&
+         targetItemConfig.killableConfig.canBeDamagedByToolItemConfigKey == equippedToolItemConfig.key
+      ) {
+         val killableComponent = targetEntity.getComponent<KillableComponentData>()
+
+         this.applyPerformedAction(
+            entity = interactingEntity,
+            actionType = ActionType.UseToolToDamageEntity,
+            targetEntityId = targetEntity.entityId,
+            duration = 1.0
+         )
+
+         this.queueCallbackAfterSimulationTimeDelay(
+            simulationTimeDelay = 0.45,
+            isValid = { targetEntity.exists && killableComponent.data.killedAtTime == null }
+         ) {
+            this.addActivityStreamEntry(
+               ActivityStreamEntry(
+                  time = this.getCurrentSimulationTime(),
+                  title = "$interactingEntityName harvested a ${targetItemConfig.name} using a ${equippedToolItemConfig.name}",
+                  sourceIconPath = null,
+                  sourceLocation = interactingEntityPosition,
+                  targetIconPath = targetItemConfig.iconUrl,
+                  actionIconPath = equippedToolItemConfig.iconUrl,
+                  actionType = "harvest"
+               )
+            )
+
+            this.applyDamageToEntity(
+               targetEntity = targetEntity,
+               damage = 1000
+            )
+         }
+
+         return InteractWithEntityUsingEquippedItemResult.Success
       }
 
-      val name = characterComponentData.name
+      if (targetItemConfig.growerConfig != null) {
+         val growerComponent = targetEntity.getComponent<GrowerComponentData>()
 
+         if (targetItemConfig.growerConfig.canReceiveGrowableItemConfigKeys.contains(equippedToolItemConfig.key) &&
+            growerComponent.data.activeGrowth == null
+         ) {
+            this.applyPerformedAction(
+               entity = interactingEntity,
+               actionType = ActionType.PlaceGrowableInGrower,
+               targetEntityId = null
+            )
 
-      if (equippedItemConfig != null) {
-         this.addActivityStreamEntry(
-            ActivityStreamEntry(
-               time = this.getCurrentSimulationTime(),
-               title = "$name harvested a ${itemConfig.name} using a ${equippedItemConfig.name}",
-               sourceIconPath = null,
-               sourceLocation = interactingEntityPosition,
-               targetIconPath = itemConfig.iconUrl,
-               actionIconPath = equippedItemConfig.iconUrl,
-               actionType = "harvest"
-            )
-         )
-      } else {
-         this.addActivityStreamEntry(
-            ActivityStreamEntry(
-               time = this.getCurrentSimulationTime(),
-               sourceIconPath = null,
-               title = "$name harvested a ${itemConfig.name}",
-               sourceLocation = interactingEntityPosition,
-               targetIconPath = itemConfig.iconUrl,
-               actionType = "harvest"
-            )
-         )
+            this.queueCallbackAfterSimulationTimeDelay(
+               simulationTimeDelay = 0.45,
+               isValid = {
+                  targetEntity.exists &&
+                          growerComponent.data.activeGrowth == null &&
+                          !interactingEntity.isDead &&
+                          interactingEntity.getEquippedItemConfig(EquipmentSlot.Tool) == equippedToolItemConfig
+               }
+            ) {
+               this.addActivityStreamEntry(
+                  ActivityStreamEntry(
+                     time = this.getCurrentSimulationTime(),
+                     sourceIconPath = null,
+                     title = "$interactingEntityName planted ${equippedToolItemConfig.name}",
+                     sourceLocation = interactingEntity.resolvePosition(),
+                     targetIconPath = equippedToolItemConfig.iconUrl,
+                     actionType = "placeGrowableInGrower"
+                  )
+               )
+
+               growerComponent.modifyData {
+                  it.copy(
+                     activeGrowth = ActiveGrowth(
+                        startTime = this.getCurrentSimulationTime(),
+                        itemConfigKey = equippedToolItemConfig.key
+                     )
+                  )
+               }
+
+               interactingEntity.takeInventoryItemFromStack(
+                  itemConfigKey = equippedToolItemConfig.spriteConfigKey,
+                  stackIndex = equippedStackIndex,
+                  amountToTake = 1
+               )
+            }
+
+            return InteractWithEntityUsingEquippedItemResult.Success
+         }
       }
 
-
-      this.applyDamageToEntity(
-         targetEntity = targetEntity,
-         damage = 1000
-      )
-
-      return InteractWithEntityUsingEquippedItemResult.Success
+      return InteractWithEntityUsingEquippedItemResult.NoActionAvailable
    }
 
    fun applyDamageToEntity(
@@ -560,29 +884,71 @@ class GameSimulation(
          throw Exception("Damage cannot be negative")
       }
 
-      val itemComponent = targetEntity.getComponent<ItemComponentData>()
-      val itemConfig = this.getConfig<ItemConfig>(itemComponent.data.itemConfigKey)
+      val killableComponent = targetEntity.getComponent<KillableComponentData>()
 
-      itemComponent.modifyData {
+      if (killableComponent.data.killedAtTime != null) {
+         return
+      }
+
+      val newHp = Math.max(0, killableComponent.data.hp - damage)
+
+      val shouldKill = newHp == 0
+
+      killableComponent.modifyData {
          it.copy(
-            hp = Math.max(0, it.hp - damage)
+            hp = newHp,
+            killedAtTime = if (shouldKill) {
+               this.getCurrentSimulationTime()
+            } else {
+               null
+            }
          )
       }
 
-      if (itemComponent.data.hp == 0) {
-         if (itemConfig.spawnItemOnDestruction != null) {
-            this.spawnItems(
-               itemConfigKey = itemConfig.spawnItemOnDestruction,
-               baseLocation = targetEntity.resolvePosition(),
-               randomLocationScale = 50.0,
-               minAmountPerStack = itemConfig.spawnMinAmountPerStack,
-               maxAmountPerStack = itemConfig.spawnMaxAmountPerStack,
-               minStacks = itemConfig.spawnMinStacks,
-               maxStacks = itemConfig.spawnMaxStacks
-            )
+      if (shouldKill) {
+         val itemComponent = targetEntity.getComponentOrNull<ItemComponentData>()
+
+         if (itemComponent != null) {
+            val itemConfig = this.getConfig<ItemConfig>(itemComponent.data.itemConfigKey)
+
+            if (itemConfig.spawnItemOnDestructionConfig != null) {
+               this.spawnItems(
+                  itemConfigKey = itemConfig.spawnItemOnDestructionConfig.spawnItemConfigKey,
+                  baseLocation = targetEntity.resolvePosition(),
+                  randomLocationScale = 50.0,
+                  quantity = itemConfig.spawnItemOnDestructionConfig.quantity
+               )
+            }
          }
 
-         targetEntity.destroy()
+         val inventoryComponent = targetEntity.getComponentOrNull<InventoryComponentData>()
+
+         if (inventoryComponent != null) {
+            val inventory = inventoryComponent.data.inventory
+
+            while (true) {
+               var stackIndex = 0
+               for (itemStack in inventory.itemStacks) {
+                  val inventoryItemConfig = this.getConfig<ItemConfig>(itemStack.itemConfigKey)
+
+                  if (inventoryItemConfig.storableConfig != null) {
+                     val didDrop = this.dropItemStack(
+                        droppingEntity = targetEntity,
+                        expectedItemConfigKey = itemStack.itemConfigKey,
+                        stackIndex = stackIndex
+                     )
+
+                     if (!didDrop) {
+                        throw Exception("Unexpected failure to drop item: " + inventoryItemConfig.key + ", " + stackIndex)
+                     }
+
+                     // jshmrsn: Don't increment stack index to account for this stack being removed via dropping
+                  } else {
+                     ++stackIndex
+                  }
+               }
+            }
+         }
       }
    }
 
@@ -604,7 +970,7 @@ class GameSimulation(
          return PickUpItemResult.TooFar
       }
 
-      if (!itemConfig.canBePickedUp) {
+      if (itemConfig.storableConfig == null) {
          throw Exception("Item can't be picked up: " + itemConfig.key)
       }
 
@@ -616,6 +982,12 @@ class GameSimulation(
       targetEntity.destroy()
 
       val characterComponentData = pickingUpEntity.getComponentOrNull<CharacterComponentData>()?.data
+
+      this.applyPerformedAction(
+         entity = pickingUpEntity,
+         actionType = ActionType.PickupItem,
+         targetEntityId = null
+      )
 
       val name = characterComponentData?.name ?: "?"
       val entityPosition = pickingUpEntity.resolvePosition()
@@ -749,22 +1121,17 @@ class GameSimulation(
    }
 
    fun spawnItems(
-      itemConfigKey: String,
+      itemConfig: ItemConfig,
+      quantity: RandomItemQuantity,
       baseLocation: Vector2,
       randomLocationScale: Double = 0.0,
       randomLocationExponent: Double = 1.0,
-      minStacks: Int = 1,
-      maxStacks: Int = 1,
-      minAmountPerStack: Int = 1,
-      maxAmountPerStack: Int = 1
    ) {
-      val stackCount = Random.nextInt(minStacks, maxStacks + 1)
+      val stackAmounts = quantity.resolveStackAmountsForItemConfig(itemConfig)
 
-      for (i in 0..<stackCount) {
-         val amount = Random.nextInt(minAmountPerStack, maxAmountPerStack + 1)
-
+      stackAmounts.forEach { amount ->
          this.spawnItem(
-            itemConfigKey = itemConfigKey,
+            itemConfig = itemConfig,
             amount = amount,
             location = baseLocation + Vector2.randomSignedXY(
                randomLocationScale,
@@ -775,6 +1142,24 @@ class GameSimulation(
       }
    }
 
+   fun spawnItems(
+      itemConfigKey: String,
+      baseLocation: Vector2,
+      randomLocationScale: Double = 0.0,
+      randomLocationExponent: Double = 1.0,
+      quantity: RandomItemQuantity
+   ) {
+      val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
+
+      this.spawnItems(
+         itemConfig = itemConfig,
+         quantity = quantity,
+         baseLocation = baseLocation,
+         randomLocationScale = randomLocationScale,
+         randomLocationExponent = randomLocationExponent
+      )
+   }
+
    fun spawnItem(
       itemConfigKey: String,
       location: Vector2,
@@ -782,18 +1167,41 @@ class GameSimulation(
    ) {
       val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
 
-      this.createEntity(
-         listOf(
-            ItemComponentData(
-               hp = itemConfig.maxHp,
-               itemConfigKey = itemConfig.key,
-               amount = amount
-            ),
-            PositionComponentData(
-               positionAnimation = Vector2Animation.static(location)
-            )
+      this.spawnItem(
+         itemConfig = itemConfig,
+         location = location,
+         amount = amount
+      )
+   }
+
+   fun spawnItem(
+      itemConfig: ItemConfig,
+      location: Vector2,
+      amount: Int = 1
+   ) {
+      val components = mutableListOf(
+         ItemComponentData(
+            itemConfigKey = itemConfig.key,
+            amount = amount
+         ),
+         PositionComponentData(
+            positionAnimation = Vector2Animation.static(location)
          )
       )
+
+      if (itemConfig.killableConfig != null) {
+         components.add(
+            KillableComponentData(
+               hp = itemConfig.killableConfig.maxHp
+            )
+         )
+      }
+
+      if (itemConfig.growerConfig != null) {
+         components.add(GrowerComponentData())
+      }
+
+      this.createEntity(components)
    }
 
    fun buildRandomCharacterBodySelections(
@@ -817,7 +1225,7 @@ class GameSimulation(
                variant = it.includedVariants.random()
             )
          },
-         wrinkles = characterBodySelectionsConfig.wrinkles.randomWithNullChance(0.75),
+         wrinkles = characterBodySelectionsConfig.wrinkles.randomWithNullChance(1.0),
          hair = characterBodySelectionsConfig.hairs
             .filter { hairColor == null || it.includedVariants.contains(hairColor) }
             .randomWithNullChance(nullChance = noHairChance ?: 0.05)?.let {
@@ -851,6 +1259,9 @@ class GameSimulation(
                age = age,
                bodySelections = bodySelections
             ),
+            KillableComponentData(
+               hp = 100
+            ),
             InventoryComponentData(),
             PositionComponentData(
                positionAnimation = Vector2Animation.static(location)
@@ -859,230 +1270,305 @@ class GameSimulation(
       )
    }
 
-   override fun handleClientMessage(client: Client, messageType: String, messageData: JsonObject) {
-      val userControlledEntity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+   fun getNearestEntities(
+      searchLocation: Vector2,
+      maxDistance: Double? = null,
+      filter: (Entity) -> Boolean
+   ): List<Entity> {
+      return this.entities
+         .mapNotNull { entity ->
+            val positionComponent = entity.getComponentOrNull<PositionComponentData>()
 
-      val playerPosition = userControlledEntity?.resolvePosition() ?: Vector2.zero
+            if (positionComponent != null) {
+               val position = entity.resolvePosition()
+               val distance = position.distance(searchLocation)
 
-      fun getRandomLocationRelativeToPlayer(scale: Double = 100.0): Vector2 {
-         return playerPosition + Vector2.randomSignedXY(scale, scale)
-      }
-
-      val nearestOtherCharacterEntity = this.entities
-         .mapNotNull { otherEntity ->
-            val character = otherEntity.getComponentOrNull<CharacterComponentData>()
-
-            if (character != null && otherEntity.entityId != userControlledEntity?.entityId) {
-               val position = otherEntity.resolvePosition()
-
-               val distance = position.distance(playerPosition)
-
-               Pair(otherEntity, distance)
+               if ((maxDistance == null || distance < maxDistance) && filter(entity)) {
+                  Pair(entity, distance)
+               } else {
+                  null
+               }
             } else {
                null
             }
          }
          .sortedBy { it.second }
          .map { it.first }
-         .firstOrNull()
+   }
 
-      if (messageType == "MoveToPointMessage") {
-         val message = Json.decodeFromJsonElement<MoveToPointMessage>(messageData)
-         this.handleMoveToPointMessage(client, message)
-      } else if (messageType == "EquipItemMessage") {
-         val message = Json.decodeFromJsonElement<EquipItemMessage>(messageData)
-         this.handleEquipItemMessage(client, message)
-      } else if (messageType == "CraftItemMessage") {
-         val message = Json.decodeFromJsonElement<CraftItemMessage>(messageData)
-         this.handleCraftItemMessage(client, message)
-      } else if (messageType == "ClearPendingInteractionTargetMessage") {
-         val message = Json.decodeFromJsonElement<ClearPendingInteractionTargetMessage>(messageData)
-         this.handleClearPendingInteractionMessage(client, message)
-      } else if (messageType == "PickUpItemMessage") {
-         val message = Json.decodeFromJsonElement<PickUpItemMessage>(messageData)
-         this.handlePickUpItemMessage(client, message)
-      } else if (messageType == "DropItemMessage") {
-         val message = Json.decodeFromJsonElement<DropItemMessage>(messageData)
-         this.handleDropItemMessage(client, message)
-      } else if (messageType == "AddCharacterMessageMessage") {
-         val message = Json.decodeFromJsonElement<AddCharacterMessageMessage>(messageData)
+   fun getNearestEntity(
+      searchLocation: Vector2,
+      maxDistance: Double? = null,
+      filter: (Entity) -> Boolean
+   ): Entity? {
+      return this.getNearestEntities(
+         searchLocation = searchLocation,
+         maxDistance = maxDistance,
+         filter = filter
+      ).firstOrNull()
+   }
 
-         if (message.message.startsWith("/")) {
-            val components = message.message.split(" ")
-            val command = components.first().replace("/", "")
+   override fun handleClientMessage(client: Client, messageType: String, messageData: JsonObject) {
+      val userControlledEntity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+      val playerPosition = userControlledEntity?.resolvePosition() ?: Vector2.zero
 
-            when (command) {
-               "pause-ai" -> {
-                  broadcastAlertMessage("AI paused")
-                  this.shouldPauseAi = true
-               }
+      when (messageType) {
+         "MoveToPointRequest" -> {
+            val request = Json.decodeFromJsonElement<MoveToPointRequest>(messageData)
+            this.handleMoveToPointRequest(client, request)
+         }
 
-               "resume-ai" -> {
-                  broadcastAlertMessage("AI resumed")
-                  this.shouldPauseAi = false
-               }
+         "UseEquippedToolItemRequest" -> {
+            val request = Json.decodeFromJsonElement<UseEquippedToolItemRequest>(messageData)
+            this.handleUseEquippedItemRequest(client, request)
+         }
 
-               "name" -> {
-                  val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
-                  val name = components.getOrNull(1)
+         "EquipItemRequest" -> {
+            val request = Json.decodeFromJsonElement<EquipItemRequest>(messageData)
+            this.handleEquipItemRequest(client, request)
+         }
 
-                  if (entity != null && name != null) {
-                     val characterComponent = entity.getComponent<CharacterComponentData>()
-                     this.broadcastAlertAsGameMessage("${characterComponent.data.name} changed name to $name")
+         "UnequipItemRequest" -> {
+            val request = Json.decodeFromJsonElement<UnequipItemRequest>(messageData)
+            this.handleUnequipItemRequest(client, request)
+         }
 
-                     characterComponent.modifyData {
-                        it.copy(
-                           name = name
-                        )
-                     }
-                  }
-               }
+         "CraftItemRequest" -> {
+            val request = Json.decodeFromJsonElement<CraftItemRequest>(messageData)
+            this.handleCraftItemRequest(client, request)
+         }
 
-               "reroll" -> {
-                  val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
-                  val gender = components.getOrNull(1)
-                  val skinColor = components.getOrNull(2)
-                  val hairColor = components.getOrNull(3)
+         "ClearPendingInteractionTargetRequest" -> {
+            val request = Json.decodeFromJsonElement<ClearPendingInteractionTargetRequest>(messageData)
+            this.handleClearPendingInteractionRequest(client, request)
+         }
 
-                  if (entity != null) {
-                     val characterComponent = entity.getComponent<CharacterComponentData>()
-                     this.broadcastAlertAsGameMessage("${characterComponent.data.name} re-rolled")
+         "DropItemRequest" -> {
+            val request = Json.decodeFromJsonElement<DropItemRequest>(messageData)
+            this.handleDropItemRequest(client, request)
+         }
 
-                     characterComponent.modifyData {
-                        it.copy(
-                           bodySelections = this.buildRandomCharacterBodySelections(
-                              bodyType = gender,
-                              skinColor = skinColor,
-                              hairColor = hairColor,
-                              noHairChance = if (hairColor != null) 0.0 else null
-                           )
-                        )
-                     }
-                  }
-               }
+         "AddCharacterMessageRequest" -> {
+            this.handleAddCharacterMessageRequest(
+               messageData = messageData,
+               client = client,
+               playerPosition = playerPosition,
+               userControlledEntity = userControlledEntity
+            )
+         }
 
-               "spawn-item" -> {
-                  val configKey = components.getOrNull(1) ?: "stone"
-                  val amount = components.getOrNull(2)?.toInt() ?: 1
-                  val count = components.getOrNull(3)?.toInt() ?: 1
+         else -> throw Exception("Unhandled client message type: $messageType")
+      }
+   }
 
-                  for (i in 0..(count - 1)) {
-                     this.spawnItem(
-                        itemConfigKey = configKey,
-                        amount = amount,
-                        location = getRandomLocationRelativeToPlayer(scale = 150.0)
-                     )
-                  }
-               }
+   private fun handleAddCharacterMessageRequest(
+      messageData: JsonObject,
+      client: Client,
+      playerPosition: Vector2,
+      userControlledEntity: Entity?
+   ) {
+      val request = Json.decodeFromJsonElement<AddCharacterMessageRequest>(messageData)
 
-               "take-item" -> {
-                  val configKey = components.getOrNull(1) ?: "stone"
-                  val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
-                  val stacks = components.getOrNull(3)?.toInt() ?: 1
+      if (request.message.startsWith("/")) {
+         this.handleServerCommandRequest(request, client, playerPosition, userControlledEntity)
+      } else if (userControlledEntity != null) {
+         this.addCharacterMessage(userControlledEntity, request.message)
+      }
+   }
 
-                  if (userControlledEntity != null) {
-                     for (i in 0..(stacks - 1)) {
-                        val remaining = userControlledEntity.getInventoryItemTotalAmount(
-                           itemConfigKey = configKey
-                        )
+   private fun handleServerCommandRequest(
+      message: AddCharacterMessageRequest,
+      client: Client,
+      playerPosition: Vector2,
+      userControlledEntity: Entity?
+   ) {
+      val nearestOtherCharacterEntity = this.getNearestEntity(
+         searchLocation = playerPosition,
+         filter = { entity ->
+            entity != userControlledEntity && entity.getComponentOrNull<CharacterComponentData>() != null
+         }
+      )
 
-                        userControlledEntity.takeInventoryItem(
-                           itemConfigKey = configKey,
-                           amount = Math.min(amountPerStack, remaining)
-                        )
-                     }
-                  }
-               }
 
-               "give-item" -> {
-                  val configKey = components.getOrNull(1) ?: "stone"
-                  val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
-                  val stacks = components.getOrNull(3)?.toInt() ?: 1
+      val components = message.message.split(" ")
+      val command = components.first().replace("/", "")
 
-                  if (userControlledEntity != null) {
-                     for (i in 0..(stacks - 1)) {
-                        userControlledEntity.giveInventoryItem(
-                           itemConfigKey = configKey,
-                           amount = amountPerStack
-                        )
-                     }
-                  }
-               }
+      when (command) {
+         "pause-ai" -> {
+            broadcastAlertMessage("AI paused")
+            this.shouldPauseAi = true
+         }
 
-               "give-item-near" -> {
-                  val configKey = components.getOrNull(1) ?: "stone"
-                  val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
-                  val stacks = components.getOrNull(3)?.toInt() ?: 1
+         "resume-ai" -> {
+            broadcastAlertMessage("AI resumed")
+            this.shouldPauseAi = false
+         }
 
-                  if (nearestOtherCharacterEntity != null) {
-                     for (i in 0..(stacks - 1)) {
-                        nearestOtherCharacterEntity.giveInventoryItem(
-                           itemConfigKey = configKey,
-                           amount = amountPerStack
-                        )
-                     }
-                  }
-               }
+         "name" -> {
+            val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+            val name = components.getOrNull(1)
 
-               "spawn-agent" -> {
-                  val type = components.getOrNull(1) ?: "1"
-                  val agentType = components.getOrNull(2) ?: AgentComponentData.defaultAgentType
-                  val name = components.getOrNull(3)
+            if (entity != null && name != null) {
+               val characterComponent = entity.getComponent<CharacterComponentData>()
+               this.broadcastAlertAsGameMessage("${characterComponent.data.name} changed name to $name")
 
-                  val spawnLocation = getRandomLocationRelativeToPlayer(scale = 150.0)
-
-                  when (type) {
-                     "1" -> {
-                        this.spawnAgent(
-                           name = name ?: "Joe",
-                           corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
-                           initialMemories = listOf(
-                              "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
-                              "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
-                           ),
-                           agentType = agentType,
-                           bodySelections = this.buildRandomCharacterBodySelections("male"),
-                           age = 25,
-                           location = spawnLocation
-                        )
-                     }
-
-                     "2" -> {
-                        this.spawnAgent(
-                           name = name ?: "Bob",
-                           corePersonality = "Friendly and trusting. Always tries to follow requests from other people, even if they don't make sense.",
-                           initialMemories = listOf(
-                              "I want to do whatever I'm told to do."
-                           ),
-                           agentType = agentType,
-                           bodySelections = this.buildRandomCharacterBodySelections("male"),
-                           age = 30,
-                           location = spawnLocation
-                        )
-                     }
-
-                     "3" -> {
-                        this.spawnAgent(
-                           name = name ?: "Linda",
-                           corePersonality = "Artsy.",
-                           initialMemories = listOf(
-                              "I want to learn how to paint."
-                           ),
-                           agentType = agentType,
-                           bodySelections = this.buildRandomCharacterBodySelections("female"),
-                           age = 24,
-                           location = spawnLocation
-                        )
-                     }
-                  }
-               }
-
-               else -> {
-                  sendAlertMessage(client, "Unknown server command: ${message.message}")
+               characterComponent.modifyData {
+                  it.copy(
+                     name = name
+                  )
                }
             }
-         } else {
-            this.addCharacterMessage(client, message)
+         }
+
+         "reroll" -> {
+            val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+            val gender = components.getOrNull(1)
+            val skinColor = components.getOrNull(2)
+            val hairColor = components.getOrNull(3)
+
+            if (entity != null) {
+               val characterComponent = entity.getComponent<CharacterComponentData>()
+               this.broadcastAlertAsGameMessage("${characterComponent.data.name} re-rolled")
+
+               characterComponent.modifyData {
+                  it.copy(
+                     bodySelections = this.buildRandomCharacterBodySelections(
+                        bodyType = gender,
+                        skinColor = skinColor,
+                        hairColor = hairColor,
+                        noHairChance = if (hairColor != null) 0.0 else null
+                     )
+                  )
+               }
+            }
+         }
+
+         "spawn-item" -> {
+            val configKey = components.getOrNull(1) ?: "stone"
+            val amount = components.getOrNull(2)?.toInt() ?: 1
+            val stackCount = components.getOrNull(3)?.toInt()
+
+            val itemQuantity = if (stackCount != null) {
+               RandomItemQuantity.stacksOfAmount(
+                  stackCount = RandomConfig.fixed(stackCount),
+                  amountPerStack = RandomConfig.fixed(amount)
+               )
+            } else {
+               RandomItemQuantity.amount(amount)
+            }
+
+            this.spawnItems(
+               itemConfigKey = configKey,
+               quantity = itemQuantity,
+               baseLocation = playerPosition,
+               randomLocationScale = 150.0
+            )
+         }
+
+         "take-item" -> {
+            val configKey = components.getOrNull(1) ?: "stone"
+            val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
+            val stacks = components.getOrNull(3)?.toInt() ?: 1
+
+            if (userControlledEntity != null) {
+               for (i in 0..(stacks - 1)) {
+                  val remaining = userControlledEntity.getInventoryItemTotalAmount(
+                     itemConfigKey = configKey
+                  )
+
+                  userControlledEntity.takeInventoryItem(
+                     itemConfigKey = configKey,
+                     amount = Math.min(amountPerStack, remaining)
+                  )
+               }
+            }
+         }
+
+         "give-item" -> {
+            val configKey = components.getOrNull(1) ?: "stone"
+            val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
+            val stacks = components.getOrNull(3)?.toInt() ?: 1
+
+            if (userControlledEntity != null) {
+               for (i in 0..(stacks - 1)) {
+                  userControlledEntity.giveInventoryItem(
+                     itemConfigKey = configKey,
+                     amount = amountPerStack
+                  )
+               }
+            }
+         }
+
+         "give-item-near" -> {
+            val configKey = components.getOrNull(1) ?: "stone"
+            val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
+            val stacks = components.getOrNull(3)?.toInt() ?: 1
+
+            if (nearestOtherCharacterEntity != null) {
+               for (i in 0..(stacks - 1)) {
+                  nearestOtherCharacterEntity.giveInventoryItem(
+                     itemConfigKey = configKey,
+                     amount = amountPerStack
+                  )
+               }
+            }
+         }
+
+         "spawn-agent" -> {
+            val type = components.getOrNull(1) ?: "1"
+            val agentType = components.getOrNull(2) ?: AgentComponentData.defaultAgentType
+            val name = components.getOrNull(3)
+
+            val spawnLocation = playerPosition + Vector2.randomSignedXY(150.0)
+
+            when (type) {
+               "1" -> {
+                  this.spawnAgent(
+                     name = name ?: "Joe",
+                     corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
+                     initialMemories = listOf(
+                        "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
+                        "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
+                     ),
+                     agentType = agentType,
+                     bodySelections = this.buildRandomCharacterBodySelections("male"),
+                     age = 25,
+                     location = spawnLocation
+                  )
+               }
+
+               "2" -> {
+                  this.spawnAgent(
+                     name = name ?: "Bob",
+                     corePersonality = "Friendly and trusting. Always tries to follow requests from other people, even if they don't make sense.",
+                     initialMemories = listOf(
+                        "I want to do whatever I'm told to do."
+                     ),
+                     agentType = agentType,
+                     bodySelections = this.buildRandomCharacterBodySelections("male"),
+                     age = 30,
+                     location = spawnLocation
+                  )
+               }
+
+               "3" -> {
+                  this.spawnAgent(
+                     name = name ?: "Linda",
+                     corePersonality = "Artsy.",
+                     initialMemories = listOf(
+                        "I want to learn how to paint."
+                     ),
+                     agentType = agentType,
+                     bodySelections = this.buildRandomCharacterBodySelections("female"),
+                     age = 24,
+                     location = spawnLocation
+                  )
+               }
+            }
+         }
+
+         else -> {
+            sendAlertMessage(client, "Unknown server command: ${message.message}")
          }
       }
    }
@@ -1165,6 +1651,9 @@ class GameSimulation(
                name = "Player",
                age = 30,
                bodySelections = this.buildRandomCharacterBodySelections()
+            ),
+            KillableComponentData(
+               hp = 100
             ),
             InventoryComponentData(),
             PositionComponentData(

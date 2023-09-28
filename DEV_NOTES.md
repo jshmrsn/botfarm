@@ -1,1 +1,0 @@
-This Webpack development server is configured to proxy requests to `5001`, which is the default port that the simulation server runs on.

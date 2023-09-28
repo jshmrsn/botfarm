@@ -109,10 +109,10 @@ npm start
 ```
 This should start a React/Webpack development server on port `3005`.  
 This will automatically recompile and reload the client whenever you change any client source code (Typescript) or assets.
-See [How to Play](HOW_TO_PLAY.md)
+See [How to Play](docs/how-to-play.md)
 
 ## Deployment
-See [Deployment](DEPLOYMENT.md)
+See [Deployment](docs/deployment.md)
 
 
 ## Areas to Contribute
@@ -144,7 +144,17 @@ Along with continuing broad development on the existing functionality, the follo
 
 - Farming mechanics.
 
+- Basic combat mechanics (so we can evaluate which situations agents would choose to engage in violence)
+
+- Clothing items, and integration into entity description provided to agents.
+
 - Dynamic pathfinding grid (update path finding grid when placing blocking entities like houses/trees)
+
+- General game sound effects
+
+- Integrate text-to-speech
+
+- Integrate voice-to-text
 
 ## “Botfarm”?
 The current game simulation is a farming/harvesting/crafting game. So bots farming is a positive thing in the context of this project :)

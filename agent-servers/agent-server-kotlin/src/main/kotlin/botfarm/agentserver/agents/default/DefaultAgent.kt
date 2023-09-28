@@ -52,6 +52,29 @@ class DefaultAgent(
       this.memoryState.longTermMemories.addAll(initialLongTermMemories)
    }
 
+   companion object {
+      fun getSortedObservedEntities(
+         inputs: AgentStepInputs,
+         selfInfo: SelfInfo
+      ) = inputs.newObservations.entitiesById
+         .values
+         .sortedWith { a, b ->
+            val isCharacterA = a.characterEntityInfo != null
+            val isCharacterB = b.characterEntityInfo != null
+            if (isCharacterA != isCharacterB) {
+               if (isCharacterA) {
+                  -1
+               } else {
+                  1
+               }
+            } else {
+               val distanceA = a.location.distance(selfInfo.entityInfo.location)
+               val distanceB = b.location.distance(selfInfo.entityInfo.location)
+               distanceA.compareTo(distanceB)
+            }
+         }
+   }
+
    override fun consumeInputs(inputs: AgentStepInputs) {
       val pendingEvents = inputs.newObservations
 
@@ -230,7 +253,9 @@ class DefaultAgent(
 
       provideResult(
          AgentStepResult(
-            agentStatus = "running-prompt"
+            agentStatus = "running-prompt",
+            statusStartUnixTime = getCurrentUnixTimeSeconds(),
+            statusDuration = null
          )
       )
 
@@ -302,13 +327,14 @@ class DefaultAgent(
             """
             ## OUTPUT_SCHEMA
             Respond with a JSON object with the following top-level keys.
-            Use the ${constants.locationToWalkToAndReasonKey} top-level key to walk to different locations (expects a JSON object with the keys location, reason)
-            Use the ${constants.newThoughtsKey} top-level key to store important thoughts so you can remember them later (expects a JSON array of strings)
+            Use the optional ${constants.locationToWalkToAndReasonKey} top-level key to walk to different locations (expects a JSON object with the keys location, reason)
+            Use the optional ${constants.newThoughtsKey} top-level key to store important thoughts so you can remember them later (expects a JSON array of strings)
             Use the optional ${constants.iWantToSayKey} top-level key if you want to say something (expects a string value)
             Use the optional ${constants.actionOnEntityKey} top-level key when you want to use an action listed in availableActionIds of an OBSERVED_ENTITY (expects a JSON object with the keys targetEntityId, actionId, reason)
             Use the optional ${constants.actionOnInventoryItemKey} top-level key when you use an action listed in availableActionIds of an item in YOUR_ITEM_INVENTORY (expects a JSON object with the keys actionId, itemConfigKey, reason)
             Use the optional ${constants.craftItemKey} top-level key when you want to craft a new item (only if you have the needed cost items in your inventory) (expects a JSON object with the keys itemConfigKey, reason)
-            Use the optional ${constants.facialExpressionEmojiKey} top-level key to show your current emotions (expects a string containing a single emoji)
+            Use the optional ${constants.useEquippedToolItemKey} top-level key if you want to use your currently equipped tool item (expects a JSON object with the key reason. This JSON object doesn't need an actionId or anything because it just assumes your equipped item)
+            Use the required ${constants.facialExpressionEmojiKey} top-level key to show your current emotions (expects a string containing a single emoji)
             You can use multiple top-level key keys at once, for example if you want to talk and also move somewhere at the same time.
             Do not try to make up or guess an actionId, itemConfigKey, or targetEntityId. Only use the values that you see in this prompt. This is very important.
          """.trimIndent()
@@ -351,10 +377,6 @@ class DefaultAgent(
                put("youHaveQuantity", itemStack.amount)
 
                putJsonArray("availableActionIds") {
-                  itemStack.availableActionIds.forEach {
-                     add(JsonPrimitive(it))
-                  }
-
                   if (itemStack.canBeEquipped) {
                      add(JsonPrimitive("equipItem"))
                   }
@@ -388,21 +410,7 @@ class DefaultAgent(
       builder.addSection("observedEntities", reserveTokens = 1000) {
          it.addLine("## OBSERVED_ENTITIES")
 
-         val sortedEntities = inputs.newObservations.entitiesById
-            .values
-            .sortedWith { a, b ->
-               if (a.characterEntityInfo != null &&
-                  b.characterEntityInfo != null
-               ) {
-                  val distanceA = a.location.distance(selfInfo.entityInfo.location)
-                  val distanceB = b.location.distance(selfInfo.entityInfo.location)
-                  distanceA.compareTo(distanceB)
-               } else if (a.characterEntityInfo != null) {
-                  -1
-               } else {
-                  1
-               }
-            }
+         val sortedEntities = DefaultAgent.getSortedObservedEntities(inputs, selfInfo)
 
          var entityIndex = 0
          for (entityInfo in sortedEntities) {
@@ -420,7 +428,7 @@ class DefaultAgent(
 
             ++entityIndex
          }
-         it.addLine("")
+         it.addLine("", optional = true)
       }
 
       builder.addSection("shortTermMemory") {
@@ -498,6 +506,8 @@ class DefaultAgent(
 
 
       val promptId = buildShortRandomString()
+
+      val promptSendTime = getCurrentUnixTimeSeconds()
 
       val promptResult = runPromptWithJsonOutput(
          openAI = openAI,
@@ -579,6 +589,7 @@ class DefaultAgent(
 
       val actionOnInventoryItem = response.actionOnInventoryItem
       val craftItemAction = response.craftItem
+      val useEquippedToolItem = response.useEquippedToolItem
 
       val newThoughts = response.newThoughts ?: listOf()
 
@@ -618,7 +629,8 @@ class DefaultAgent(
          actionOnInventoryItem = actionOnInventoryItem,
          iWantToSay = iWantToSay,
          facialExpressionEmoji = facialExpressionEmoji,
-         craftItemAction = craftItemAction
+         craftItemAction = craftItemAction,
+         useEquippedToolItem = useEquippedToolItem
       )
 
       promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
@@ -649,6 +661,7 @@ class DefaultAgent(
          AgentStepResult(
             interactions = interactions,
             newDebugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
+            statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",
             promptUsages = promptUsages,
             wasRateLimited = wasRateLimited,

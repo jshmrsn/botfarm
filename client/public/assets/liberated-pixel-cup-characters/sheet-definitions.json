@@ -120,6 +120,43 @@
             "sara"
         ]
     },
+    "pickaxe": {
+        "name": "Pickaxe",
+        "type_name": "weapon",
+        "layer_1": {
+            "zPos": 9,
+            "male": "tools/smash/universal/behind/",
+            "muscular": "tools/smash/universal/behind/",
+            "female": "tools/smash/universal/behind/",
+            "pregnant": "tools/smash/universal/behind/"
+        },
+        "layer_2": {
+            "zPos": 140,
+            "male": "tools/smash/universal/",
+            "muscular": "tools/smash/universal/",
+            "female": "tools/smash/universal/",
+            "pregnant": "tools/smash/universal/"
+        },
+        "layer_3": {
+            "zPos": 8,
+            "custom_animation": "slash_128",
+            "male": "tools/smash/background/",
+            "muscular": "tools/smash/background/",
+            "female": "tools/smash/background/",
+            "pregnant": "tools/smash/background/"
+        },
+        "layer_4": {
+            "zPos": 150,
+            "custom_animation": "slash_128",
+            "male": "tools/smash/foreground/",
+            "muscular": "tools/smash/foreground/",
+            "female": "tools/smash/foreground/",
+            "pregnant": "tools/smash/foreground/"
+        },
+        "variants": [
+            "pickaxe"
+        ]
+    },
     "weapon_blunt_waraxe": {
         "name": "Waraxe",
         "type_name": "weapon",
@@ -4547,10 +4584,10 @@
         },
         "variants": [
             "axe",
-            "hammer",
-            "pickaxe"
+            "hammer"
         ]
     },
+    
     "hair_lob": {
         "name": "Lob",
         "type_name": "hair",

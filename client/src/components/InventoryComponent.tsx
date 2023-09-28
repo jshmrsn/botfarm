@@ -25,11 +25,6 @@ export function InventoryComponent(props: InventoryComponentProps): JSX.Element 
   const inventory = inventoryComponent.data.inventory;
   const itemStacks = inventory.itemStacks
 
-
-  const characterComponent = entity.getComponentOrNull<CharacterComponentData>("CharacterComponentData")
-  const equippedItemConfigKey = characterComponent?.data.equippedItemConfigKey
-
-
   return <div
     style={{
       display: "flex",
@@ -37,13 +32,13 @@ export function InventoryComponent(props: InventoryComponentProps): JSX.Element 
       gap: 5
     }}
   >
-    {itemStacks.map((itemStack, index) => {
+    {itemStacks.map((itemStack, stackIndex) => {
       const itemConfigKey = itemStack.itemConfigKey;
       const itemConfig = simulation.getConfig<ItemConfig>(itemConfigKey, "ItemConfig")
-      const isEquipped = equippedItemConfigKey === itemStack.itemConfigKey
+      const isEquipped = itemStack.isEquipped
 
       return <div
-        key={itemConfigKey + ":" + index}
+        key={itemConfigKey + ":" + stackIndex}
         style={{
           display: "flex",
           flexDirection: "row",
@@ -63,26 +58,29 @@ export function InventoryComponent(props: InventoryComponentProps): JSX.Element 
           }}
         />
         <Text><b>x{itemStack.amount}</b></Text>
-        {!props.viewOnly && itemConfig.canBeEquipped && !isEquipped ? <ActionIcon size={35} variant={"filled"} onClick={() => {
-          simulation.sendMessage("EquipItemMessage", {
-            itemConfigKey: itemConfigKey
+        {!props.viewOnly && itemConfig.equippableConfig && !isEquipped ? <ActionIcon size={35} variant={"filled"} onClick={() => {
+          simulation.sendMessage("EquipItemRequest", {
+            expectedItemConfigKey: itemConfigKey,
+            stackIndex: stackIndex
           })
         }}>
           <IconHandGrab size={18}/>
         </ActionIcon> : null}
 
-        {!props.viewOnly && itemConfig.canBeEquipped && isEquipped ? <ActionIcon size={35} variant={"filled"} onClick={() => {
-          simulation.sendMessage("EquipItemMessage", {
-            itemConfigKey: null
+        {!props.viewOnly && itemConfig.equippableConfig && isEquipped ? <ActionIcon size={35} variant={"filled"} onClick={() => {
+          simulation.sendMessage("UnequipItemRequest", {
+            expectedItemConfigKey: itemConfigKey,
+            stackIndex: stackIndex
           })
         }}>
           <IconHandOff size={18}/>
         </ActionIcon> : null}
 
-        {!props.viewOnly && itemConfig.canBeDropped ? <ActionIcon size={35} variant={"filled"} onClick={() => {
-          simulation.sendMessage("DropItemMessage", {
+        {!props.viewOnly && itemConfig.storableConfig && itemConfig.storableConfig.canBeDropped ? <ActionIcon size={35} variant={"filled"} onClick={() => {
+          simulation.sendMessage("DropItemRequest", {
             itemConfigKey: itemConfigKey,
-            amount: null // TODO (Also: todo, support specifying which stack)
+            amountFromStack: null, // TODO
+            stackIndex: stackIndex
           })
         }}>
           <IconArrowDown size={18}/>

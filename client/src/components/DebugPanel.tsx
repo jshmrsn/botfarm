@@ -69,43 +69,7 @@ export function DebugPanel(props: DebugPanelProps) {
         flexGrow: 1
       }}
     >
-      {/*{itemConfig != null && itemComponent != null*/}
-      {/*  ? <div*/}
-      {/*    key={"item-info"}*/}
-      {/*    style={{*/}
-      {/*      display: "flex",*/}
-      {/*      flexDirection: "column"*/}
-      {/*    }}*/}
-      {/*  >*/}
-      {/*    <Text><b>Item: {itemConfig.name} (x{itemComponent.data.amount})</b></Text>*/}
-      {/*  </div>*/}
-      {/*  : null}*/}
-
       <Tabs defaultValue="debug">
-        {/*<Tabs.List>*/}
-        {/*  <Tabs.Tab value="info" icon={<IconInfoCircle size="0.8rem"/>}>Info</Tabs.Tab>*/}
-        {/*  {inventoryComponent != null ?*/}
-        {/*    <Tabs.Tab value="inventory" icon={<IconGridDots size="0.8rem"/>}>Inventory</Tabs.Tab> : null}*/}
-        {/*  <Tabs.Tab value="debug" icon={<IconBug size="0.8rem"/>}>Debug</Tabs.Tab>*/}
-        {/*</Tabs.List>*/}
-
-        {/*<Tabs.Panel value="info" pt="xs">*/}
-        {/*  <div*/}
-        {/*    key={"content"}*/}
-        {/*    style={{*/}
-        {/*      flexGrow: 1.0,*/}
-        {/*      height: scrollAreaHeight,*/}
-        {/*      display: "flex",*/}
-        {/*      flexDirection: "column",*/}
-        {/*      overflowY: "scroll"*/}
-        {/*    }}*/}
-        {/*  >*/}
-        {/*    {itemConfig != null && itemComponent != null*/}
-        {/*      ?*/}
-        {/*      <Text>HP: {itemComponent.data.hp} / {itemConfig.maxHp} </Text>*/}
-        {/*      : null}*/}
-        {/*  </div>*/}
-        {/*</Tabs.Panel>*/}
 
         {inventoryComponent != null ? <Tabs.Panel value="inventory" pt="xs">
           <div

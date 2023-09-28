@@ -1,12 +1,15 @@
 package botfarm.simulationserver.game
 
 import botfarm.apidata.ItemCollection
+import botfarm.misc.removed
+import botfarm.misc.replaced
 import botfarm.simulationserver.simulation.Entity
 import botfarm.simulationserver.simulation.EntityComponentData
 
 data class ItemStack(
    val itemConfigKey: String,
-   val amount: Int
+   val amount: Int,
+   val isEquipped: Boolean = false
    // jshmrsn: Could later add special attributes for single-item stacks here (e.g. unique writing of a book item)
 )
 
@@ -18,6 +21,29 @@ data class InventoryComponentData(
    val inventory: Inventory = Inventory()
 ) : EntityComponentData()
 
+fun Entity.getEquippedItemConfig(
+   equipmentSlot: EquipmentSlot
+): ItemConfig? = this.getEquippedItemConfigAndStackIndex(equipmentSlot)?.second
+
+fun Entity.getEquippedItemConfigAndStackIndex(
+   equipmentSlot: EquipmentSlot
+): Pair<Int, ItemConfig>? {
+   val inventory = this.getComponent<InventoryComponentData>().data.inventory
+   return inventory.itemStacks
+      .mapIndexed { index, it -> index to it }
+      .firstNotNullOfOrNull {
+      if (it.second.isEquipped) {
+         val itemConfig = this.simulation.getConfig<ItemConfig>(it.second.itemConfigKey)
+         if (itemConfig.equippableConfig?.equipmentSlot == equipmentSlot) {
+            Pair(it.first, itemConfig)
+         } else {
+            null
+         }
+      } else {
+         null
+      }
+   }
+}
 
 
 fun Entity.getInventoryItemTotalAmount(itemConfigKey: String): Int {
@@ -52,7 +78,58 @@ fun Entity.takeInventoryItemCollection(itemCollection: ItemCollection): Boolean 
    return true
 }
 
-fun Entity.takeInventoryItem(itemConfigKey: String, amount: Int): Boolean {
+fun Entity.takeInventoryItemFromStack(
+   itemConfigKey: String,
+   stackIndex: Int,
+   amountToTake: Int
+): Boolean {
+   if (amountToTake < 0) {
+      throw Exception("takeItem: Amount cannot be negative")
+   }
+
+   if (amountToTake == 0) {
+      return true
+   }
+
+   val inventoryComponent = this.getComponent<InventoryComponentData>()
+
+   val itemStack = inventoryComponent.data.inventory.itemStacks.getOrNull(stackIndex)
+
+   if (itemStack == null ||
+      itemStack.itemConfigKey != itemConfigKey) {
+      return false
+   }
+
+   if (itemStack.amount < amountToTake) {
+      return false
+   }
+
+   inventoryComponent.modifyData {
+      it.copy(
+         inventory = it.inventory.copy(
+            itemStacks = if (itemStack.amount == amountToTake) {
+               it.inventory.itemStacks.removed(
+                  index = stackIndex
+               )
+            } else {
+               it.inventory.itemStacks.replaced(
+                  index = stackIndex,
+                  value = itemStack.copy(
+                     amount = itemStack.amount - amountToTake
+                  )
+               )
+            }
+         )
+      )
+   }
+
+   return true
+}
+
+fun Entity.takeInventoryItem(
+   itemConfigKey: String,
+   amount: Int
+): Boolean {
    if (amount < 0) {
       throw Exception("takeItem: Amount cannot be negative")
    }
@@ -127,27 +204,30 @@ fun Entity.giveInventoryItem(itemConfigKey: String, amount: Int) {
    inventoryComponent.modifyData {
       val itemStacks = it.inventory.itemStacks.toMutableList()
 
-      if (itemConfig.maxStackSize != null && itemConfig.maxStackSize <= 0) {
-         throw Exception("Invalid maxStackSize would cause infinite loop: $itemConfigKey ${itemConfig.maxStackSize}")
+
+      val maxStackSize = itemConfig.storableConfig?.maxStackSize
+
+      if (maxStackSize != null && maxStackSize <= 0) {
+         throw Exception("Invalid maxStackSize would cause infinite loop: $itemConfigKey ${maxStackSize}")
       }
 
       while (true) {
          val smallestNotFullExistingStack = itemStacks
             .filter { it.itemConfigKey == itemConfigKey }
-            .filter { itemConfig.maxStackSize == null || it.amount < itemConfig.maxStackSize }
+            .filter { maxStackSize == null || it.amount < maxStackSize }
             .sortedBy { it.amount }
             .firstOrNull()
 
          if (smallestNotFullExistingStack == null ||
-            itemConfig.maxStackSize == null ||
-            smallestNotFullExistingStack.amount < itemConfig.maxStackSize
+            maxStackSize == null ||
+            smallestNotFullExistingStack.amount < maxStackSize
          ) {
             val smallestNotFullExistingStackSize = smallestNotFullExistingStack?.amount ?: 0
 
-            val amountToAdd = if (itemConfig.maxStackSize == null) {
+            val amountToAdd = if (maxStackSize == null) {
                remaining
             } else {
-               Math.min(remaining, itemConfig.maxStackSize - smallestNotFullExistingStackSize)
+               Math.min(remaining, maxStackSize - smallestNotFullExistingStackSize)
             }
 
             if (smallestNotFullExistingStack != null) {

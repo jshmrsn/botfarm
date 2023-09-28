@@ -10,6 +10,7 @@ class SpriteConfig(
    val textureUrl: String,
    val atlasUrl: String? = null,
    val animations: List<SpriteAnimationConfig> = listOf(),
-   val animationsUrl: String = ""
+   val animationsUrl: String = "",
+   val depthOffset: Double = 0.0
 ) : Config()
 

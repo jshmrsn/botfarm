@@ -1,4 +1,3 @@
-import {ActivityStreamEntry} from "../game/ActivityStreamEntry";
 import {SimulationId} from "./Simulation";
 
 export interface EntityComponentData {
@@ -42,4 +41,5 @@ export interface ClientSimulationData {
   configs: Config[]
   simulationTime: number
 }
+
 

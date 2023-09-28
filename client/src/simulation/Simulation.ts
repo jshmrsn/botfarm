@@ -1,5 +1,4 @@
 import {ClientSimulationData, Config, EntityId} from "./EntityData";
-import {getUnixTimeSeconds} from "../misc/utils";
 import {Entity} from "./Entity";
 import {
   AlertWebSocketMessage,
@@ -16,10 +15,8 @@ export type SimulationId = string
 export class Simulation {
   private readonly initialData: ClientSimulationData
   private receivedSimulationTime: number
-  private receivedSimulationTimeAtProcessTime: number
 
   private smoothedSimulationTime: number
-  // private smoothedSimulationTimeAtProcessTime: number
 
   readonly simulationId: SimulationId
   readonly configs: Config[]
@@ -30,8 +27,7 @@ export class Simulation {
   private sendMessageImplementation: (type: string, data: any) => void
 
   getCurrentSimulationTime(): number {
-    //const timeSinceReceive = getUnixTimeSeconds() - this.receivedSimulationTimeAtProcessTime
-    return this.smoothedSimulationTime// + timeSinceReceive
+    return this.smoothedSimulationTime
   }
 
   constructor(
@@ -43,9 +39,7 @@ export class Simulation {
     this.onSimulationDataChanged = onSimulationDataChanged
     this.initialData = initialSimulationData
     this.receivedSimulationTime = initialSimulationData.simulationTime
-    this.receivedSimulationTimeAtProcessTime = getUnixTimeSeconds()
     this.smoothedSimulationTime = initialSimulationData.simulationTime
-    // this.smoothedSimulationTimeAtProcessTime = getUnixTimeSeconds()
     this.simulationId = initialSimulationData.simulationId
 
     this.configs = initialSimulationData.configs
@@ -113,7 +107,6 @@ export class Simulation {
       this.entitiesById[newEntity.entityId] = newEntity
 
       this.receivedSimulationTime = entityCreatedMessage.simulationTime
-      this.receivedSimulationTimeAtProcessTime = getUnixTimeSeconds()
     } else if (messageType === "EntityDestroyedWebSocketMessage") {
       const entityDestroyedMessage: EntityDestroyedWebSocketMessage = messageData
 
@@ -129,7 +122,6 @@ export class Simulation {
       delete this.entitiesById[entityId]
 
       this.receivedSimulationTime = entityDestroyedMessage.simulationTime
-      this.receivedSimulationTimeAtProcessTime = getUnixTimeSeconds()
     } else if (messageType === "EntityComponentWebSocketMessage") {
       const entityComponentMessage: EntityComponentWebSocketMessage = messageData
 
@@ -148,7 +140,6 @@ export class Simulation {
       const newComponentData = deserializeDiff(previousComponentData, diffFromMessage)
 
       this.receivedSimulationTime = entityComponentMessage.simulationTime
-      this.receivedSimulationTimeAtProcessTime = getUnixTimeSeconds()
 
       component.data = newComponentData
     } else if (messageType === "AlertWebSocketMessage") {
@@ -167,6 +158,6 @@ export class Simulation {
   update(deltaTime: number) {
     this.receivedSimulationTime += deltaTime
     this.smoothedSimulationTime += deltaTime
-    this.smoothedSimulationTime += (this.receivedSimulationTime - this.smoothedSimulationTime) * Math.min(deltaTime * 2.0, 1.0)
+    this.smoothedSimulationTime += (this.receivedSimulationTime - this.smoothedSimulationTime) * Math.min(deltaTime * 3.0, 1.0)
   }
 }

@@ -1,7 +1,9 @@
 package botfarm.misc
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlin.math.*
 
 fun randomSigned() = (Math.random() - 0.5) * 2.0
@@ -158,3 +160,4 @@ class Vector2Animation(
       return last.value
    }
 }
+

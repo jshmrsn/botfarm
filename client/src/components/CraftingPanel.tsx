@@ -38,7 +38,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
   const craftingItemConfigs = simulation.configs
     .filter(it => it.type === "ItemConfig")
     .map(it => (it as any) as ItemConfig)
-    .filter(it => it.craftingCost != null)
+    .filter(it => it.craftableConfig != null)
 
 
   const inventoryComponent = userControlledEntity.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
@@ -99,10 +99,19 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
           gap: 5
         }}
       >
-        {craftingItemConfigs.map((itemConfig, index) => {
-          const itemConfigKey = itemConfig.key;
+        {craftingItemConfigs.map((craftableItemConfig, index) => {
+          const itemConfigKey = craftableItemConfig.key;
+          const craftableConfig = craftableItemConfig.craftableConfig!
 
-          const canAfford = true
+          let canAfford = true
+          for (let costEntry of craftableConfig.craftingCost.entries) {
+            const hasAmount = inventoryAmountByItemConfigKey[costEntry.itemConfigKey] || 0
+
+            if (hasAmount < costEntry.amount) {
+              canAfford = false
+            }
+          }
+
 
           return <div
             key={itemConfigKey + ":" + index}
@@ -122,18 +131,18 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
                 gap: 5,
               }}
             >
-              <Text><b>{itemConfig.name}</b></Text>
+              <Text><b>{craftableItemConfig.name}</b></Text>
               <img
-                src={itemConfig.iconUrl}
-                alt={"Item icon for " + itemConfig.name}
+                src={craftableItemConfig.iconUrl}
+                alt={"Item icon for " + craftableItemConfig.name}
                 style={{
                   flexBasis: 40,
                   height: 40
                 }}
               />
-              {itemConfig.craftingAmount > 1 ? <Text><b>x{itemConfig.craftingAmount}</b></Text> : null}
+              {craftableConfig.craftingAmount > 1 ? <Text><b>x{craftableConfig.craftingAmount}</b></Text> : null}
               {canAfford ? <ActionIcon size={35} variant={"filled"} onClick={() => {
-                simulation.sendMessage("CraftItemMessage", {
+                simulation.sendMessage("CraftItemRequest", {
                   itemConfigKey: itemConfigKey
                 })
               }}>
@@ -152,7 +161,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
                 padding: 5
               }}
             >
-              {itemConfig.craftingCost!.entries.map((costEntry, costEntryIndex) => {
+              {craftableConfig.craftingCost.entries.map((costEntry, costEntryIndex) => {
                 const costItemConfig = simulation.getConfig<ItemConfig>(costEntry.itemConfigKey, "ItemConfig")
                 const hasAmount = inventoryAmountByItemConfigKey[costEntry.itemConfigKey] || 0
 

@@ -12,7 +12,7 @@
       "frameRate": 10.0,
       "name": "slash-left",
       "spriteCellRowIndex": 1,
-      "numberOfFrames": 7
+      "numberOfFrames": 6
     },
     {
       "frameRate": 10.0,

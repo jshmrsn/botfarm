@@ -3,16 +3,52 @@
   "spriteCellHeight": 64,
   "animations": [
     {
+      "frameRate": 20.0,
+      "name": "pickup-up",
+      "spriteCellRowIndex": 20,
+      "numberOfFrames": 3
+    },
+    {
+      "frameRate": 20.0,
+      "name": "pickup-left",
+      "spriteCellRowIndex": 20,
+      "numberOfFrames": 3
+    },
+    {
+      "frameRate": 20.0,
+      "name": "pickup-down",
+      "spriteCellRowIndex": 20,
+      "numberOfFrames": 3
+    },
+    {
+      "frameRate": 20.0,
+      "name": "pickup-right",
+      "spriteCellRowIndex": 20,
+      "numberOfFrames": 3
+    },
+    {
       "frameRate": 10.0,
-      "name": "spellcast",
+      "name": "spellcast-up",
       "spriteCellRowIndex": 0,
       "numberOfFrames": 7
     },
     {
       "frameRate": 10.0,
-      "name": "thrust",
-      "spriteCellRowIndex": 4,
-      "numberOfFrames": 8
+      "name": "spellcast-left",
+      "spriteCellRowIndex": 1,
+      "numberOfFrames": 7
+    },
+    {
+      "frameRate": 10.0,
+      "name": "spellcast-down",
+      "spriteCellRowIndex": 2,
+      "numberOfFrames": 7
+    },
+    {
+      "frameRate": 10.0,
+      "name": "spellcast-right",
+      "spriteCellRowIndex": 3,
+      "numberOfFrames": 7
     },
     {
       "frameRate": 10.0,
@@ -23,13 +59,13 @@
     {
       "frameRate": 10.0,
       "name": "down",
-      "spriteCellRowIndex": 9,
+      "spriteCellRowIndex": 10,
       "numberOfFrames": 1
     },
     {
       "frameRate": 10.0,
       "name": "left",
-      "spriteCellRowIndex": 10,
+      "spriteCellRowIndex": 9,
       "numberOfFrames": 1
     },
     {
@@ -63,28 +99,78 @@
       "numberOfFrames": 9
     },
     {
-      "frameRate": 10.0,
+      "frameRate": 15.0,
       "name": "slash-up",
       "spriteCellRowIndex": 12,
       "numberOfFrames": 6
     },
     {
-      "frameRate": 10.0,
+      "frameRate": 15.0,
       "name": "slash-left",
       "spriteCellRowIndex": 13,
-      "numberOfFrames": 7
+      "numberOfFrames": 6
     },
     {
-      "frameRate": 10.0,
+      "frameRate": 15.0,
       "name": "slash-down",
       "spriteCellRowIndex": 14,
       "numberOfFrames": 6
     },
     {
-      "frameRate": 10.0,
+      "frameRate": 15.0,
       "name": "slash-right",
       "spriteCellRowIndex": 15,
       "numberOfFrames": 6
+    },
+
+    {
+      "frameRate": 15.0,
+      "name": "equip-up",
+      "spriteCellRowIndex": 12,
+      "numberOfFrames": 4
+    },
+    {
+      "frameRate": 15.0,
+      "name": "equip-left",
+      "spriteCellRowIndex": 13,
+      "numberOfFrames": 4
+    },
+    {
+      "frameRate": 15.0,
+      "name": "equip-down",
+      "spriteCellRowIndex": 14,
+      "numberOfFrames": 4
+    },
+    {
+      "frameRate": 15.0,
+      "name": "equip-right",
+      "spriteCellRowIndex": 15,
+      "numberOfFrames": 4
+    },
+
+    {
+      "frameRate": 10.0,
+      "name": "thrust-up",
+      "spriteCellRowIndex": 4,
+      "numberOfFrames": 8
+    },
+    {
+      "frameRate": 10.0,
+      "name": "thrust-left",
+      "spriteCellRowIndex": 5,
+      "numberOfFrames": 8
+    },
+    {
+      "frameRate": 10.0,
+      "name": "thrust-down",
+      "spriteCellRowIndex": 6,
+      "numberOfFrames": 8
+    },
+    {
+      "frameRate": 10.0,
+      "name": "thrust-right",
+      "spriteCellRowIndex": 7,
+      "numberOfFrames": 8
     },
     {
       "frameRate": 10.0,

@@ -1,7 +1,163 @@
 {
     "frames": [
         {
-            "filename": "spellcast.000",
+            "filename": "pickup-up.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-up.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-up.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-left.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-left.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-left.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-down.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-down.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-down.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-right.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-right.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "pickup-right.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 1280
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-up.000",
             "frame": {
                 "w": 64,
                 "h": 64,
@@ -14,7 +170,7 @@
             }
         },
         {
-            "filename": "spellcast.001",
+            "filename": "spellcast-up.001",
             "frame": {
                 "w": 64,
                 "h": 64,
@@ -27,7 +183,7 @@
             }
         },
         {
-            "filename": "spellcast.002",
+            "filename": "spellcast-up.002",
             "frame": {
                 "w": 64,
                 "h": 64,
@@ -40,7 +196,7 @@
             }
         },
         {
-            "filename": "spellcast.003",
+            "filename": "spellcast-up.003",
             "frame": {
                 "w": 64,
                 "h": 64,
@@ -53,7 +209,7 @@
             }
         },
         {
-            "filename": "spellcast.004",
+            "filename": "spellcast-up.004",
             "frame": {
                 "w": 64,
                 "h": 64,
@@ -66,7 +222,7 @@
             }
         },
         {
-            "filename": "spellcast.005",
+            "filename": "spellcast-up.005",
             "frame": {
                 "w": 64,
                 "h": 64,
@@ -79,7 +235,7 @@
             }
         },
         {
-            "filename": "spellcast.006",
+            "filename": "spellcast-up.006",
             "frame": {
                 "w": 64,
                 "h": 64,
@@ -92,12 +248,12 @@
             }
         },
         {
-            "filename": "thrust.000",
+            "filename": "spellcast-left.000",
             "frame": {
                 "w": 64,
                 "h": 64,
                 "x": 0,
-                "y": 256
+                "y": 64
             },
             "anchor": {
                 "x": 0.5,
@@ -105,12 +261,12 @@
             }
         },
         {
-            "filename": "thrust.001",
+            "filename": "spellcast-left.001",
             "frame": {
                 "w": 64,
                 "h": 64,
                 "x": 64,
-                "y": 256
+                "y": 64
             },
             "anchor": {
                 "x": 0.5,
@@ -118,12 +274,12 @@
             }
         },
         {
-            "filename": "thrust.002",
+            "filename": "spellcast-left.002",
             "frame": {
                 "w": 64,
                 "h": 64,
                 "x": 128,
-                "y": 256
+                "y": 64
             },
             "anchor": {
                 "x": 0.5,
@@ -131,12 +287,12 @@
             }
         },
         {
-            "filename": "thrust.003",
+            "filename": "spellcast-left.003",
             "frame": {
                 "w": 64,
                 "h": 64,
                 "x": 192,
-                "y": 256
+                "y": 64
             },
             "anchor": {
                 "x": 0.5,
@@ -144,12 +300,12 @@
             }
         },
         {
-            "filename": "thrust.004",
+            "filename": "spellcast-left.004",
             "frame": {
                 "w": 64,
                 "h": 64,
                 "x": 256,
-                "y": 256
+                "y": 64
             },
             "anchor": {
                 "x": 0.5,
@@ -157,12 +313,12 @@
             }
         },
         {
-            "filename": "thrust.005",
+            "filename": "spellcast-left.005",
             "frame": {
                 "w": 64,
                 "h": 64,
                 "x": 320,
-                "y": 256
+                "y": 64
             },
             "anchor": {
                 "x": 0.5,
@@ -170,12 +326,12 @@
             }
         },
         {
-            "filename": "thrust.006",
+            "filename": "spellcast-left.006",
             "frame": {
                 "w": 64,
                 "h": 64,
                 "x": 384,
-                "y": 256
+                "y": 64
             },
             "anchor": {
                 "x": 0.5,
@@ -183,12 +339,181 @@
             }
         },
         {
-            "filename": "thrust.007",
+            "filename": "spellcast-down.000",
             "frame": {
                 "w": 64,
                 "h": 64,
-                "x": 448,
-                "y": 256
+                "x": 0,
+                "y": 128
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-down.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 128
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-down.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 128
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-down.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 128
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-down.004",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 256,
+                "y": 128
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-down.005",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 320,
+                "y": 128
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-down.006",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 384,
+                "y": 128
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-right.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 192
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-right.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 192
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-right.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 192
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-right.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 192
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-right.004",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 256,
+                "y": 192
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-right.005",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 320,
+                "y": 192
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "spellcast-right.006",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 384,
+                "y": 192
             },
             "anchor": {
                 "x": 0.5,
@@ -214,7 +539,7 @@
                 "w": 64,
                 "h": 64,
                 "x": 0,
-                "y": 576
+                "y": 640
             },
             "anchor": {
                 "x": 0.5,
@@ -227,7 +552,7 @@
                 "w": 64,
                 "h": 64,
                 "x": 0,
-                "y": 640
+                "y": 576
             },
             "anchor": {
                 "x": 0.5,
@@ -1034,6 +1359,630 @@
                 "h": 64,
                 "x": 320,
                 "y": 960
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-up.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 768
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-up.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 768
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-up.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 768
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-up.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 768
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-left.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 832
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-left.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 832
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-left.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 832
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-left.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 832
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-down.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 896
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-down.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 896
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-down.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 896
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-down.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 896
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-right.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 960
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-right.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 960
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-right.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 960
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "equip-right.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 960
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-up.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 256
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-up.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 256
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-up.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 256
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-up.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 256
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-up.004",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 256,
+                "y": 256
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-up.005",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 320,
+                "y": 256
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-up.006",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 384,
+                "y": 256
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-up.007",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 448,
+                "y": 256
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-left.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 320
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-left.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 320
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-left.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 320
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-left.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 320
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-left.004",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 256,
+                "y": 320
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-left.005",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 320,
+                "y": 320
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-left.006",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 384,
+                "y": 320
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-left.007",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 448,
+                "y": 320
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-down.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 384
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-down.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 384
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-down.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 384
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-down.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 384
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-down.004",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 256,
+                "y": 384
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-down.005",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 320,
+                "y": 384
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-down.006",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 384,
+                "y": 384
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-down.007",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 448,
+                "y": 384
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-right.000",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 0,
+                "y": 448
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-right.001",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 64,
+                "y": 448
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-right.002",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 128,
+                "y": 448
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-right.003",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 192,
+                "y": 448
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-right.004",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 256,
+                "y": 448
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-right.005",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 320,
+                "y": 448
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-right.006",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 384,
+                "y": 448
+            },
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            }
+        },
+        {
+            "filename": "thrust-right.007",
+            "frame": {
+                "w": 64,
+                "h": 64,
+                "x": 448,
+                "y": 448
             },
             "anchor": {
                 "x": 0.5,

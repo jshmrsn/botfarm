@@ -1,5 +1,7 @@
 import {EntityComponentData, EntityId} from "../simulation/EntityData";
 import {CompositeAnimation} from "./CompositeAnimation";
+import {Vector2} from "../misc/Vector2";
+import {EntityComponentGetter} from "../simulation/EntityComponentGetter";
 
 export interface SpokenMessage {
   sentSimulationTime: number
@@ -19,21 +21,52 @@ export interface CharacterBodySelections {
   hair: CompositeAnimation | null
 }
 
+export type ActionType = "UseToolToDamageEntity" |
+  "PlaceGrowableInGrower" |
+  "DropItem" |
+  "UseEquippedTool" |
+  "PickupItem" |
+  "EquipItem"
+
+export class ActionTypes {
+  static readonly UseToolToDamageEntity: ActionType = "UseToolToDamageEntity"
+  static readonly PlaceGrowableInGrower: ActionType = "PlaceGrowableInGrower"
+  static readonly DropItem: ActionType = "DropItem"
+  static readonly UseEquippedTool: ActionType = "UseEquippedTool"
+  static readonly PickupItem: ActionType = "PickupItem"
+  static readonly EquipItem: ActionType = "EquipItem"
+}
+
+export interface PerformedAction {
+  performedAtLocation: Vector2
+  startedAtSimulationTime: number
+  actionIndex: number
+  actionType: ActionType
+  targetEntityId: EntityId | null
+  duration: number
+}
+
+export interface UseEquippedToolItemRequest {
+  expectedItemConfigKey: string
+}
 
 export interface CharacterComponentData extends EntityComponentData {
   name: string
   recentSpokenMessages: SpokenMessage[]
   facialExpressionEmoji: string | null,
   pendingInteractionTargetEntityId: EntityId | null
-  equippedItemConfigKey: string | null
-  bodySelections: CharacterBodySelections
+  pendingUseEquippedToolItemRequest: UseEquippedToolItemRequest | null
+  bodySelections: CharacterBodySelections,
+  performedAction: PerformedAction | null
 }
+
+export const CharacterComponent = new EntityComponentGetter<CharacterComponentData>("CharacterComponentData")
 
 export interface ItemStack {
   itemConfigKey: string,
   amount: number
+  isEquipped: boolean
 }
-
 
 export interface Inventory {
   itemStacks: ItemStack[]
@@ -42,3 +75,5 @@ export interface Inventory {
 export interface InventoryComponentData extends EntityComponentData {
   inventory: Inventory
 }
+
+export const InventoryComponent = new EntityComponentGetter<InventoryComponentData>("InventoryComponentData")

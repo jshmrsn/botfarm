@@ -20,7 +20,7 @@ export function ChatInputArea(props: ChatInputAreaProps): JSX.Element {
 
   function sendTypedPrompt() {
     if (typedPrompt.length > 0) {
-      dynamicState.sendWebSocketMessage("AddCharacterMessageMessage", {
+      dynamicState.sendWebSocketMessage("AddCharacterMessageRequest", {
         message: typedPrompt
       })
 

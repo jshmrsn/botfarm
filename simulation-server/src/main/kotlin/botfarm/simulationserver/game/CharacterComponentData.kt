@@ -4,6 +4,7 @@ import botfarm.misc.Vector2
 import botfarm.simulationserver.simulation.Config
 import botfarm.simulationserver.simulation.EntityComponentData
 import botfarm.apidata.EntityId
+import botfarm.simulationserver.simulation.Entity
 
 
 class CharacterBodySelections(
@@ -29,15 +30,54 @@ class CharacterBodySelectionsConfig(
    val hairs: List<RegisteredCompositeAnimation>
 ) : Config()
 
+enum class ActionType {
+   UseToolToDamageEntity,
+   PlaceGrowableInGrower,
+   DropItem,
+   PickupItem,
+   UseEquippedTool,
+   EquipItem
+}
+
+class PerformedAction(
+   val performedAtLocation: Vector2,
+   val startedAtSimulationTime: Double,
+   val actionIndex: Int,
+   val actionType: ActionType,
+   val targetEntityId: EntityId?,
+   val duration: Double
+)
+
 data class CharacterComponentData(
    val name: String,
    val age: Int = 30,
    val recentSpokenMessages: List<SpokenMessage> = listOf(),
    val facialExpressionEmoji: String? = null,
    val pendingInteractionTargetEntityId: EntityId? = null,
-   val equippedItemConfigKey: String? = null,
-   val bodySelections: CharacterBodySelections
+   val pendingUseEquippedToolItemRequest: UseEquippedToolItemRequest? = null,
+   val bodySelections: CharacterBodySelections,
+   val performedAction: PerformedAction? = null
 ) : EntityComponentData()
+
+
+val Entity.ongoingAction: PerformedAction?
+   get() {
+      val performedAction = this.getComponentOrNull<CharacterComponentData>()?.data?.performedAction
+         ?: return null
+
+      if (this.simulation.getCurrentSimulationTime() > performedAction.startedAtSimulationTime + performedAction.duration) {
+         return null
+      }
+
+      return performedAction
+   }
+
+val Entity.hasOngoingAction
+   get() = this.ongoingAction != null
+
+val Entity.isAvailableToPerformAction
+   get() = this.exists && !this.isDead && !this.hasOngoingAction
+
 
 data class RegisteredCompositeAnimation(
    val key: String,

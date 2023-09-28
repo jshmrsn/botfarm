@@ -242,7 +242,9 @@ class PromptBuilder(
                newAvailableTokens = $newAvailableTokens
                reservedOutputTokens = $reservedOutputTokens
                modelInfo.maxTokenCount = ${this.modelInfo.maxTokenCount}
-               text to add:
+               Token usage summary:
+               ${this.buildTokenUsageSummary()}
+               Text to add:
                $text
                Previous text:
                ${this.buildText()}

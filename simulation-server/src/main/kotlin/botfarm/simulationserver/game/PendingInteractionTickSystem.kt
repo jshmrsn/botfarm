@@ -2,81 +2,126 @@ package botfarm.simulationserver.game
 
 import botfarm.simulationserver.common.PositionComponentData
 import botfarm.simulationserver.common.resolvePosition
+import botfarm.simulationserver.simulation.EntityComponent
 import botfarm.simulationserver.simulation.Systems
+import botfarm.simulationserver.simulation.TickSystemContext
 
-fun registerPendingInteractionTickSystem() =
-   Systems.default.registerTickSystem2<PositionComponentData, CharacterComponentData> { context, positionComponent, characterComponent ->
-      val simulation = context.simulation as GameSimulation
+fun pendingInteractionTickSystem(
+   context: TickSystemContext,
+   positionComponent: EntityComponent<PositionComponentData>,
+   characterComponent: EntityComponent<CharacterComponentData>
+) {
+   val simulation = context.simulation as GameSimulation
 
-      val simulationTime = simulation.getCurrentSimulationTime()
-      val characterComponentData = characterComponent.data
+   val simulationTime = simulation.getCurrentSimulationTime()
+   val characterComponentData = characterComponent.data
 
-      val equippedItemId = characterComponentData.equippedItemConfigKey
-      val equippedItemConfig = equippedItemId?.let { simulation.getConfig<ItemConfig>(it) }
+   val equippedToolItemConfig = characterComponent.entity.getEquippedItemConfig(EquipmentSlot.Tool)
 
-      val controllingUserId = context.entity.getComponentOrNull<UserControlledComponentData>()?.data?.userId
-      val controllingClients = controllingUserId?.let { context.simulation.getClientsForUserId(it) } ?: listOf()
+   val controllingUserId = context.entity.getComponentOrNull<UserControlledComponentData>()?.data?.userId
 
-      if (characterComponentData.pendingInteractionTargetEntityId != null) {
-         fun sendAlertToControlledClient(message: String) {
-            for (controllingClient in controllingClients) {
-               simulation.sendAlertMessage(controllingClient, message)
-            }
+   fun sendAlertToControlledClient(message: String) {
+      if (controllingUserId != null) {
+         simulation.sendAlertMessage(controllingUserId, message)
+      }
+   }
+
+
+   val position = positionComponent.entity.resolvePosition()
+   val lastKeyFrame = positionComponent.data.positionAnimation.keyFrames.last()
+   val hasFinishedMoving = simulationTime >= lastKeyFrame.time
+
+   if (!hasFinishedMoving) {
+      return
+   }
+
+   if (characterComponentData.pendingUseEquippedToolItemRequest == null &&
+      characterComponentData.pendingInteractionTargetEntityId == null) {
+      return
+   }
+
+   characterComponent.modifyData {
+      it.copy(
+         pendingInteractionTargetEntityId = null,
+         pendingUseEquippedToolItemRequest = null
+      )
+   }
+
+   if (characterComponentData.pendingUseEquippedToolItemRequest != null) {
+      simulation.useEquippedToolItem(
+         interactingEntity = context.entity,
+         expectedItemConfigKey =  characterComponentData.pendingUseEquippedToolItemRequest.expectedItemConfigKey
+      )
+   } else if (characterComponentData.pendingInteractionTargetEntityId != null) {
+      val targetEntity =
+         context.simulation.getEntityOrNull(characterComponentData.pendingInteractionTargetEntityId)
+
+      if (targetEntity != null && !targetEntity.isDead) {
+         characterComponent.modifyData {
+            it.copy(
+               pendingInteractionTargetEntityId = null
+            )
          }
 
-         val lastKeyFrame = positionComponent.data.positionAnimation.keyFrames.last()
+         val targetPosition = targetEntity.resolvePosition()
 
-         if (simulationTime >= lastKeyFrame.time) {
-            characterComponent.modifyData {
-               it.copy(
-                  pendingInteractionTargetEntityId = null
-               )
-            }
+         val distance = targetPosition.distance(position)
 
-            val position = lastKeyFrame.value
-            val targetEntity =
-               context.simulation.getEntityOrNull(characterComponentData.pendingInteractionTargetEntityId)
+         if (distance <= 30.0) {
+            val targetItemComponent = targetEntity.getComponentOrNull<ItemComponentData>()
+            val targetGrowerComponent = targetEntity.getComponentOrNull<GrowerComponentData>()
 
-            if (targetEntity != null) {
-               val targetPosition = targetEntity.resolvePosition()
+            if (targetItemComponent != null) {
+               val itemConfig = simulation.getConfig<ItemConfig>(targetItemComponent.data.itemConfigKey)
 
-               val distance = targetPosition.distance(position)
+               if (itemConfig.storableConfig != null) {
+                  val result = simulation.pickUpItem(
+                     pickingUpEntity = context.entity,
+                     targetEntity = targetEntity
+                  )
 
-               if (distance <= 30.0) {
-                  val targetItemComponent = targetEntity.getComponentOrNull<ItemComponentData>()
+                  when (result) {
+                     GameSimulation.PickUpItemResult.Success -> {}
+                     GameSimulation.PickUpItemResult.TooFar -> sendAlertToControlledClient("Too far away to pick up item")
+                  }
+               } else if (itemConfig.killableConfig?.canBeDamagedByToolItemConfigKey != null &&
+                  equippedToolItemConfig != null &&
+                  itemConfig.killableConfig.canBeDamagedByToolItemConfigKey == equippedToolItemConfig.key
+               ) {
+                  val result = simulation.interactWithEntityUsingEquippedItem(
+                     interactingEntity = context.entity,
+                     targetEntity = targetEntity
+                  )
 
-                  if (targetItemComponent != null) {
-                     val itemConfig = simulation.getConfig<ItemConfig>(targetItemComponent.data.itemConfigKey)
+                  when (result) {
+                     GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {}
+                     else -> sendAlertToControlledClient("Can't damage this item: " + result.name)
+                  }
+               }
+               else if (itemConfig.growerConfig != null &&
+                  equippedToolItemConfig != null &&
+                  itemConfig.growerConfig.canReceiveGrowableItemConfigKeys.contains(equippedToolItemConfig.key) &&
+                  targetEntity.getComponentOrNull<GrowerComponentData>() != null &&
+                  targetGrowerComponent != null &&
+                  targetGrowerComponent.data.activeGrowth == null
+               ) {
+                  val result = simulation.interactWithEntityUsingEquippedItem(
+                     interactingEntity = context.entity,
+                     targetEntity = targetEntity
+                  )
 
-                     if (itemConfig.canBePickedUp) {
-                        val result = simulation.pickUpItem(
-                           pickingUpEntity = context.entity,
-                           targetEntity = targetEntity
-                        )
+                  when (result) {
+                     GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {}
 
-                        when (result) {
-                           GameSimulation.PickUpItemResult.Success -> {}
-                           GameSimulation.PickUpItemResult.TooFar -> sendAlertToControlledClient("Too far away to pick up item")
-                           else -> sendAlertToControlledClient("Can't pick up item: " + result.name)
-                        }
-                     } else if (itemConfig.canBeDamagedByItem != null &&
-                        equippedItemConfig != null &&
-                        itemConfig.canBeDamagedByItem == equippedItemConfig.key
-                     ) {
-                        val result = simulation.interactWithEntityUsingEquippedItem(
-                           interactingEntity = context.entity,
-                           targetEntity = targetEntity
-                        )
-
-                        when (result) {
-                           GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {}
-                           GameSimulation.InteractWithEntityUsingEquippedItemResult.TooFar -> sendAlertToControlledClient("Too far away to interact with item")
-                           else -> sendAlertToControlledClient("Can't interact with item: " + result.name)
-                        }
-                     }
+                     else -> sendAlertToControlledClient("Can't place growable in grower: " + result.name)
                   }
                }
             }
          }
       }
    }
+}
+
+fun registerPendingInteractionTickSystem() =
+   Systems.default.registerTickSystem2(::pendingInteractionTickSystem)
+

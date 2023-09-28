@@ -2,10 +2,13 @@ import {EntityComponentData} from "../simulation/EntityData";
 import {Vector2Animation} from "../misc/Vector2Animation";
 import {Entity} from "../simulation/Entity";
 import {EntityComponent} from "../simulation/EntityComponent";
+import {EntityComponentGetter} from "../simulation/EntityComponentGetter";
 
 export interface PositionComponentData extends EntityComponentData {
   positionAnimation: Vector2Animation
 }
+
+export const PositionComponent = new EntityComponentGetter<PositionComponentData>("PositionComponentData")
 
 export function resolveEntityPositionForCurrentTime(entity: Entity) {
   const positionComponent = entity.getComponent<PositionComponentData>("PositionComponentData")

@@ -39,10 +39,10 @@ class AgentState(
 }
 
 object AgentConstants {
-   val distanceUnit = "inches"
+   val distanceUnit = "centimeters"
 }
 
-suspend fun characterAgentSystemLogic(
+suspend fun agentCoroutineSystem(
    context: CoroutineSystemContext,
    agentComponent: EntityComponent<AgentComponentData>
 ) {
@@ -123,7 +123,7 @@ private suspend fun step(
             val distance = otherPosition.distance(currentLocation)
 
             if (distance <= observationDistance) {
-               state.newObservations.entitiesById[otherEntity.entityId] = buildEntityInfo(
+               state.newObservations.entitiesById[otherEntity.entityId] = buildEntityInfoForAgent(
                   entity = otherEntity,
                   simulationTime = simulationTimeForStep,
                   interactingEntity = entity
@@ -199,20 +199,20 @@ private suspend fun step(
       .mapNotNull { it as? ItemConfig }
 
    val craftingRecipes = itemConfigs.mapNotNull {
-      if (it.craftingCost != null) {
+      if (it.craftableConfig != null) {
          CraftingRecipe(
             itemConfigKey = it.key,
             itemName = it.name,
             description = it.description,
-            cost = it.craftingCost,
-            amount = it.craftingAmount
+            cost = it.craftableConfig.craftingCost,
+            amount = it.craftableConfig.craftingAmount
          )
       } else {
          null
       }
    }
 
-   val selfEntityInfo = buildEntityInfo(
+   val selfEntityInfo = buildEntityInfoForAgent(
       interactingEntity = null,
       entity = entity,
       simulationTime = simulationTimeForStep
@@ -227,11 +227,10 @@ private suspend fun step(
          ItemStackInfo(
             itemConfigKey = it.itemConfigKey,
             amount = it.amount,
-            availableActionIds = listOf(),
             itemName = itemConfig.name,
             itemDescription = itemConfig.description,
-            canBeDropped = itemConfig.canBeDropped,
-            canBeEquipped = itemConfig.canBeEquipped
+            canBeDropped = itemConfig.storableConfig?.canBeDropped ?: false,
+            canBeEquipped = itemConfig.equippableConfig != null
          )
       }
    )
@@ -310,6 +309,3 @@ private suspend fun step(
       }
    }
 }
-
-fun registerCharacterAgentSystem() =
-   Systems.default.registerCoroutineSystem<AgentComponentData>(::characterAgentSystemLogic)

@@ -331,7 +331,6 @@ data class ClientSimulationData(
    val simulationId: SimulationId,
    val configs: List<Config>,
    val entities: List<EntityData>,
-   val tickedSimulationTime: Double,
    val simulationTime: Double
 )
 

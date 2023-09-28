@@ -5,6 +5,7 @@ import {Entity} from "../simulation/Entity";
 import {PositionComponentData} from "../common/PositionComponentData";
 import {AgentComponentData} from "../game/agentComponentData";
 import ReactMarkdown from "react-markdown";
+import {getUnixTimeSeconds} from "../misc/utils";
 
 export function renderSelectedEntityInspection(
   entity: Entity
@@ -38,7 +39,10 @@ export function renderSelectedEntityInspection(
       <Text>Agent Type: {agentComponentData.agentType}</Text>
       <Text>Cost: ${agentComponentData.costDollars.toFixed(2)}</Text>
       <Text>Agent Status: <b>{agentComponentData.agentStatus}</b></Text>
+      {agentComponentData.statusStartUnixTime != null ? <Text>Status Start Age: <b>{(getUnixTimeSeconds() - agentComponentData.statusStartUnixTime).toFixed(1)}</b></Text> : null}
+      {agentComponentData.statusDuration != null ? <Text>Status Duration: <b>{agentComponentData.statusDuration.toFixed(1)}</b></Text> : null}
       <Text>Agent Integration Status: <b>{agentComponentData.agentIntegrationStatus}</b></Text>
+
 
       {agentComponentData.agentError != null ? <div
         style={{

@@ -8,6 +8,8 @@ data class AgentComponentData(
    val corePersonality: String,
    val initialMemories: List<String> = listOf(),
    val agentType: String = Companion.defaultAgentType,
+   val statusStartUnixTime: Double? = null,
+   val statusDuration: Double? = null,
    val agentStatus: String? = null,
    val agentIntegrationStatus: String? = null,
    val wasRateLimited: Boolean = false,

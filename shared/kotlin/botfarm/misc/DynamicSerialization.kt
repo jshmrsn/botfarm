@@ -54,6 +54,26 @@ object DynamicSerialization {
       )
    }
 
+   private fun resolvePossibleInlineValueClassInstance(value: Any, valueClass: KClass<*>): Any? {
+      if (valueClass.isValue) {
+         // jshmrsn: I am confused why inline values class instances are represented using their custom classes
+         // instead of their underlying value class. I would expect the runtime instances to just be the inline
+         // values, in which this getter call would not be needed. Maybe this doesn't happen in unoptimized builds?
+         @Suppress("UNCHECKED_CAST")
+         val valueProperty = valueClass.declaredMemberProperties.first() as KProperty1<Any, *>
+         val valueFromValueProperty = valueProperty.get(value)
+
+         if (valueFromValueProperty == null) {
+            // jshmrsn: Apparently null inline values are sometimes boxed as InlineValueClass(null) instead of just null
+            return null
+         }
+
+         return valueFromValueProperty
+      } else {
+         return value
+      }
+   }
+
    fun serialize(
       value: Any?,
       baseClass: KClass<*>? = null,
@@ -66,23 +86,8 @@ object DynamicSerialization {
 
       val newClass = value::class
 
-      val resolvedValue = if (newClass.isValue) {
-         // jshmrsn: I am confused why inline values class instances are represented using their custom classes
-         // instead of their underlying value class. I would expect the runtime instances to just be the inline
-         // values, in which this getter call would not be needed. Maybe this doesn't happen in unoptimized builds?
-         @Suppress("UNCHECKED_CAST")
-         val valueProperty = newClass.declaredMemberProperties.first() as KProperty1<Any, *>
-         val valueFromValueProperty = valueProperty.get(value)
-
-         if (valueFromValueProperty == null) {
-            // jshmrsn: Apparently null inline values are sometimes boxed as InlineValueClass(null) instead of just null
-            return JsonNull
-         }
-
-         valueFromValueProperty
-      } else {
-         value
-      }
+      val resolvedValue = this.resolvePossibleInlineValueClassInstance(value = value, valueClass = newClass)
+         ?: return JsonNull
 
       if (resolvedValue is JsonElement) {
          return resolvedValue
@@ -180,8 +185,11 @@ object DynamicSerialization {
       baseClassTypeArguments: List<KClass<*>> = emptyList(),
       json: Json = Json
    ): Diff? {
-      if (new == null) {
-         if (previous == null) {
+      val resolvedNew = new?.let { this.resolvePossibleInlineValueClassInstance(value = it, valueClass = it::class) }
+      val resolvedPrevious = previous?.let { this.resolvePossibleInlineValueClassInstance(value = it, valueClass = it::class) }
+
+      if (resolvedNew == null) {
+         if (resolvedPrevious == null) {
             return null
          }
 
@@ -190,43 +198,49 @@ object DynamicSerialization {
          )
       }
 
-      if (previous == null) {
+      if (resolvedPrevious == null) {
          return Diff(
             value = serialize(
                json = json,
                baseClass = baseClass,
                baseClassTypeArguments = baseClassTypeArguments,
-               value = new
+               value = resolvedNew
             )
          )
       }
 
-      val newClass = new::class
+      val newClass = resolvedNew::class
 
-      if (new is String) {
-         return if (previous != new) {
-            Diff(JsonPrimitive(new))
+      if (resolvedNew is String) {
+         return if (resolvedPrevious != resolvedNew) {
+            Diff(JsonPrimitive(resolvedNew))
          } else {
             null
          }
-      } else if (new is Number) {
-         return if (previous != new) {
-            Diff(JsonPrimitive(new))
+      } else if (resolvedNew is Enum<*>) {
+         return if (resolvedPrevious != resolvedNew) {
+            Diff(JsonPrimitive(resolvedNew.name))
          } else {
             null
          }
-      } else if (new is Boolean) {
-         return if (previous != new) {
-            Diff(JsonPrimitive(new))
+      } else if (resolvedNew is Number) {
+         return if (resolvedPrevious != resolvedNew) {
+            Diff(JsonPrimitive(resolvedNew))
+         } else {
+            null
+         }
+      } else if (resolvedNew is Boolean) {
+         return if (resolvedPrevious != resolvedNew) {
+            Diff(JsonPrimitive(resolvedNew))
          } else {
             null
          }
       } else if (newClass.isSubclassOf(List::class)) {
          @Suppress("UNCHECKED_CAST")
-         val previousList = previous as List<Any>
+         val previousList = resolvedPrevious as List<Any>
 
          @Suppress("UNCHECKED_CAST")
-         val newList = new as List<Any>
+         val newList = resolvedNew as List<Any>
 
          if (previousList.isEmpty() && newList.isNotEmpty()) {
             return Diff(
@@ -270,10 +284,10 @@ object DynamicSerialization {
          )
       } else if (newClass.isSubclassOf(Map::class)) {
          @Suppress("UNCHECKED_CAST")
-         val previousMap = previous as Map<String, Any>
+         val previousMap = resolvedPrevious as Map<String, Any>
 
          @Suppress("UNCHECKED_CAST")
-         val newMap = new as Map<String, Any>
+         val newMap = resolvedNew as Map<String, Any>
 
          if (newMap.isEmpty()) {
             return if (previousMap.isEmpty()) {
@@ -348,8 +362,8 @@ object DynamicSerialization {
 
             @Suppress("UNCHECKED_CAST")
             val anyProperty = property as KProperty1<Any, *>
-            val newPropertyValue: Any? = anyProperty.get(new)
-            val previousPropertyValue: Any? = anyProperty.get(previous)
+            val newPropertyValue: Any? = anyProperty.get(resolvedNew)
+            val previousPropertyValue: Any? = anyProperty.get(resolvedPrevious)
 
             if (property.name == "type") {
                throw Exception("Dynamic-serialized value should not have reserved field name 'type' ('type'  is reserved for polymorphic serialization)")

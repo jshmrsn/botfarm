@@ -1,9 +1,6 @@
 package botfarm.agentserver.agents.common
 
-import botfarm.apidata.ActionOnEntity
-import botfarm.apidata.ActionOnInventoryItem
-import botfarm.apidata.CraftItemAction
-import botfarm.apidata.ReasonToWalkToAndReason
+import botfarm.apidata.*
 import botfarm.misc.JsonArraySchema
 import botfarm.misc.JsonNumberSchema
 import botfarm.misc.JsonObjectSchema
@@ -18,6 +15,8 @@ object AgentResponseSchema_v1 {
    val functionName = "response"
    val iWantToSayKey = "iWantToSay"
    val facialExpressionEmojiKey = "facialExpressionEmoji"
+
+   val useEquippedToolItemKey = "useEquippedToolItem"
 
    val newThoughtsKey = "newThoughts"
 
@@ -39,7 +38,8 @@ object AgentResponseSchema_v1 {
       val craftItem: CraftItemAction? = null,
       val iWantToSay: String? = null,
       val facialExpressionEmoji: String? = null,
-      val newThoughts: List<String>? = null
+      val newThoughts: List<String>? = null,
+      val useEquippedToolItem: UseEquippedToolItem? = null
    )
 
    val functionSchema = JsonObjectSchema(
@@ -70,6 +70,12 @@ object AgentResponseSchema_v1 {
                amountKey to JsonStringSchema("The amount of the items you would like to take this action on (not always relevant)")
             ),
             required = listOf(itemConfigKeyKey, actionIdKey)
+         ),
+         useEquippedToolItemKey to JsonObjectSchema(
+            properties = mapOf(
+               reasonKey to JsonStringSchema("Reason why you are taking this action")
+            ),
+            required = listOf()
          ),
          craftItemKey to JsonObjectSchema(
             properties = mapOf(

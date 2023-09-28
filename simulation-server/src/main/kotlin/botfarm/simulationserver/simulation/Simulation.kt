@@ -27,6 +27,7 @@ class Client(
    val userId: UserId
 )
 
+
 open class Simulation(
    data: SimulationData,
    val simulationContainer: SimulationContainer,
@@ -34,14 +35,14 @@ open class Simulation(
 ) {
    var shouldPauseAi = false
 
-   var tickedSimulationTime = data.tickedSimulationTime
-   var lastTickUnixTime = data.lastTickUnixTime
    val startUnixTime = getCurrentUnixTimeSeconds()
+
+   var lastTickUnixTime = getCurrentUnixTimeSeconds()
 
    val simulationId = data.simulationId
    val configs = data.configs
 
-   val latencyBufferTime = 0.3
+   val latencyBufferTime = 0.2
 
    private val mutableEntities: MutableList<Entity>
    val entities: List<Entity>
@@ -51,6 +52,58 @@ open class Simulation(
 
    val entitiesById: Map<EntityId, Entity> = this.mutableEntitiesById
    val destroyedEntitiesById: Map<EntityId, Entity> = this.mutableDestroyedEntitiesById
+
+   val queuedCallbacks = QueuedCallbacks()
+
+   fun queueCallbackAfterSimulationTimeDelay(
+      simulationTimeDelay: Double,
+      isValid: () -> Boolean = { true },
+      logic: () -> Unit
+   ) {
+      this.queueCallbackAtSimulationTime(
+         simulationTime = this.getCurrentSimulationTime() + simulationTimeDelay,
+         isValid = isValid,
+         logic = logic
+      )
+   }
+
+   fun queueCallbackWithoutDelay(
+      isValid: () -> Boolean = { true },
+      logic: () -> Unit
+   ) {
+      this.queuedCallbacks.queueCallback(
+         condition = { true },
+         isValid = isValid,
+         logic = logic
+      )
+   }
+
+
+   fun queueCallback(
+      condition: () -> Boolean,
+      isValid: () -> Boolean = { true },
+      logic: () -> Unit
+   ) {
+      this.queuedCallbacks.queueCallback(
+         condition = condition,
+         isValid = isValid,
+         logic = logic
+      )
+   }
+
+   fun queueCallbackAtSimulationTime(
+      simulationTime: Double,
+      isValid: () -> Boolean = { true },
+      logic: () -> Unit
+   ) {
+      this.queuedCallbacks.queueCallback(
+         condition = {
+            this.getCurrentSimulationTime() >= simulationTime
+         },
+         isValid = isValid,
+         logic = logic
+      )
+   }
 
    private val tickSystems = this.systems.registeredTickSystems.map {
       TickSystem(
@@ -167,7 +220,7 @@ open class Simulation(
 
       this.activateSystemsForEntity(entity)
 
-      println("Broadcasting entity created message: entityId = $entityId")
+//      println("Broadcasting entity created message: entityId = $entityId")
       this.broadcastMessage(
          EntityCreatedWebSocketMessage(
             entityData = entity.buildData(),
@@ -184,6 +237,16 @@ open class Simulation(
          )
       )
 
+      this.tickSystems.forEach { system ->
+         system.deactivateForEntity(entity)
+      }
+
+      this.coroutineSystems.forEach { system ->
+         system.deactivateForEntity(
+            entity = entity
+         )
+      }
+
       this.mutableEntities.remove(entity)
       this.mutableEntitiesById.remove(entity.entityId)
 
@@ -194,7 +257,7 @@ open class Simulation(
       val messageString = Json.encodeToString(DynamicSerialization.serialize(message))
 
       this.clients.forEach { client ->
-         println("Broadcasting message to client (${message::class}): " + client.clientId)
+//         println("Broadcasting message to client (${message::class}): " + client.clientId)
          this.sendWebSocketMessage(
             client = client,
             messageString = messageString
@@ -270,14 +333,13 @@ open class Simulation(
       }
    }
 
+
    fun tick(): TickResult {
-      val currentSimulationTime = this.getCurrentSimulationTime()
-      val deltaTime = currentSimulationTime - this.tickedSimulationTime
-
-      this.tickedSimulationTime = this.getCurrentSimulationTime()
-
       val currentUnixTimeSeconds = getCurrentUnixTimeSeconds()
+      val deltaTime = Math.max(currentUnixTimeSeconds - this.lastTickUnixTime, 0.00001)
       this.lastTickUnixTime = currentUnixTimeSeconds
+
+      this.queuedCallbacks.update()
 
       val webSocketMessagesToRetrySnapshot = this.webSocketMessagesToRetry.map { it }
       this.webSocketMessagesToRetry.clear()
@@ -301,17 +363,13 @@ open class Simulation(
          )
       }
 
-
-
       return TickResult(
          shouldKeep = true
       )
    }
 
    fun buildClientData(): ClientSimulationData {
-      return this.buildData().buildClientData(
-         simulationTime = this.getCurrentSimulationTime()
-      )
+      return this.buildData().buildClientData()
    }
 
    private fun buildData(): SimulationData {
@@ -321,7 +379,7 @@ open class Simulation(
          entities = this.entities.map {
             it.buildData()
          },
-         tickedSimulationTime = this.tickedSimulationTime,
+         simulationTime = this.getCurrentSimulationTime(),
          lastTickUnixTime = this.lastTickUnixTime
       )
    }
@@ -425,6 +483,18 @@ open class Simulation(
          message = message,
          mode = AlertMode.Alert
       )
+   }
+
+   fun sendAlertMessage(userId: UserId, message: String) {
+      this.clients.forEach { client ->
+         if (client.userId == userId) {
+            this.sendAlertMessage(
+               client = client,
+               message = message,
+               mode = AlertMode.Alert
+            )
+         }
+      }
    }
 
    fun broadcastAlertMessage(message: String) {

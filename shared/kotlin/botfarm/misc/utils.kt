@@ -24,3 +24,16 @@ fun <T> Collection<T>.randomWithNullChance(nullChance: Double): T? {
 
    return random(Random)
 }
+
+
+fun <T> List<T>.replaced(index: Int, value: T): List<T> {
+   val copy = this.toMutableList()
+   copy[index] = value
+   return copy
+}
+
+fun <T> List<T>.removed(index: Int): List<T> {
+   val copy = this.toMutableList()
+   copy.removeAt(index)
+   return copy
+}

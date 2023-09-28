@@ -7,6 +7,8 @@ export interface AgentComponentData extends EntityComponentData {
   wasRateLimited: Boolean,
   agentId: string
   agentStatus: string | null
+  statusDuration: number | null
+  statusStartUnixTime: number | null
   agentIntegrationStatus: string | null
   agentRemoteDebugInfo: string,
   agentError: string | null,

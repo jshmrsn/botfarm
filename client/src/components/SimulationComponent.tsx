@@ -9,7 +9,7 @@ import {
   IconQuestionMark
 } from "@tabler/icons-react";
 import Phaser from "phaser";
-import {SimulationScene, SimulationSceneContext} from "../game/SimulationScene";
+import {AutoInteractActionType, SimulationScene, SimulationSceneContext} from "../game/SimulationScene";
 import {ClientSimulationData, EntityId} from "../simulation/EntityData";
 import useWebSocket from "react-use-websocket";
 import {generateId} from "../misc/utils";
@@ -33,6 +33,7 @@ import {
 import {Vector2} from "../misc/Vector2";
 import {HelpPanel} from "./HelpPanel";
 import {ClientId, SimulationId, UserId} from "../simulation/Simulation";
+import {InventoryComponentData} from "../game/CharacterComponentData";
 
 interface SimulationProps {
   simulationId: SimulationId
@@ -105,7 +106,6 @@ export const SimulationComponent = (props: SimulationProps) => {
   const [sceneLoadComplete, setSceneLoadComplete] = useState(false)
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
 
-
   const storedUserId = localStorage.getItem("userId")
 
   let userId: UserId
@@ -123,11 +123,13 @@ export const SimulationComponent = (props: SimulationProps) => {
     const userControlledComponent = it.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
     return userControlledComponent != null && userControlledComponent.data?.userId === dynamicState.userId
   })
-  console.log("userControlledEntity", userControlledEntity)
-  console.log("dynamicState.userId", dynamicState.userId)
-  
+
+  const userInventoryComponent = userControlledEntity?.getComponent<InventoryComponentData>("InventoryComponentData")
+
 
   const [windowWidth, windowHeight] = useWindowSize()
+
+  const useMobileLayout = windowWidth < 600
 
   if (dynamicState.phaserScene != null) {
     dynamicState.selectedEntityId = selectedEntityId
@@ -283,8 +285,6 @@ export const SimulationComponent = (props: SimulationProps) => {
   }
 
   const simulation = dynamicState.simulation
-
-  const useMobileLayout = windowWidth < 600
 
   function isShowingPanel(panel: PanelTypes): boolean {
     return showingPanels.includes(panel)
@@ -455,14 +455,14 @@ export const SimulationComponent = (props: SimulationProps) => {
   const autoInteraction = dynamicState.phaserScene?.calculatedAutoInteraction
   let actionButtonRef: HTMLButtonElement | null = null
   let actionButton: JSX.Element | null = null
-  if (autoInteraction != null && autoInteraction.targetEntity != null) {
+  if (autoInteraction != null) {
     let actionTitle = autoInteraction.actionTitle
 
     actionButton = <Button
       key={"action-button"}
       ref={button => actionButtonRef = button}
       fullWidth
-      color={"blue"}
+      color={autoInteraction.type === AutoInteractActionType.StopMoving ? "gray" : "blue"}
       variant={"filled"}
       leftIcon={autoInteraction.actionIcon}
       style={{
@@ -498,13 +498,13 @@ export const SimulationComponent = (props: SimulationProps) => {
           gap: 10
         }}>
           <Text style={{
-            fontSize: 10,
+            fontSize: 12,
             color: "white",
             textAlign: "right"
           }}>Cost ${totalCost.toFixed(2)}</Text>
 
           <Text style={{
-            fontSize: 10,
+            fontSize: 12,
             color: "white",
             textAlign: "right"
           }}>v0.1.1</Text>

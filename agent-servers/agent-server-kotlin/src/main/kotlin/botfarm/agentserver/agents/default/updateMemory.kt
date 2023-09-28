@@ -5,6 +5,7 @@ import botfarm.agentserver.agents.common.AutomaticShortTermMemory
 import botfarm.agentserver.agents.common.MemoryState
 import botfarm.apidata.*
 import botfarm.misc.buildShortRandomString
+import botfarm.misc.getCurrentUnixTimeSeconds
 import com.aallam.openai.client.OpenAI
 import kotlinx.serialization.json.buildJsonArray
 import kotlin.math.roundToInt
@@ -185,21 +186,7 @@ suspend fun updateMemory(
    builder.addSection("observedEntities") {
       it.addLine("## OBSERVED ENTITIES AROUND YOU (include in short memory if it seems useful)")
       it.addJsonLine(buildJsonArray {
-         val sortedEntities = inputs.newObservations.entitiesById
-            .values
-            .sortedWith { a, b ->
-               if (a.characterEntityInfo != null &&
-                  b.characterEntityInfo != null
-               ) {
-                  val distanceA = a.location.distance(selfInfo.entityInfo.location)
-                  val distanceB = b.location.distance(selfInfo.entityInfo.location)
-                  distanceA.compareTo(distanceB)
-               } else if (a.characterEntityInfo != null) {
-                  -1
-               } else {
-                  1
-               }
-            }
+         val sortedEntities = DefaultAgent.getSortedObservedEntities(inputs, selfInfo)
 
          sortedEntities.forEach { entityInfo ->
             add(
@@ -237,9 +224,13 @@ suspend fun updateMemory(
 
    provideResult(
       AgentStepResult(
-      agentStatus = "updating-memory"
+         agentStatus = "updating-memory",
+         statusStartUnixTime = getCurrentUnixTimeSeconds(),
+         statusDuration = null
+      )
    )
-   )
+
+   val startTime = getCurrentUnixTimeSeconds()
 
    val promptResult = runPrompt(
       modelInfo = modelInfo,
@@ -280,8 +271,9 @@ suspend fun updateMemory(
          println("updateMemory: updatedShortTermMemory:\n$updatedShortTermMemory")
          provideResult(
             AgentStepResult(
-            agentStatus = "update-memory-success"
-         )
+               agentStatus = "update-memory-success",
+               statusDuration = getCurrentUnixTimeSeconds() - startTime
+            )
          )
 
          if (updatedShortTermMemory.length < 5) {
@@ -296,3 +288,5 @@ suspend fun updateMemory(
       }
    }
 }
+
+

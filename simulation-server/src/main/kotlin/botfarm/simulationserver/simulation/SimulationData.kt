@@ -14,16 +14,15 @@ data class SimulationData(
    val simulationId: SimulationId = SimulationId(buildShortRandomString()),
    val configs: List<Config>,
    val entities: List<EntityData> = listOf(),
-   val tickedSimulationTime: Double = 0.0,
+   val simulationTime: Double = 0.0,
    val lastTickUnixTime: Double = 0.0
 ) {
-   fun buildClientData(simulationTime: Double): ClientSimulationData {
+   fun buildClientData(): ClientSimulationData {
       return ClientSimulationData(
          simulationId = this.simulationId,
          configs = this.configs,
          entities = this.entities,
-         tickedSimulationTime = this.tickedSimulationTime,
-         simulationTime = simulationTime
+         simulationTime = this.simulationTime
       )
    }
 }

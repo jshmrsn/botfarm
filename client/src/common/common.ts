@@ -35,6 +35,7 @@ export interface SpriteConfig extends Config {
   atlasUrl: string | undefined
   animationsUrl: string | undefined
   animations: SpriteAnimation[]
+  depthOffset: number
 }
 
 export interface SpriteAnimation {

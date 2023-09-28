@@ -86,13 +86,27 @@ class ItemEntityInfo(
 )
 
 @Serializable
+class ActiveGrowthInfo(
+   val growableItemConfigKey: String,
+   val growingIntoItemConfigKey: String,
+   val startTime: Double,
+   val duration: Double
+)
+
+@Serializable
+class GrowerEntityInfo(
+   val activeGrowthInfo: ActiveGrowthInfo? = null
+)
+
+@Serializable
 class EntityInfo(
    val observedAtSimulationTime: Double,
    val entityId: EntityId,
    val location: Vector2,
    val availableActionIds: List<String>? = null,
    val itemEntityInfo: ItemEntityInfo?,
-   val characterEntityInfo: CharacterEntityInfo?
+   val characterEntityInfo: CharacterEntityInfo?,
+   val growerEntityInfo: GrowerEntityInfo? = null
 )
 
 @Serializable
@@ -130,7 +144,6 @@ class Observations(
 class ItemStackInfo(
    val amount: Int,
    val itemConfigKey: String,
-   val availableActionIds: List<String>,
    val itemName: String,
    val itemDescription: String,
    val canBeEquipped: Boolean,

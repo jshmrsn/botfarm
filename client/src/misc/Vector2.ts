@@ -1,3 +1,15 @@
+
+
+export function clampZeroOne(value: number) {
+  return Math.min(1, Math.max(0, value))
+}
+
+export function lerp(a: number, b: number, alpha: number) {
+  alpha = clampZeroOne(alpha)
+  return a + alpha * (b - a)
+}
+
+
 export class Vector2 {
   static zero = new Vector2(0, 0);
   static one = new Vector2(1, 1);
@@ -6,6 +18,8 @@ export class Vector2 {
   }
 
   static lerp(a: Vector2, b: Vector2, alpha: number): Vector2 {
+    alpha = Math.min(1, Math.max(0, alpha))
+
     const newX = a.x + alpha * (b.x - a.x);
     const newY = a.y + alpha * (b.y - a.y);
     return new Vector2(newX, newY);

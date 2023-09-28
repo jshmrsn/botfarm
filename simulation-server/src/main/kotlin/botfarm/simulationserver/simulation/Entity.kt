@@ -3,8 +3,6 @@ package botfarm.simulationserver.simulation
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
-
-
 class Entity(
    data: EntityData,
    val simulation: Simulation
@@ -14,6 +12,11 @@ class Entity(
    var destroyedAtTime: Double? = null
       private set
 
+   val isDestroyed: Boolean
+      get() = this.destroyedAtTime != null
+
+   val exists: Boolean
+      get() = this.destroyedAtTime == null
 
    private val mutableComponents: MutableList<EntityComponent<*>> = data.components.map {
       EntityComponent<EntityComponentData>(
@@ -37,8 +40,6 @@ class Entity(
          )
       }
    }
-
-
 
    fun <T : EntityComponentData> getComponentOrNull(componentType: KClass<T>): EntityComponent<T>? {
       val untypedResult = this.mutableComponents.find {
@@ -67,8 +68,10 @@ class Entity(
    }
 
    fun destroy() {
-      this.destroyedAtTime = this.simulation.getCurrentSimulationTime()
-      this.simulation.handleEntityDestroyed(entity = this)
+      if (this.destroyedAtTime == null) {
+         this.destroyedAtTime = this.simulation.getCurrentSimulationTime()
+         this.simulation.handleEntityDestroyed(entity = this)
+      }
    }
 
    fun buildData(): EntityData {

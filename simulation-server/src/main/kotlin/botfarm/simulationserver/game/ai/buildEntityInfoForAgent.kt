@@ -1,23 +1,18 @@
 package botfarm.simulationserver.game.ai
 
-import botfarm.apidata.CharacterEntityInfo
-import botfarm.apidata.EntityInfo
-import botfarm.apidata.ItemEntityInfo
-import botfarm.simulationserver.game.CharacterComponentData
+import botfarm.apidata.*
 import botfarm.simulationserver.common.resolvePosition
-import botfarm.simulationserver.game.ItemComponentData
-import botfarm.simulationserver.game.ItemConfig
+import botfarm.simulationserver.game.*
 import botfarm.simulationserver.simulation.Entity
 
-fun buildEntityInfo(
+fun buildEntityInfoForAgent(
    interactingEntity: Entity?,
    entity: Entity,
    simulationTime: Double
 ): EntityInfo {
    val simulation = entity.simulation
 
-   val interactingCharacterComponentData = interactingEntity?.getComponent<CharacterComponentData>()?.data
-   val interactingEquippedItemKey = interactingCharacterComponentData?.equippedItemConfigKey
+   val interactingEquippedItemKey = interactingEntity?.getEquippedItemConfig(EquipmentSlot.Tool)?.key
 
    var availableActionIds: MutableList<String>? = null
 
@@ -32,6 +27,33 @@ fun buildEntityInfo(
          hairColor = characterComponent.bodySelections.hair?.variant,
          hairStyle = characterComponent.bodySelections.hair?.key,
          skinColor = characterComponent.bodySelections.skinColor
+      )
+   } else {
+      null
+   }
+
+   val growerComponent = entity.getComponentOrNull<GrowerComponentData>()?.data
+
+
+   val growerEntityInfo = if (growerComponent != null) {
+      val activeGrowth = growerComponent.activeGrowth
+
+      val activeGrowthInfo = if (activeGrowth != null) {
+         val activeGrowthItemConfig = simulation.getConfig<ItemConfig>(activeGrowth.itemConfigKey)
+         val growableConfig = activeGrowthItemConfig.growableConfig ?:  throw Exception("growableConfig is null for active active growth")
+
+         ActiveGrowthInfo(
+            growableItemConfigKey = activeGrowth.itemConfigKey,
+            startTime = activeGrowth.startTime,
+            duration = growableConfig.timeToGrow,
+            growingIntoItemConfigKey = growableConfig.growsIntoItemConfigKey
+         )
+      } else {
+         null
+      }
+
+      GrowerEntityInfo(
+         activeGrowthInfo = activeGrowthInfo
       )
    } else {
       null
@@ -53,14 +75,23 @@ fun buildEntityInfo(
       if (interactingEntity != null) {
          availableActionIds = mutableListOf()
 
-         if (itemConfig.canBePickedUp) {
+         if (itemConfig.storableConfig != null) {
             availableActionIds.add("pickupItem")
          }
 
-         if (itemConfig.canBeDamagedByItem != null &&
-            itemConfig.canBeDamagedByItem == interactingEquippedItemKey
+         if (itemConfig.killableConfig?.canBeDamagedByToolItemConfigKey != null &&
+            itemConfig.killableConfig.canBeDamagedByToolItemConfigKey == interactingEquippedItemKey
          ) {
             availableActionIds.add("harvestItem")
+         }
+
+         if (itemConfig.growerConfig != null &&
+            interactingEquippedItemKey != null &&
+            itemConfig.growerConfig.canReceiveGrowableItemConfigKeys.contains(interactingEquippedItemKey)) {
+
+            if (growerComponent != null && growerComponent.activeGrowth == null) {
+               availableActionIds.add("plantItem")
+            }
          }
       }
    } else {
@@ -77,6 +108,7 @@ fun buildEntityInfo(
       location = entity.resolvePosition(simulationTime),
       availableActionIds = availableActionIds,
       itemEntityInfo = itemEntityInfo,
-      characterEntityInfo = characterEntityInfo
+      characterEntityInfo = characterEntityInfo,
+      growerEntityInfo = growerEntityInfo
    )
 }

@@ -2,6 +2,7 @@ package botfarm.simulationserver.game
 
 import botfarm.apidata.ItemCollection
 import botfarm.apidata.ItemCollectionEntry
+import botfarm.misc.RandomConfig
 import botfarm.misc.Vector2
 import botfarm.misc.getCurrentUnixTimeSeconds
 import botfarm.simulationserver.common.SpriteConfig
@@ -22,7 +23,6 @@ fun createGameSimulation(
    val unixTime = getCurrentUnixTimeSeconds()
 
    val simulationData = SimulationData(
-      tickedSimulationTime = 0.0,
       lastTickUnixTime = unixTime,
       configs = configs
    )
@@ -43,17 +43,36 @@ fun createGameSimulation(
    val worldCenter = worldBounds * 0.5
 
    simulation.spawnItems(
+      itemConfigKey = "tomato-seeds",
+      quantity = RandomItemQuantity.stacks(3),
+      baseLocation = worldCenter,
+      randomLocationScale = 400.0
+   )
+
+   simulation.spawnItems(
+      itemConfigKey = "hoe",
+      quantity = RandomItemQuantity.stacks(3),
+      baseLocation = worldCenter,
+      randomLocationScale = 400.0
+   )
+
+   simulation.spawnItems(
       itemConfigKey = "axe",
-      minStacks = 3,
-      maxStacks = 3,
+      quantity = RandomItemQuantity.stacks(3),
+      baseLocation = worldCenter,
+      randomLocationScale = 400.0
+   )
+
+   simulation.spawnItems(
+      itemConfigKey = "pickaxe",
+      quantity = RandomItemQuantity.stacks(3),
       baseLocation = worldCenter,
       randomLocationScale = 400.0
    )
 
    simulation.spawnItems(
       itemConfigKey = "tree",
-      minStacks = 100,
-      maxStacks = 200,
+      quantity = RandomItemQuantity.stacks(100, 200),
       baseLocation = worldCenter,
       randomLocationScale = worldBounds.x * 0.5,
       randomLocationExponent = 0.95
@@ -61,8 +80,7 @@ fun createGameSimulation(
 
    simulation.spawnItems(
       itemConfigKey = "boulder",
-      minStacks = 50,
-      maxStacks = 60,
+      quantity = RandomItemQuantity.stacks(50, 60),
       baseLocation = worldCenter,
       randomLocationScale = worldBounds.x * 0.5,
       randomLocationExponent = 0.8
@@ -79,21 +97,19 @@ private fun addItemConfigs(configs: MutableList<Config>) {
       description: String = "",
       textureUrl: String,
       iconUrl: String? = null,
-      canBePickedUp: Boolean = false,
-      canBeDropped: Boolean = true,
-      maxHp: Int = 100,
-      canBeEquipped: Boolean = false,
-      canBeDamagedByItem: String? = null,
-      spawnItemOnDestruction: String? = null,
-      spawnMinStacks: Int = 1,
-      spawnMaxStacks: Int = 1,
-      spawnMinAmountPerStack: Int = 1,
-      spawnMaxAmountPerStack: Int = 1,
-      maxStackSize: Int? = null,
+      spriteDepthOffset: Double = 0.0,
       spriteBaseScale: Vector2 = Vector2.one,
       spriteBaseOffset: Vector2 = Vector2.zero,
-      craftingCost: List<ItemCollectionEntry>? = null,
-      equippedCompositeAnimation: CompositeAnimation? = null
+      useCustomAnimationBaseName: String? = null,
+      killableConfig: KillableConfig? = null,
+      storableConfig: StorableConfig? = null,
+      craftableConfig: CraftableConfig? = null,
+      equippableConfig: EquippableConfig? = null,
+      spawnItemOnDestructionConfig: SpawnItemOnDestructionConfig? = null, // tree spawns wood when cut down
+      growerConfig: GrowerConfig? = null, // farm plots receive and grow carrot seeds
+      growableConfig: GrowableConfig? = null, // carrot seeds grow into carrots
+      spawnItemOnUseConfig: SpawnItemOnUseConfig? = null, // hoe spawns farm plots
+      blocksPlacement: Boolean = storableConfig == null
    ): ItemConfig {
       val spriteConfigKey = key + "_sprite"
 
@@ -102,7 +118,8 @@ private fun addItemConfigs(configs: MutableList<Config>) {
             key = spriteConfigKey,
             textureUrl = textureUrl,
             baseOffset = spriteBaseOffset,
-            baseScale = spriteBaseScale
+            baseScale = spriteBaseScale,
+            depthOffset = spriteDepthOffset
          )
       )
 
@@ -112,23 +129,16 @@ private fun addItemConfigs(configs: MutableList<Config>) {
          description = description,
          spriteConfigKey = spriteConfigKey,
          iconUrl = iconUrl ?: textureUrl,
-         canBePickedUp = canBePickedUp,
-         canBeDropped = canBeDropped,
-         maxHp = maxHp,
-         canBeEquipped = canBeEquipped,
-         canBeDamagedByItem = canBeDamagedByItem,
-         spawnItemOnDestruction = spawnItemOnDestruction,
-         spawnMinStacks = spawnMinStacks,
-         spawnMaxStacks = spawnMaxStacks,
-         spawnMinAmountPerStack = spawnMinAmountPerStack,
-         spawnMaxAmountPerStack = spawnMaxAmountPerStack,
-         maxStackSize = maxStackSize,
-         craftingCost = craftingCost?.let {
-            ItemCollection(
-               entries = it
-            )
-         },
-         equippedCompositeAnimation = equippedCompositeAnimation
+         killableConfig = killableConfig,
+         storableConfig = storableConfig,
+         equippableConfig = equippableConfig,
+         craftableConfig = craftableConfig,
+         spawnItemOnDestructionConfig = spawnItemOnDestructionConfig,
+         growableConfig = growableConfig,
+         growerConfig = growerConfig,
+         spawnItemOnUseConfig = spawnItemOnUseConfig,
+         blocksPlacement = blocksPlacement,
+         useCustomAnimationBaseName = useCustomAnimationBaseName
       )
 
       configs.add(itemConfig)
@@ -142,9 +152,10 @@ private fun addItemConfigs(configs: MutableList<Config>) {
       description = "Useful resource for crafting",
       textureUrl = "assets/items/stone/stone_ground.png",
       iconUrl = "assets/items/stone/stone_icon.png",
-      canBePickedUp = true,
       spriteBaseScale = Vector2.uniform(0.25),
-      maxStackSize = 50
+      storableConfig = StorableConfig(
+         maxStackSize = 50
+      )
    )
 
    addItemConfig(
@@ -153,9 +164,10 @@ private fun addItemConfigs(configs: MutableList<Config>) {
       description = "Useful resource for crafting",
       textureUrl = "assets/items/wood/wood.png",
       iconUrl = "assets/items/wood/wood.png",
-      canBePickedUp = true,
       spriteBaseScale = Vector2(0.3, 0.3),
-      maxStackSize = 50
+      storableConfig = StorableConfig(
+         maxStackSize = 50
+      )
    )
 
    addItemConfig(
@@ -164,16 +176,20 @@ private fun addItemConfigs(configs: MutableList<Config>) {
       description = "An axe for cutting down trees",
       textureUrl = "assets/items/axe/axe.png",
       iconUrl = "assets/items/axe/axe.png",
-      canBePickedUp = true,
-      canBeEquipped = true,
-      spriteBaseScale = Vector2(0.25, 0.25),
-      craftingCost = listOf(
-         ItemCollectionEntry("wood", 25)
+      useCustomAnimationBaseName = "slash",
+      storableConfig = StorableConfig(
+         maxStackSize = 1
       ),
-      maxStackSize = 1,
-      equippedCompositeAnimation = CompositeAnimation(
-         key = "weapon_blunt_waraxe",
-         variant = "waraxe"
+      equippableConfig = EquippableConfig(
+         equippedCompositeAnimation = CompositeAnimation(
+            key = "weapon_blunt_waraxe",
+            variant = "waraxe"
+         ),
+         equipmentSlot = EquipmentSlot.Tool
+      ),
+      spriteBaseScale = Vector2(0.25, 0.25),
+      craftableConfig = CraftableConfig(
+         craftingCost = ItemCollection(listOf(ItemCollectionEntry("wood", 25)))
       )
    )
 
@@ -181,37 +197,104 @@ private fun addItemConfigs(configs: MutableList<Config>) {
       key = "hoe",
       name = "Hoe",
       description = "A hoe for preparing farm plots",
-      textureUrl = "assets/items/axe/axe.png",
-      iconUrl = "assets/items/axe/axe.png",
-      canBePickedUp = true,
-      canBeEquipped = true,
-      spriteBaseScale = Vector2(0.15, 0.15),
-      craftingCost = listOf(
-         ItemCollectionEntry("wood", 25)
+      textureUrl = "assets/items/hoe/hoe.png",
+      iconUrl = "assets/items/hoe/hoe.png",
+      spriteBaseScale = Vector2(0.25, 0.25),
+      useCustomAnimationBaseName = "thrust",
+      storableConfig = StorableConfig(
+         maxStackSize = 1
       ),
-      maxStackSize = 1,
-      equippedCompositeAnimation = CompositeAnimation(
-         key = "tool_thrust",
-         variant = "hoe"
+      equippableConfig = EquippableConfig(
+         equippedCompositeAnimation = CompositeAnimation(
+            key = "tool_thrust",
+            variant = "hoe"
+         ),
+         equipmentSlot = EquipmentSlot.Tool
+      ),
+      craftableConfig = CraftableConfig(
+         craftingCost = ItemCollection(listOf(ItemCollectionEntry("wood", 25)))
+      ),
+      spawnItemOnUseConfig = SpawnItemOnUseConfig(
+         spawnItemConfigKey = "farm-plot",
+         quantity = RandomItemQuantity.amount(10)
       )
    )
 
    addItemConfig(
       key = "pickaxe",
       name = "Pickaxe",
-      description = "A pickaxe for breaking apart stone",
+      description = "A pickaxe for breaking apart boulders",
       textureUrl = "assets/items/pickaxe/pickaxe.png",
       iconUrl = "assets/items/pickaxe/pickaxe.png",
-      canBePickedUp = true,
-      canBeEquipped = true,
       spriteBaseScale = Vector2(0.15, 0.15),
-      craftingCost = listOf(
-         ItemCollectionEntry("wood", 75)
+      useCustomAnimationBaseName = "slash",
+      storableConfig = StorableConfig(
+         maxStackSize = 1
       ),
-      maxStackSize = 1,
-      equippedCompositeAnimation = CompositeAnimation(
-         key = "weapon_polearm_halberd",
-         variant = "halberd"
+      craftableConfig = CraftableConfig(
+         craftingCost = ItemCollection(listOf(ItemCollectionEntry("wood", 75)))
+      ),
+      equippableConfig = EquippableConfig(
+         equippedCompositeAnimation = CompositeAnimation(
+            key = "pickaxe",
+            variant = "pickaxe"
+         ),
+         equipmentSlot = EquipmentSlot.Tool
+      )
+   )
+
+   addItemConfig(
+      key = "farm-plot",
+      name = "Farm Plot",
+      spriteDepthOffset = -200.0,
+      description = "A small farm plot",
+      textureUrl = "assets/items/farm-plot/farm-plot.png",
+      iconUrl = "assets/items/farm-plot/farm-plot.png",
+      spriteBaseScale = Vector2.uniform(1.0),
+      spriteBaseOffset = Vector2(0.0, 0.0),
+      growerConfig = GrowerConfig(
+         canReceiveGrowableItemConfigKeys = listOf(
+            "tomato-seeds"
+         )
+      )
+   )
+
+   addItemConfig(
+      key = "tomato-seeds",
+      name = "Tomato Seeds",
+      description = "Tomato seeds",
+      textureUrl = "assets/items/tomato-seeds/tomato-seeds.png",
+      iconUrl = "assets/items/tomato-seeds/tomato-seeds.png",
+      spriteBaseScale = Vector2.uniform(0.25),
+      spriteBaseOffset = Vector2(0.0, 0.0),
+      storableConfig = StorableConfig(
+         maxStackSize = 10
+      ),
+      growableConfig = GrowableConfig(
+         growingSpriteConfigKey = "tomato_sprite",
+         growsIntoItemConfigKey = "tomato",
+         timeToGrow = 10.0,
+         progressAnimationNames = listOf(),
+         growsIntoItemQuantity = RandomItemQuantity.stacksOfAmount(
+            stackCount = RandomConfig.range(1, 3),
+            amountPerStack = RandomConfig.range(1, 3)
+         )
+      ),
+      equippableConfig = EquippableConfig(
+         equipmentSlot = EquipmentSlot.Tool
+      )
+   )
+
+   addItemConfig(
+      key = "tomato",
+      name = "Tomato",
+      description = "Tomato",
+      textureUrl = "assets/items/tomato/tomato.png",
+      iconUrl = "assets/items/tomato/tomato.png",
+      spriteBaseScale = Vector2.uniform(0.2),
+      spriteBaseOffset = Vector2(0.0, 0.0),
+      storableConfig = StorableConfig(
+         maxStackSize = 10
       )
    )
 
@@ -221,15 +304,19 @@ private fun addItemConfigs(configs: MutableList<Config>) {
       description = "A tree",
       textureUrl = "assets/items/tree/tree.png",
       iconUrl = "assets/items/tree/tree.png",
-      canBeDamagedByItem = "axe",
       spriteBaseScale = Vector2.uniform(0.8),
       spriteBaseOffset = Vector2(0.0, -70.0),
-      spawnItemOnDestruction = "wood",
-      maxStackSize = 1,
-      spawnMinStacks = 1,
-      spawnMaxStacks = 3,
-      spawnMinAmountPerStack = 10,
-      spawnMaxAmountPerStack = 30
+      spawnItemOnDestructionConfig = SpawnItemOnDestructionConfig(
+         spawnItemConfigKey = "wood",
+         quantity = RandomItemQuantity.stacksOfAmount(
+            stackCount = RandomConfig.range(1, 3),
+            amountPerStack = RandomConfig.range(10, 30)
+         )
+      ),
+      killableConfig = KillableConfig(
+         canBeDamagedByToolItemConfigKey = "axe",
+         maxHp = 100
+      )
    )
 
    addItemConfig(
@@ -238,14 +325,18 @@ private fun addItemConfigs(configs: MutableList<Config>) {
       description = "A boulder",
       textureUrl = "assets/items/boulder/boulder.png",
       iconUrl = "assets/items/boulder/boulder.png",
-      canBeDamagedByItem = "pickaxe",
-      spawnItemOnDestruction = "stone",
-      maxStackSize = 1,
-      spawnMinStacks = 1,
-      spawnMaxStacks = 3,
-      spawnMinAmountPerStack = 5,
-      spawnMaxAmountPerStack = 15,
-      spriteBaseScale = Vector2.uniform(0.6)
+      spawnItemOnDestructionConfig = SpawnItemOnDestructionConfig(
+         spawnItemConfigKey = "stone",
+         quantity = RandomItemQuantity.stacksOfAmount(
+            stackCount = RandomConfig.range(1, 3),
+            amountPerStack = RandomConfig.range(5, 15)
+         )
+      ),
+      spriteBaseScale = Vector2.uniform(0.6),
+      killableConfig = KillableConfig(
+         canBeDamagedByToolItemConfigKey = "pickaxe",
+         maxHp = 100
+      )
    )
 
    addItemConfig(
@@ -254,33 +345,24 @@ private fun addItemConfigs(configs: MutableList<Config>) {
       description = "A house",
       textureUrl = "assets/items/house/house.png",
       iconUrl = "assets/items/house/house.png",
-      craftingCost = listOf(
-         ItemCollectionEntry("wood", 200),
-         ItemCollectionEntry("stone", 75)
-      ),
       spriteBaseScale = Vector2.uniform(0.6),
-      maxStackSize = 1
+      craftableConfig = CraftableConfig(
+         craftingCost = ItemCollection(
+            listOf(
+               ItemCollectionEntry("wood", 200),
+               ItemCollectionEntry("stone", 75)
+            )
+         )
+      )
    )
 }
 
 private fun addCharacterConfigs(configs: MutableList<Config>) {
-   fun buildSpriteConfigForCharacter(
-      key: String,
-      textureBaseName: String
-   ): SpriteConfig {
-      return SpriteConfig(
-         textureUrl = "assets/liberated-pixel-cup-characters/spritesheets/body/bodies/male/universal.png",//  "assets/characters/$textureBaseName.png",
-         atlasUrl = "assets/liberated-pixel-cup-characters/atlases/animations-universal.json",
-         animationsUrl = "assets/liberated-pixel-cup-characters/animations/animations-universal.json",
-         key = key
-      )
-   }
-
    val includedSkinColors = listOf(
       "light",
       "amber",
       "olive",
-//      "bronze",
+      "bronze",
       "brown",
       "black"
    )
@@ -295,10 +377,12 @@ private fun addCharacterConfigs(configs: MutableList<Config>) {
       bodies = listOf("body"), // skeleton, zombie
       heads = listOf("heads_human_male", "heads_human_female"),
       noses = listOf("head_nose_straight", "head_nose_elderly", "head_nose_button", "head_nose_big"),
-      eyes = listOf(RegisteredCompositeAnimation(
-         key = "eyes",
-         includedVariants = listOf("blue", "brown", "green")
-      )),
+      eyes = listOf(
+         RegisteredCompositeAnimation(
+            key = "eyes",
+            includedVariants = listOf("blue", "brown", "green")
+         )
+      ),
       wrinkles = listOf("head_wrinkles"),
       hairs = listOf(
          RegisteredCompositeAnimation("hair_swoop", hairColors),
@@ -312,10 +396,6 @@ private fun addCharacterConfigs(configs: MutableList<Config>) {
       key = "composite-animation-registry",
       includedCategories = includedCategories,
       registeredCompositeAnimations = listOf(
-         RegisteredCompositeAnimation(
-            key = "shadow",
-            includedVariants = listOf("shadow")
-         ),
          RegisteredCompositeAnimation(
             key = "torso_clothes_male_sleeveless_laced",
             includedVariants = listOf("white")

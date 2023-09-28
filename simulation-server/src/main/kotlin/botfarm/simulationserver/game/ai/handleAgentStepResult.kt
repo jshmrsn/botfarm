@@ -7,6 +7,7 @@ import botfarm.simulationserver.common.resolvePosition
 import botfarm.simulationserver.game.AgentComponentData
 import botfarm.simulationserver.game.CharacterComponentData
 import botfarm.simulationserver.game.GameSimulation
+import botfarm.simulationserver.game.InventoryComponentData
 import botfarm.simulationserver.simulation.Entity
 import botfarm.simulationserver.simulation.EntityComponent
 
@@ -33,7 +34,9 @@ fun handleAgentStepResult(
       it.copy(
          agentRemoteDebugInfo = agentStepResult.newDebugInfo ?: it.agentRemoteDebugInfo,
          agentStatus = agentStepResult.agentStatus ?: it.agentStatus,
-         wasRateLimited = agentStepResult.wasRateLimited
+         wasRateLimited = agentStepResult.wasRateLimited,
+         statusDuration = agentStepResult.statusDuration,
+         statusStartUnixTime = agentStepResult.statusStartUnixTime
       )
    }
 
@@ -61,6 +64,7 @@ fun handleAgentStepResult(
       val locationToWalkToAndReason = interactions.locationToWalkToAndReason
 
       val actionOnEntity = interactions.actionOnEntity
+      val useEquippedToolItem = interactions.useEquippedToolItem
 
       val actionOnInventoryItem = interactions.actionOnInventoryItem
       val craftItemAction = interactions.craftItemAction
@@ -134,26 +138,74 @@ fun handleAgentStepResult(
          )
       }
 
+      if (useEquippedToolItem != null) {
+         simulation.useEquippedToolItem(
+            interactingEntity = entity,
+            expectedItemConfigKey = null
+         )
+      }
+
       if (actionOnInventoryItem != null) {
          val reason = actionOnInventoryItem.reason
          val itemConfigKey = actionOnInventoryItem.itemConfigKey
          val actionId = actionOnInventoryItem.actionId
          val amount = actionOnInventoryItem.amount
 
+         val inventory = entity.getComponent<InventoryComponentData>().data.inventory
+
          when (actionId) {
             "equipItem" -> {
-               simulation.equipItem(
+               val equipResult = simulation.equipItem(
                   entity = entity,
-                  itemConfigKey = itemConfigKey
+                  expectedItemConfigKey = itemConfigKey,
+                  requestedStackIndex = actionOnInventoryItem.stackIndex
                )
+
+               if (equipResult != GameSimulation.EquipItemResult.Success) {
+                  simulation.broadcastAlertAsGameMessage("Unable to equip item for agent ($debugInfo): itemConfigKey = $itemConfigKey, result ${equipResult.name}")
+               }
             }
 
             "dropItem" -> {
-               simulation.dropItem(
-                  droppingEntity = entity,
-                  itemConfigKey = itemConfigKey,
-                  amount = amount
-               )
+               val stackIndex = actionOnInventoryItem.stackIndex
+                  ?: inventory.itemStacks
+                     .filter {
+                        it.itemConfigKey == itemConfigKey
+                     }
+                     .mapIndexed { index, it -> index to it }
+                     .sortedWith { a, b ->
+                        val isEquippedA = a.second.isEquipped
+                        val isEquippedB = b.second.isEquipped
+
+                        if (isEquippedA != isEquippedB) {
+                           // prioritize not equipped first
+                           if (isEquippedA) {
+                              -1
+                           } else {
+                              1
+                           }
+                        } else {
+                           // prioritize smallest stack first
+                           b.second.amount.compareTo(a.second.amount)
+                        }
+                     }
+                     .firstOrNull()?.first
+
+
+               if (stackIndex == null) {
+                  simulation.broadcastAlertAsGameMessage("Unable to find available item stack to drop ($debugInfo): actionId = $actionId, itemConfigKey = $itemConfigKey")
+               } else {
+                  val didDrop = simulation.dropItemStack(
+                     droppingEntity = entity,
+                     expectedItemConfigKey = itemConfigKey,
+                     stackIndex = stackIndex,
+                     amountToDropFromStack = amount
+                  )
+
+                  if (!didDrop) {
+                     simulation.broadcastAlertAsGameMessage("Unable to drop item stack for agent ($debugInfo): actionId = $actionId, stackIndex = $stackIndex, amount = $amount, itemConfigKey = $itemConfigKey")
+                  }
+               }
             }
 
             else -> {
@@ -204,7 +256,8 @@ fun handleAgentStepResult(
                simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
             }
          } else if (actionIdKey == "pickupItem" ||
-            actionIdKey == "harvestItem"
+            actionIdKey == "harvestItem" ||
+            actionIdKey == "plantItem"
          ) {
             simulation.moveEntityToPoint(
                entity = entity,

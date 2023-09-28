@@ -4,12 +4,15 @@ import Phaser from "phaser";
 import Graphics = Phaser.GameObjects.Graphics;
 import FilterMode = Phaser.Textures.FilterMode;
 import Layer = Phaser.GameObjects.Layer;
+import {SpriteAnimation} from "./common";
 
 
 export interface SpriteDisplayProperties {
   layer?: Layer | null
   textureName: string
-  animation?: string | null
+  animation?: Phaser.Types.Animations.PlayAnimationConfig | null
+  animationShouldFallbackWhenDoneIdentifier?: string | null
+  fallbackAnimation?: Phaser.Types.Animations.PlayAnimationConfig | null
   position: Vector2
   size?: Vector2 | null // joshr: not working?
   scale?: Vector2 | null
@@ -27,6 +30,7 @@ export interface TextDisplayProperties {
   strokeThickness?: number | null
   strokeColor?: string | null
   color?: string | null
+  alpha?: number | null
 
   fontSize?: number | null
   font?: string | null
@@ -148,12 +152,20 @@ export class RenderContext {
     text.setY(position.y)
     text.setScale(scale.x, scale.y)
     text.setAlign(textProperties.align ?? "left")
-    text.setText(textProperties.text ?? "")
+
 
     const origin = textProperties.origin ?? Vector2.zero
     text.setOrigin(origin.x, origin.y)
 
     const previousProperties = renderedGameObject.textProperties
+
+    if (previousProperties == null || previousProperties.alpha !== textProperties.alpha) {
+      text.setAlpha(textProperties.alpha ?? 1.0)
+    }
+
+    if (previousProperties == null || previousProperties.text !== textProperties.text) {
+      text.setText(textProperties.text ?? "")
+    }
 
     if (previousProperties == null || previousProperties.font !== textProperties.font) {
       text.setFont(textProperties.font ?? "Arial Black")
@@ -272,11 +284,27 @@ export class RenderContext {
       this.scene.uiCamera.ignore(renderedGameObject.sprite);
     }
 
-    let animationName = spriteProperties.animation
+    const previousSpriteProperties = renderedGameObject.spriteProperties
+    let animation = spriteProperties.animation
 
     const sprite = renderedGameObject.sprite
-    if (animationName != null) {
-      sprite.anims.play(animationName, true);
+    if (animation != null) {
+      const previousAnimation = previousSpriteProperties?.animation
+
+      if (spriteProperties.animationShouldFallbackWhenDoneIdentifier != null &&
+        previousSpriteProperties != null &&
+        spriteProperties.animationShouldFallbackWhenDoneIdentifier === previousSpriteProperties.animationShouldFallbackWhenDoneIdentifier) {
+
+        if (!sprite.anims.isPlaying) {
+          animation = spriteProperties.fallbackAnimation || animation
+        }
+      }
+
+      if (previousAnimation == null) {
+        sprite.anims.play(animation, true)
+      } else if (animation.key !== previousAnimation.key) {
+        sprite.anims.play(animation, true)
+      }
     } else {
       sprite.anims.stop()
     }

@@ -4,7 +4,7 @@ import {Config, EntityId} from "../simulation/EntityData";
 import {getUnixTimeSeconds, throwError} from "../misc/utils";
 import {DynamicState} from "../components/SimulationComponent";
 import {Simulation, SimulationId, UserId} from "../simulation/Simulation";
-import {Vector2} from "../misc/Vector2";
+import {clampZeroOne, lerp, Vector2} from "../misc/Vector2";
 import {Vector2Animation} from "../misc/Vector2Animation";
 import {
   CharacterBodySelectionsConfig,
@@ -14,20 +14,33 @@ import {
   SpriteConfig
 } from "../common/common";
 import {RenderContext} from "../common/RenderContext";
-import {CharacterComponentData} from "./CharacterComponentData";
-import {ItemComponentData, ItemConfig} from "./ItemComponentData";
+import {
+  ActionTypes,
+  CharacterComponentData,
+  InventoryComponentData,
+  UseEquippedToolItemRequest
+} from "./CharacterComponentData";
+import {
+  EquipmentSlots, GrowerComponent, GrowerComponentData, ItemComponent,
+  ItemComponentData,
+  ItemConfig,
+  KillableComponent,
+  KillableComponentData
+} from "./ItemComponentData";
 import {Entity} from "../simulation/Entity";
 import {
+  PositionComponent,
   PositionComponentData,
   resolveEntityPositionForCurrentTime,
-  resolveEntityPositionForTime, resolvePositionForCurrentTime,
+  resolveEntityPositionForTime,
   resolvePositionForTime
 } from "../common/PositionComponentData";
 import {AgentComponentData} from "./agentComponentData";
-import {UserControlledComponentData} from "./userControlledComponentData";
+import {UserControlledComponent, UserControlledComponentData} from "./userControlledComponentData";
 import {IconHandGrab, IconTool} from "@tabler/icons-react";
 import {CompositeAnimation} from "./CompositeAnimation";
 import Layer = Phaser.GameObjects.Layer;
+import {GameSimulation} from "./GameSimulation";
 
 interface AnimationConfig {
   name: string
@@ -83,14 +96,45 @@ export interface SimulationSceneContext {
 export enum AutoInteractActionType {
   Clear,
   SelectEntity,
-  Interact
+  Pickup,
+  UseToolToDamageEntity,
+  PlaceGrowableInGrower,
+  UseEquippedTool,
+  StopMoving
 }
 
 export interface AutoInteractAction {
   type: AutoInteractActionType
+  equippedToolItemConfig?: ItemConfig | null
   actionTitle: string
-  targetEntity?: Entity
+  targetEntity?: Entity | null
   actionIcon: JSX.Element | null
+}
+
+interface MoveToPointRequest {
+  point: Vector2
+  pendingUseEquippedToolItemRequest?: UseEquippedToolItemRequest
+  pendingInteractionEntityId?: EntityId
+}
+
+function getAnimationDirectionForRelativeLocation(delta: Vector2): string | null {
+  const magnitude = Vector2.magnitude(delta)
+
+  if (magnitude <= 0.001) {
+    return null
+  } else if (Math.abs(delta.x) > Math.abs(delta.y) - 0.01) { // offset to avoid flickering during diagonal movement
+    if (delta.x < 0) {
+      return "left"
+    } else {
+      return "right"
+    }
+  } else {
+    if (delta.y < 0) {
+      return "up"
+    } else {
+      return "down"
+    }
+  }
 }
 
 export class SimulationScene extends Phaser.Scene {
@@ -242,6 +286,7 @@ export class SimulationScene extends Phaser.Scene {
 
     this.load.image("circle", "assets/misc/circle.png");
     this.load.image("ring", "assets/misc/ring.png");
+    this.load.image("character-shadow", "assets/misc/character-shadow.png");
 
     this.preloadJson(() => {
       this.preloadSprites()
@@ -255,7 +300,7 @@ export class SimulationScene extends Phaser.Scene {
   readonly atlasUrlsByCustomAnimationName: Record<string, string> = {
     "slash_oversize": "assets/liberated-pixel-cup-characters/atlases/animations-slash-oversize.json",
     "thrust_oversize": "assets/liberated-pixel-cup-characters/atlases/animations-thrust-oversize.json",
-    "slash_128": "assets/liberated-pixel-cup-characters/atlases/animations-slash-oversize.json", // todo
+    "slash_128": "assets/liberated-pixel-cup-characters/atlases/animations-slash-128.json",
     "walk_128": "assets/liberated-pixel-cup-characters/atlases/animations-slash-oversize.json" // todo
     // "slash_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-128.json",
     // "walk_128": "assets/liberated-pixel-cup-characters/animations/animations-walk-128.json"
@@ -265,7 +310,7 @@ export class SimulationScene extends Phaser.Scene {
   readonly animationsUrlsByCustomAnimationName: Record<string, string> = {
     "slash_oversize": "assets/liberated-pixel-cup-characters/animations/animations-slash-oversize.json",
     "thrust_oversize": "assets/liberated-pixel-cup-characters/animations/animations-thrust-oversize.json",
-    "slash_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-oversize.json", // todo
+    "slash_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-128.json", // todo
     "walk_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-oversize.json" // todo
     // "slash_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-128.json",
     // "walk_128": "assets/liberated-pixel-cup-characters/animations/animations-walk-128.json"
@@ -502,7 +547,8 @@ export class SimulationScene extends Phaser.Scene {
               animationsUrl: animationsUrl,
               animations: [],
               type: "SpriteConfig",
-              key: layerTextureKey
+              key: layerTextureKey,
+              depthOffset: 0
             })
           }
         }
@@ -594,8 +640,8 @@ export class SimulationScene extends Phaser.Scene {
       } else if (configType === "ItemConfig") {
         const itemConfig: ItemConfig = config as any
 
-        if (itemConfig.equippedCompositeAnimation != null) {
-          this.loadCompositeAnimation(itemConfig.equippedCompositeAnimation.key, [itemConfig.equippedCompositeAnimation.variant])
+        if (itemConfig.equippableConfig != null && itemConfig.equippableConfig.equippedCompositeAnimation != null) {
+          this.loadCompositeAnimation(itemConfig.equippableConfig.equippedCompositeAnimation.key, [itemConfig.equippableConfig.equippedCompositeAnimation.variant])
         }
       }
     })
@@ -637,7 +683,7 @@ export class SimulationScene extends Phaser.Scene {
     escapeKey?.on("down", (event: any) => {
       if (this.dynamicState.selectedEntityId != null) {
         this.simulationContext.setSelectedEntityId(null)
-        this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetMessage", {})
+        this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
       } else {
         this.simulationContext.closePanels()
       }
@@ -695,8 +741,9 @@ export class SimulationScene extends Phaser.Scene {
         for (const entity of simulation.entities) {
           const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
           const userControlledComponent = entity.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
+          // const isControlledByLocalUser = userControlledComponent != null && userControlledComponent.data.userId === this.userId
 
-          if (positionComponent != null && (userControlledComponent == null || userControlledComponent.data.userId !== this.userId)) {
+          if (positionComponent != null) {
             const position = resolvePositionForTime(positionComponent, simulationTime)
             const distance = Vector2.distance(worldPoint, position)
 
@@ -713,18 +760,18 @@ export class SimulationScene extends Phaser.Scene {
           this.lastClickTime = getUnixTimeSeconds()
 
           if (nearestEntity != null && nearestDistance < 60) {
-            this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetMessage", {})
+            this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
             this.simulationContext.setSelectedEntityId(nearestEntity.entityId)
           } else {
             this.simulationContext.setSelectedEntityId(null)
-            this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetMessage", {})
+            this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
           }
         } else {
           this.lastClickTime = -1;
-          this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetMessage", {})
+          this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
           //this.simulationContext.setSelectedEntityId(null)
 
-          this.simulationContext.sendWebSocketMessage("MoveToPointMessage", {
+          this.simulationContext.sendWebSocketMessage("MoveToPointRequest", {
             point: worldPoint
           })
         }
@@ -779,14 +826,46 @@ export class SimulationScene extends Phaser.Scene {
       return null
     }
 
-    const playerCharacterComponent = playerControlledEntity.getComponentDataOrNull<CharacterComponentData>("CharacterComponentData")
-    const equippedItemConfigKey = playerCharacterComponent?.equippedItemConfigKey
+    const playerInventoryComponent = playerControlledEntity.getComponentData<InventoryComponentData>("InventoryComponentData")
 
-    const equippedItemConfig = equippedItemConfigKey ? this.getConfig<ItemConfig>(equippedItemConfigKey, "ItemConfig") : null
+    const equippedToolItemConfig = playerInventoryComponent.inventory.itemStacks
+      .filter(it => it.isEquipped)
+      .map(itemStack => {
+        return {
+          itemStack: itemStack,
+          itemConfig: this.getConfig<ItemConfig>(itemStack.itemConfigKey, "ItemConfig")
+        }
+      })
+      .find(it => it.itemConfig.equippableConfig && it.itemConfig.equippableConfig.equipmentSlot === EquipmentSlots.Tool)?.itemConfig
+
+    const playerPositionComponentData = PositionComponent.getData(playerControlledEntity)
+    const playerPositionAnimation = playerPositionComponentData.positionAnimation
 
     const playerPosition = resolveEntityPositionForCurrentTime(playerControlledEntity)
-
     const simulationTime = this.getCurrentSimulationTime()
+
+    const isPlayerMoving = playerPositionAnimation.keyFrames.length !== 0 &&
+      simulationTime <= playerPositionAnimation.keyFrames[playerPositionAnimation.keyFrames.length - 1].time
+
+    if (equippedToolItemConfig != null && equippedToolItemConfig.spawnItemOnUseConfig != null) {
+      if (isPlayerMoving) {
+        return {
+          type: AutoInteractActionType.StopMoving,
+          targetEntity: null,
+          actionTitle: "Stop",
+          actionIcon: <IconTool/>
+        }
+      } else {
+        return {
+          type: AutoInteractActionType.UseEquippedTool,
+          targetEntity: null,
+          actionTitle: "Use Tool",
+          actionIcon: <IconTool/>,
+          equippedToolItemConfig: equippedToolItemConfig
+        }
+      }
+    }
+
 
     let nearestDistance = 10000.0
     let nearestInteraction: AutoInteractAction | null = null
@@ -794,36 +873,54 @@ export class SimulationScene extends Phaser.Scene {
     const maxDistance = 300
 
     const simulation = this.simulation
-    for (const entity of simulation.entities) {
-      const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
-      const userControlledComponent = entity.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
+    for (const targetEntity of simulation.entities) {
+      const positionComponent = PositionComponent.getOrNull(targetEntity)
+      const userControlledComponent = UserControlledComponent.getOrNull(targetEntity)
+      const killableComponent = KillableComponent.getOrNull(targetEntity)
 
-      if (positionComponent != null && (userControlledComponent == null || userControlledComponent.data.userId !== this.userId)) {
+      if (positionComponent != null &&
+        (userControlledComponent == null || userControlledComponent.data.userId !== this.userId) &&
+        (killableComponent == null || killableComponent.data.killedAtTime == null)) {
         const position = resolvePositionForTime(positionComponent, simulationTime)
         const distance = Vector2.distance(playerPosition, position)
 
         if (distance <= maxDistance) {
-          const itemComponentData = entity.getComponentDataOrNull<ItemComponentData>("ItemComponentData")
+          const targetItemComponentData = targetEntity.getComponentDataOrNull<ItemComponentData>("ItemComponentData")
 
-          const itemConfig = itemComponentData ? this.getConfig<ItemConfig>(itemComponentData.itemConfigKey, "ItemConfig") : null
+          const targetItemConfig = targetItemComponentData ? this.getConfig<ItemConfig>(targetItemComponentData.itemConfigKey, "ItemConfig") : null
+          const targetGrowerConfig = targetItemConfig?.growerConfig
+
+          const targetGrowerComponentData = GrowerComponent.getDataOrNull(targetEntity)
 
           let interaction: AutoInteractAction | null = null
-          if (itemConfig != null) {
-            if (itemConfig.canBePickedUp) {
+          if (targetItemConfig != null) {
+            if (targetItemConfig.storableConfig != null) {
               interaction = {
-                type: AutoInteractActionType.Interact,
-                targetEntity: entity,
+                type: AutoInteractActionType.Pickup,
+                targetEntity: targetEntity,
                 actionTitle: "Pick-up",
                 actionIcon: <IconHandGrab/>
               }
-            } else if (itemConfig.canBeDamagedByItem != null &&
-              equippedItemConfig != null &&
-              equippedItemConfig.key === itemConfig.canBeDamagedByItem) {
+            } else if (targetItemConfig.killableConfig && targetItemConfig.killableConfig.canBeDamagedByToolItemConfigKey != null &&
+              equippedToolItemConfig != null &&
+              equippedToolItemConfig.key === targetItemConfig.killableConfig.canBeDamagedByToolItemConfigKey) {
 
               interaction = {
-                type: AutoInteractActionType.Interact,
-                targetEntity: entity,
+                type: AutoInteractActionType.UseToolToDamageEntity,
+                targetEntity: targetEntity,
                 actionTitle: "Harvest",
+                actionIcon: <IconTool/>
+              }
+            } else if (equippedToolItemConfig != null &&
+              equippedToolItemConfig.growableConfig != null &&
+              targetGrowerConfig != null &&
+              targetGrowerComponentData != null &&
+              targetGrowerComponentData.activeGrowth == null &&
+              targetGrowerConfig.canReceiveGrowableItemConfigKeys.includes(equippedToolItemConfig.key)) {
+              interaction = {
+                type: AutoInteractActionType.PlaceGrowableInGrower,
+                targetEntity: targetEntity,
+                actionTitle: "Plant",
                 actionIcon: <IconTool/>
               }
             }
@@ -869,13 +966,32 @@ export class SimulationScene extends Phaser.Scene {
 
     if (actionType === AutoInteractActionType.Clear) {
       this.simulationContext.setSelectedEntityId(null)
-      this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetMessage", {})
+      this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
     } else if (actionType === AutoInteractActionType.SelectEntity) {
       if (targetEntity != null) {
         this.simulationContext.setSelectedEntityId(targetEntity.entityId)
-        this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetMessage", {})
+        this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
       }
-    } else if (actionType === AutoInteractActionType.Interact) {
+    } else if (actionType === AutoInteractActionType.UseEquippedTool) {
+      const request: MoveToPointRequest = {
+        point: playerPosition,
+        pendingUseEquippedToolItemRequest: {
+          expectedItemConfigKey: autoInteractAction.equippedToolItemConfig!.key
+        }
+      }
+
+      this.simulationContext.sendWebSocketMessage("MoveToPointRequest", request)
+    } else if (actionType === AutoInteractActionType.StopMoving) {
+      const playerPositionAfterLatencyBuffer = resolveEntityPositionForTime(playerControlledEntity, simulationTime + 0.3)
+
+      const request: MoveToPointRequest = {
+        point: playerPositionAfterLatencyBuffer
+      }
+
+      this.simulationContext.sendWebSocketMessage("MoveToPointRequest", request)
+    } else if (actionType === AutoInteractActionType.UseToolToDamageEntity ||
+      actionType === AutoInteractActionType.Pickup ||
+      actionType === AutoInteractActionType.PlaceGrowableInGrower) {
       if (targetEntity != null) {
         const targetPosition = resolveEntityPositionForCurrentTime(targetEntity)
         const distance = Vector2.distance(targetPosition, playerPosition)
@@ -885,10 +1001,12 @@ export class SimulationScene extends Phaser.Scene {
 
         const desiredLocation = Vector2.plus(nearestEntityPosition, Vector2.timesScalar(Vector2.normalize(delta), desiredDistance))
 
-        this.simulationContext.sendWebSocketMessage("MoveToPointMessage", {
+        const request: MoveToPointRequest = {
           point: desiredLocation,
           pendingInteractionEntityId: targetEntity.entityId
-        })
+        }
+
+        this.simulationContext.sendWebSocketMessage("MoveToPointRequest", request)
       }
     }
   }
@@ -966,7 +1084,6 @@ export class SimulationScene extends Phaser.Scene {
 
     const playerCharacterComponent = playerControlledEntity != null ? playerControlledEntity.getComponentOrNull<CharacterComponentData>("CharacterComponentData") : null;
 
-
     this.renderContext.render(() => {
       for (const entity of this.simulation.entities) {
         const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
@@ -1017,16 +1134,6 @@ export class SimulationScene extends Phaser.Scene {
           })
         }
 
-        if (itemComponent != null) {
-          this.renderItem(
-            simulationTime,
-            entity,
-            renderContext,
-            itemComponent.data,
-            position
-          )
-        }
-
         if (characterComponent != null) {
           const agentComponentData = entity.getComponentDataOrNull<AgentComponentData>("AgentComponentData")
 
@@ -1039,6 +1146,14 @@ export class SimulationScene extends Phaser.Scene {
             agentComponentData,
             position
           );
+        } else if (itemComponent != null) {
+          this.renderItem(
+            simulationTime,
+            entity,
+            renderContext,
+            itemComponent.data,
+            position
+          )
         }
       }
     })
@@ -1055,23 +1170,63 @@ export class SimulationScene extends Phaser.Scene {
     itemComponent: ItemComponentData,
     position: Vector2
   ) {
+    const killedAtTime = KillableComponent.getDataOrNull(entity)?.killedAtTime
+    const grower = GrowerComponent.getDataOrNull(entity)
+
     const itemConfig = this.getConfig<ItemConfig>(itemComponent.itemConfigKey, "ItemConfig")
     const spriteConfigKey = itemConfig.spriteConfigKey
     const spriteConfig = this.getConfig<SpriteConfig>(spriteConfigKey, "SpriteConfig")
 
-    renderContext.renderSprite("item_" + entity.entityId + "_" + spriteConfigKey, {
+    const timeSinceKilled = killedAtTime != null ? Math.max(0, simulationTime - killedAtTime) : null
+
+    const deathAnimationTime = 0.5
+
+    const baseDepth = this.calculateDepthForPosition(position)
+
+    renderContext.renderSprite("item_" + entity.entityId + "_" + spriteConfig.key, {
       layer: this.mainLayer,
-      depth: this.calculateDepthForPosition(position),
+      depth: baseDepth + spriteConfig.depthOffset,
       textureName: spriteConfigKey,
       position: Vector2.plus(position, spriteConfig.baseOffset),
       animation: null,
-      scale: spriteConfig.baseScale
+      scale: timeSinceKilled != null
+        ? Vector2.timesScalar(spriteConfig.baseScale, lerp(1, 0.7, timeSinceKilled / deathAnimationTime))
+        : spriteConfig.baseScale,
+      alpha: timeSinceKilled != null ?
+        lerp(1, 0.0, timeSinceKilled / deathAnimationTime)
+        : 1.0
     })
+
+    if (grower != null && grower.activeGrowth != null) {
+      const activeGrowthItemConfig = this.getConfig<ItemConfig>(grower.activeGrowth.itemConfigKey, "ItemConfig")
+      const growableConfig = activeGrowthItemConfig.growableConfig
+
+      if (growableConfig == null) {
+        throw new Error("growableConfig is null for an active growth: " + activeGrowthItemConfig.key)
+      }
+
+      const timeToGrow = growableConfig?.timeToGrow ?? 1
+      const growAge = Math.max(0, simulationTime - grower.activeGrowth.startTime)
+      const growPercent = clampZeroOne(growAge / timeToGrow)
+
+      const growIntoItemConfig = this.getConfig<ItemConfig>(growableConfig.growsIntoItemConfigKey, "ItemConfig")
+      const growIntoSpriteConfig = this.getConfig<SpriteConfig>(growIntoItemConfig.spriteConfigKey, "SpriteConfig")
+
+      renderContext.renderSprite("item_" + entity.entityId + "_" + growIntoSpriteConfig.key + "_activeGrowth", {
+        layer: this.mainLayer,
+        depth: baseDepth + 0.001,
+        textureName: growIntoSpriteConfig.key,
+        position: Vector2.plus(position, spriteConfig.baseOffset),
+        animation: null,
+        scale: Vector2.timesScalar(growIntoSpriteConfig.baseScale, lerp(0.5, 1.0, growPercent)),
+        alpha: lerp(0.5, 1.0, growPercent)
+      })
+    }
 
     if (this.dynamicState.selectedEntityId === entity.entityId ||
       this.calculatedAutoInteraction?.targetEntity === entity) {
       renderContext.renderText("item-name:" + entity.entityId, {
-        depth: this.calculateDepthForPosition(position),
+        depth: baseDepth,
         layer: this.characterNameLayer,
         text: itemConfig.name + (itemComponent.amount > 1 ? ` (x${itemComponent.amount})` : ""),
         strokeThickness: 3,
@@ -1128,11 +1283,11 @@ export class SimulationScene extends Phaser.Scene {
       }
 
       if (agentComponentData.agentStatus != null) {
-        if (agentComponentData.agentStatus === "running-prompt") {
+        if (agentComponentData.agentStatus.includes("running-prompt")) {
           statusSuffix += "💭"
         } else if (agentComponentData.agentStatus === "prompt-finished") {
           // statusSuffix += "✅"
-        } else if (agentComponentData.agentStatus === "updating-memory") {
+        } else if (agentComponentData.agentStatus.includes("updating-memory")) {
           statusSuffix += "📝️"
         } else if (agentComponentData.agentStatus === "update-memory-success") {
           // statusSuffix += "🟢"
@@ -1148,29 +1303,12 @@ export class SimulationScene extends Phaser.Scene {
       }
     }
 
-
-    if (characterComponentData.equippedItemConfigKey != null) {
-      const equippedItemConfig = this.simulation.getConfig<ItemConfig>(characterComponentData.equippedItemConfigKey, "ItemConfig")
-
-      if (equippedItemConfig.equippedCompositeAnimation == null) {
-        renderContext.renderSprite("equipped-item:" + entity.entityId + ":" + characterComponentData.equippedItemConfigKey, {
-          layer: this.mainLayer,
-          textureName: equippedItemConfig.spriteConfigKey,
-          position: Vector2.plus(position, new Vector2(0, -20)),
-          scale: new Vector2(0.15, 0.15),
-          alpha: 1,
-          depth: this.calculateDepthForPosition(position) + 1
-        })
-      }
-    }
-
-
     const userControlledComponent = entity.getComponentDataOrNull<UserControlledComponentData>("UserControlledComponentData")
 
     renderContext.renderText("character-name:" + entity.entityId, {
       depth: this.calculateDepthForPosition(position),
       layer: this.characterNameLayer,
-      text: (emoji != null ? (emoji + " ") : "") + characterComponentData.name + (statusSuffix != null ? (" " + statusSuffix) : ""),
+      text: (emoji != null ? (emoji + " ") : "") + characterComponentData.name + statusSuffix,
       strokeThickness: 3,
       fontSize: 20,
       useUiCamera: false,
@@ -1184,14 +1322,39 @@ export class SimulationScene extends Phaser.Scene {
           : "#BCEBD2"
     })
 
-    const mostRecentSpokenMessage = characterComponentData.recentSpokenMessages.length > 0
-      ? characterComponentData.recentSpokenMessages[characterComponentData.recentSpokenMessages.length - 1]
-      : null
-
     const maxChatBubbleAge = 10
 
-    if (mostRecentSpokenMessage != null && simulationTime - mostRecentSpokenMessage.sentSimulationTime < maxChatBubbleAge) {
-      var spokenMessageText = mostRecentSpokenMessage.message
+    const spokenMessages = characterComponentData.recentSpokenMessages;
+
+    for (let messageIndex = 0; messageIndex < spokenMessages.length; messageIndex++) {
+      const message = spokenMessages[messageIndex]
+      const chatMessageAge = simulationTime - message.sentSimulationTime
+
+      if (chatMessageAge >= maxChatBubbleAge) {
+        continue
+      }
+
+      const fadeInTime = 0.25
+      const fadeInPercent = lerp(0, 1, chatMessageAge / fadeInTime)
+      const fadeOutTime = 0.25
+      const fadeOutPercent = lerp(0, 1, (chatMessageAge - maxChatBubbleAge + fadeOutTime) / fadeOutTime)
+
+      let interruptFadeOutPercent = 0
+      if (messageIndex !== (spokenMessages.length - 1)) {
+        const interruptedByMessage = spokenMessages[messageIndex + 1]
+        const interruptedByMessageAge = simulationTime - interruptedByMessage.sentSimulationTime
+        const interruptFadeOutTime = 0.15
+        interruptFadeOutPercent = lerp(0, 1, interruptedByMessageAge / interruptFadeOutTime)
+      }
+
+      const animationAlpha = lerp(lerp(0, 1, fadeInPercent), 0, fadeOutPercent + interruptFadeOutPercent)
+
+      // jshmrsn: I wasn't able to get scaling to work well with the text and bubble, so just using a subtle scale
+      // factor and fast animations to hide the weirdness
+      const animationScale = lerp(lerp(0.85, 1, fadeInPercent), 0.85, fadeOutPercent + interruptFadeOutPercent) *
+        lerp(1.15, 1.0, Math.pow(fadeInPercent, 2.0))
+
+      var spokenMessageText = message.message
 
       const maxBubbleWidth = 250;
       const minBubbleWidth = 70;
@@ -1202,7 +1365,7 @@ export class SimulationScene extends Phaser.Scene {
 
       const chatBubbleDepth = this.calculateDepthForPosition(position)
 
-      const content = renderContext.renderText("character-spoken-message-text:" + entity.entityId + spokenMessageText, {
+      const content = renderContext.renderText("character-spoken-message-text:" + entity.entityId + spokenMessageText + ":" + messageIndex, {
         layer: this.chatBubbleLayer,
         depth: chatBubbleDepth + 0.0001,
         text: spokenMessageText,
@@ -1215,7 +1378,8 @@ export class SimulationScene extends Phaser.Scene {
         style: {
           align: 'center',
           wordWrap: {width: (maxBubbleWidth - (bubblePaddingX * 2))} // word wrap gets messed up by scale
-        }
+        },
+        alpha: animationAlpha
       })
 
       const textBounds = content.getBounds();
@@ -1225,7 +1389,7 @@ export class SimulationScene extends Phaser.Scene {
       const arrowHeight = bubbleHeight / 4 + 5;
       const arrowPointOffsetX = bubbleWidth / 8;
 
-      const bubble = renderContext.renderGraphics("character-spoken-message-bubble:" + entity.entityId + ":" + spokenMessageText, this.chatBubbleLayer, bubble => {
+      const bubble = renderContext.renderGraphics("character-spoken-message-bubble:" + entity.entityId + ":" + spokenMessageText + ":" + messageIndex, this.chatBubbleLayer, bubble => {
         // Bubble shadow
         bubble.clear()
         bubble.fillStyle(0x222222, 0.35);
@@ -1248,7 +1412,7 @@ export class SimulationScene extends Phaser.Scene {
         const point3X = Math.floor(arrowPointOffsetX);
         const point3Y = Math.floor(bubbleHeight + arrowHeight);
 
-        //  Bubble arrow shadow
+        //  Bubble arrow shadow (disabled because it causes artifacts)
         // bubble.lineStyle(4, 0x222222, 0.5);
         // bubble.lineBetween(point2X - 1, point2Y + 6, point3X + 2, point3Y);
 
@@ -1259,6 +1423,8 @@ export class SimulationScene extends Phaser.Scene {
         bubble.lineBetween(point1X, point1Y, point3X, point3Y);
       })
 
+      bubble.setScale(animationScale, animationScale)
+      bubble.setAlpha(animationAlpha)
       bubble.setDepth(chatBubbleDepth)
       bubble.setX(position.x - arrowPointOffsetX)
       bubble.setY(position.y - 35 - bubbleHeight - arrowHeight)
@@ -1279,25 +1445,36 @@ export class SimulationScene extends Phaser.Scene {
       })
     }
 
-    let animation: string | null
+    const characterDepth = this.calculateDepthForPosition(position)
 
     let keyFrames = positionComponentData.positionAnimation.keyFrames;
-    let animationSuffix: string
+    let animationRepeat = -1
+
+    let isMoving = false
+    let movementAnimationDirection = "down"
 
     if (keyFrames.length <= 1) {
-      animationSuffix = "down"
     } else {
       const first = keyFrames[0]
       const last = keyFrames[keyFrames.length - 1]
+
+
+      let firstKeyFrameWithChange = first
+      for (let keyFrame of keyFrames) {
+        if (Vector2.distance(keyFrame.value, position) > 0.1) {
+          firstKeyFrameWithChange = keyFrame
+          break
+        }
+      }
 
       let withinPositionAnimationRange: boolean
 
       let from: Vector2
       let to: Vector2
 
-      if (simulationTime <= first.time) {
-        from = first.value
-        to = keyFrames[1].value
+      if (simulationTime <= firstKeyFrameWithChange.time) {
+        from = position
+        to = firstKeyFrameWithChange.value
         withinPositionAnimationRange = false
       } else if (simulationTime >= last.time) {
         from = keyFrames[keyFrames.length - 2].value
@@ -1311,27 +1488,124 @@ export class SimulationScene extends Phaser.Scene {
 
       const delta = Vector2.minus(to, from)
       const magnitude = Vector2.magnitude(delta)
-      const moving = magnitude > 0.001 && withinPositionAnimationRange
+      isMoving = magnitude > 0.001 && withinPositionAnimationRange
+      movementAnimationDirection = getAnimationDirectionForRelativeLocation(delta) ?? movementAnimationDirection
+    }
 
-      if (magnitude <= 0.001) {
-        // idle
-        animationSuffix = "down"
-      } else if (Math.abs(delta.x) > Math.abs(delta.y) - 0.01) { // offset to avoid flickering during diagonal movement
-        if (delta.x < 0) {
-          animationSuffix = moving ? "walk-left" : "left"
-        } else {
-          animationSuffix = moving ? "walk-right" : "right"
-        }
-      } else {
-        if (delta.y < 0) {
-          animationSuffix = moving ? "walk-up" : "up"
-        } else {
-          animationSuffix = moving ? "walk-down" : "down"
+    let animationName = isMoving ? "walk-" + movementAnimationDirection : movementAnimationDirection
+
+    let performedAction = characterComponentData.performedAction
+    if (performedAction != null) {
+      if (simulationTime - performedAction.startedAtSimulationTime > performedAction.duration) {
+        performedAction = null
+      }
+    }
+
+    const inventoryComponent = entity.getComponentDataOrNull<InventoryComponentData>("InventoryComponentData")
+    let equippedToolItemConfig: ItemConfig | null = null
+
+    if (inventoryComponent != null) {
+      for (let itemStack of inventoryComponent.inventory.itemStacks) {
+        if (itemStack.isEquipped) {
+          const equippedItemConfig = this.simulation.getConfig<ItemConfig>(itemStack.itemConfigKey, "ItemConfig")
+
+          if (equippedItemConfig.equippableConfig && equippedItemConfig.equippableConfig.equipmentSlot == EquipmentSlots.Tool) {
+            equippedToolItemConfig = equippedItemConfig
+          }
+
+          if (equippedItemConfig.equippableConfig != null && equippedItemConfig.equippableConfig.equippedCompositeAnimation == null) {
+            const spriteConfig = this.getConfig<SpriteConfig>(equippedItemConfig.spriteConfigKey, "SpriteConfig")
+
+            const holdOffset = movementAnimationDirection === "left"
+              ? new Vector2(-10, -5)
+              : movementAnimationDirection === "right"
+                ? new Vector2(-10, -5)
+                : movementAnimationDirection === "up"
+                  ? new Vector2(10, -5)
+                  : new Vector2(-10, -5)
+
+            renderContext.renderSprite("equipped-item:" + entity.entityId + ":" + itemStack.itemConfigKey, {
+              layer: this.mainLayer,
+              textureName: equippedItemConfig.spriteConfigKey,
+              position: Vector2.plus(position, holdOffset),
+              scale: Vector2.timesScalar(spriteConfig.baseScale, 0.65),
+              alpha: 1,
+              depth: this.calculateDepthForPosition(position) + 1
+            })
+          }
         }
       }
     }
 
-    const characterDepth = this.calculateDepthForPosition(position)
+    if (equippedToolItemConfig != null &&
+      equippedToolItemConfig.spawnItemOnUseConfig &&
+      userControlledComponent &&
+      userControlledComponent.userId === this.dynamicState.userId) {
+      const spawnItemConfigKey = equippedToolItemConfig.spawnItemOnUseConfig.spawnItemConfigKey
+      const spawnItemConfig = this.getConfig<ItemConfig>(spawnItemConfigKey, "ItemConfig")
+
+      const spawnItemSpriteConfig = this.getConfig<SpriteConfig>(spawnItemConfig.spriteConfigKey, "SpriteConfig")
+
+      const nearestEntities = (this.simulation as GameSimulation).getNearestEntities(
+        position,
+        100.0, // TODO: has to match value in useEquippedToolItem in simulation server Kotlin
+        entityToCheck => {
+          const entityToCheckItemConfigKey = ItemComponent.getDataOrNull(entityToCheck)?.itemConfigKey
+          if (entityToCheckItemConfigKey == null) {
+            return false
+          }
+          const itemConfigToCheck = this.getConfig<ItemConfig>(entityToCheckItemConfigKey, "ItemConfig")
+
+          return itemConfigToCheck.blocksPlacement
+        }
+      )
+
+      const isValid = nearestEntities.length === 0
+
+      renderContext.renderSprite("spawn_item_on_use_preview_" + entity.entityId + "_" + spawnItemSpriteConfig.key, {
+        layer: this.mainLayer,
+        depth: characterDepth + spawnItemSpriteConfig.depthOffset,
+        textureName: spawnItemSpriteConfig.key,
+        position: Vector2.plus(position, spawnItemSpriteConfig.baseOffset),
+        animation: null,
+        scale: spawnItemSpriteConfig.baseScale,
+        alpha: isValid ? 0.35 : 0.1
+      })
+    }
+
+    if (performedAction != null) {
+      const targetEntity = performedAction.targetEntityId != null
+        ? this.simulation.getEntityOrNull(performedAction.targetEntityId)
+        : null
+
+      let actionAnimationDirection = "down"
+      if (targetEntity != null) {
+        const targetEntityPosition = resolveEntityPositionForCurrentTime(targetEntity)
+        const delta = Vector2.minus(targetEntityPosition, position)
+
+        actionAnimationDirection = getAnimationDirectionForRelativeLocation(delta) ?? actionAnimationDirection
+      }
+
+      let actionAnimationBaseName = "pickup"
+      animationRepeat = 0
+
+      if (performedAction.actionType === ActionTypes.UseEquippedTool) {
+        actionAnimationBaseName = equippedToolItemConfig?.useCustomAnimationBaseName ?? "thrust"
+      } else if (performedAction.actionType === ActionTypes.UseToolToDamageEntity) {
+        actionAnimationBaseName = equippedToolItemConfig?.useCustomAnimationBaseName ?? "slash"
+      } else if (performedAction.actionType === ActionTypes.PlaceGrowableInGrower) {
+        actionAnimationBaseName = "pickup"
+      } else if (performedAction.actionType === ActionTypes.DropItem) {
+        actionAnimationBaseName = "pickup"
+      } else if (performedAction.actionType === ActionTypes.PickupItem) {
+        actionAnimationBaseName = "pickup"
+      } else if (performedAction.actionType === ActionTypes.EquipItem) {
+        actionAnimationBaseName = "equip"
+      }
+
+      animationName = actionAnimationBaseName + "-" + actionAnimationDirection
+    }
+
 
     const preferredCompositeAnimationCategory = characterComponentData.bodySelections.bodyType
 
@@ -1350,7 +1624,7 @@ export class SimulationScene extends Phaser.Scene {
       const variant = compositeAnimation.variant
 
       sheetDefinition.layers.forEach((layer, layerIndex) => {
-        if (layer.animationConfigsByName[animationSuffix]) {
+        if (layer.animationConfigsByName[animationName]) {
           const textureKeysByCategory = layer.textureKeysByCategoryByVariant[variant]
 
           if (textureKeysByCategory == null) {
@@ -1360,23 +1634,27 @@ export class SimulationScene extends Phaser.Scene {
           const textureKey = textureKeysByCategory[preferredCompositeAnimationCategory] ?? textureKeysByCategory["male"]
 
           if (textureKey) {
-            animation = textureKey + "_" + animationSuffix
+            let animationKey = textureKey + "_" + animationName
+
+            let animationConfig: Phaser.Types.Animations.PlayAnimationConfig = {
+              key: animationKey,
+              repeat: animationRepeat
+            }
 
             const spriteKey = entity.entityId + "-composite-animation-layer-" + layerIndex + textureKey + ":" + spriteKeySuffix
 
-            renderContext.renderSprite(spriteKey, {
+            const sprite = renderContext.renderSprite(spriteKey, {
               layer: this.mainLayer,
               depth: characterDepth + layer.zPos * 0.0001,
               textureName: textureKey,
               position: positionWithOffset,
-              animation: animation,
+              animation: animationConfig,
               scale: scale
             })
           }
         }
       })
     }
-
 
     const bodySelections = characterComponentData.bodySelections
 
@@ -1391,9 +1669,13 @@ export class SimulationScene extends Phaser.Scene {
       })
     }
 
-    renderCompositeAnimation("character:shadow", {
-      key: "shadow",
-      variant: "shadow"
+    renderContext.renderSprite("character-shadow:" + entity.entityId, {
+      layer: this.mainLayer,
+      textureName: "character-shadow",
+      position: Vector2.plus(position, new Vector2(-2, 10)),
+      scale: new Vector2(0.45, 0.35),
+      alpha: 0.45,
+      depth: characterDepth - 0.01
     })
 
     renderSkinColorCompositionAnimation("body", bodySelections.body)
@@ -1409,28 +1691,40 @@ export class SimulationScene extends Phaser.Scene {
       renderCompositeAnimation("character:hair", bodySelections.eyes)
     }
 
-    var hasPants = false
-    var hasShirt = false
+    if (inventoryComponent != null) {
+      var hasPants = false
+      var hasShirt = false
 
-    if (!hasShirt) {
-      renderCompositeAnimation("shirt", {
-        key: "torso_clothes_male_sleeveless_laced",
-        variant: "white"
-      })
-    }
+      for (let itemStack of inventoryComponent.inventory.itemStacks) {
+        if (itemStack.isEquipped) {
+          const equippedItemConfig = this.simulation.getConfig<ItemConfig>(itemStack.itemConfigKey, "ItemConfig")
 
-    if (!hasPants) {
-      renderCompositeAnimation("shirt", {
-        key: "legs_pantaloons",
-        variant: "white"
-      })
-    }
+          if (equippedItemConfig.equippableConfig) {
+            if (equippedItemConfig.equippableConfig.equipmentSlot === EquipmentSlots.Pants) {
+              hasPants = true
+            } else if (equippedItemConfig.equippableConfig.equipmentSlot === EquipmentSlots.Chest) {
+              hasShirt = true
+            }
 
-    if (characterComponentData.equippedItemConfigKey != null) {
-      const equippedItemConfig = this.simulation.getConfig<ItemConfig>(characterComponentData.equippedItemConfigKey, "ItemConfig")
+            if (equippedItemConfig.equippableConfig.equippedCompositeAnimation != null) {
+              renderCompositeAnimation("equipped-item", equippedItemConfig.equippableConfig.equippedCompositeAnimation)
+            }
+          }
+        }
+      }
 
-      if (equippedItemConfig.equippedCompositeAnimation != null) {
-        renderCompositeAnimation("equipped-item", equippedItemConfig.equippedCompositeAnimation)
+      if (!hasShirt) {
+        renderCompositeAnimation("default-shirt", {
+          key: "torso_clothes_male_sleeveless_laced",
+          variant: "white"
+        })
+      }
+
+      if (!hasPants) {
+        renderCompositeAnimation("default-pants", {
+          key: "legs_pantaloons",
+          variant: "white"
+        })
       }
     }
   }
