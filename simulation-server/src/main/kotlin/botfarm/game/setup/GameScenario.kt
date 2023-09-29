@@ -14,10 +14,14 @@ import botfarmshared.misc.Vector2
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 
 abstract class GameScenario(
-   identifier: String
+   identifier: String,
+   name: String? = null,
+   description: String? = null
 ) : Scenario(
    identifier = identifier,
-   gameIdentifier = "game"
+   gameIdentifier = "game",
+   name = name,
+   description = description
 ) {
    override fun createSimulation(
       simulationContainer: SimulationContainer,

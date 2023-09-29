@@ -7,7 +7,7 @@
 
 
 ## Goals
-- Provide a game simulation platform that can be used to easily integrate generative agents, and to conduct evaluation of those agents in configured scenarios.
+- Provide a game simulation platform that can be used to embody generative agents, and to conduct evaluation of those agents in configured scenarios.
 
 - Decouple game simulations and agent technology stacks via an HTTP API, so that generative agents can be built with any preferred technology stack.
 
