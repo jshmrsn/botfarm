@@ -1527,14 +1527,18 @@ class GameSimulation(
             when (type) {
                "1" -> {
                   this.spawnAgent(
-                     name = name ?: "Joe",
+                     name = name ?: "Agent Joe",
                      corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
                      initialMemories = listOf(
                         "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
                         "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
                      ),
                      agentType = agentType,
-                     bodySelections = this.buildRandomCharacterBodySelections("male"),
+                     bodySelections = this.buildRandomCharacterBodySelections(
+                        bodyType = "male",
+                        hairColor = "black",
+                        skinColor = "light"
+                     ),
                      age = 25,
                      location = spawnLocation
                   )

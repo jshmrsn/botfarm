@@ -138,7 +138,7 @@ export function HelpPanel(props: HelpPanelProps) {
           display: "flex",
           flexDirection: "column",
           flexGrow: 1,
-          overflowY: "scroll"
+          overflowY: "auto"
         }}
       >
         <ReactMarkdown>

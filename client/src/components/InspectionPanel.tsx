@@ -91,7 +91,7 @@ export function InspectionPanel(props: InspectionPanelProps) {
       key={"scroll-content"}
       style={{
         flexGrow: 1.0,
-        overflowY: "scroll",
+        overflowY: "auto",
         gap: 6,
         flexDirection: "column",
         display: "flex",

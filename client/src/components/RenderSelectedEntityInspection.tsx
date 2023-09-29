@@ -84,11 +84,9 @@ export function renderSelectedEntityInspection(
       display: "flex",
       gap: 2,
       flexDirection: "column",
-      // overflowY: "scroll",
       backgroundColor: "rgba(0, 0, 0, 0.1)",
       padding: 7,
       borderRadius: 5,
-      // height: "100%"
     }}>
       {positionDiv}
       {agentDiv}

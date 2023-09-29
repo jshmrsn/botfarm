@@ -72,18 +72,18 @@ fun createGameSimulation(
 
    simulation.spawnItems(
       itemConfigKey = "tree",
-      quantity = RandomItemQuantity.stacks(100, 200),
+      quantity = RandomItemQuantity.stacks(200),
       baseLocation = worldCenter,
       randomLocationScale = worldBounds.x * 0.5,
-      randomLocationExponent = 0.95
+      randomLocationExponent = 1.0
    )
 
    simulation.spawnItems(
       itemConfigKey = "boulder",
-      quantity = RandomItemQuantity.stacks(50, 60),
+      quantity = RandomItemQuantity.stacks(90),
       baseLocation = worldCenter,
       randomLocationScale = worldBounds.x * 0.5,
-      randomLocationExponent = 0.8
+      randomLocationExponent = 1.0
    )
 
    return simulationContainer.addSimulation(simulation)

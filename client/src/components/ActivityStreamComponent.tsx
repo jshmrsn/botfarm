@@ -69,7 +69,8 @@ export function ActivityStreamComponent(props: Props): JSX.Element {
         key={"profile-icon-layers"}
         style={{
           flexBasis: profileIconSize,
-          height: profileIconSize
+          height: profileIconSize,
+          width: profileIconSize
         }}
       >
         <div
@@ -143,7 +144,9 @@ export function ActivityStreamComponent(props: Props): JSX.Element {
           display: "flex",
           flexDirection: "column",
           gap: 5,
-          padding: 5
+          padding: 5,
+          flexBasis: 0,
+          flexGrow: 1
         }}
       >
         <Text><b>{activityStreamEntry.title}</b></Text>
@@ -280,7 +283,7 @@ export function ActivityStreamComponent(props: Props): JSX.Element {
       }}
       style={{
         flexGrow: 1.0,
-        overflowY: "scroll",
+        overflowY: "auto",
         display: "flex",
         flexDirection: "column-reverse"
       }}

@@ -72,7 +72,7 @@ export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | nu
       key={"scroll-content"}
       style={{
         flexGrow: 1.0,
-        overflowY: "scroll"
+        overflowY: "auto"
       }}
     >
       {<InventoryComponent dynamicState={dynamicState} entity={userControlledEntity} viewOnly={false}/>}

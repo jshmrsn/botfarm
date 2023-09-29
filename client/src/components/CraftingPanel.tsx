@@ -89,7 +89,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
       key={"scroll-content"}
       style={{
         flexGrow: 1.0,
-        overflowY: "scroll"
+        overflowY: "auto"
       }}
     >
       <div

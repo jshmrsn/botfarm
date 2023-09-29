@@ -79,7 +79,7 @@ export function DebugPanel(props: DebugPanelProps) {
               height: scrollAreaHeight,
               display: "flex",
               flexDirection: "column",
-              overflowY: "scroll"
+              overflowY: "auto"
             }}
           >
           </div>
@@ -93,7 +93,7 @@ export function DebugPanel(props: DebugPanelProps) {
               height: scrollAreaHeight,
               display: "flex",
               flexDirection: "column",
-              overflowY: "scroll"
+              overflowY: "auto"
             }}
           >
           {renderSelectedEntityInspection(entity)}
