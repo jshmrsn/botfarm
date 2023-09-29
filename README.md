@@ -7,9 +7,9 @@ Multiplayer Game Platform for Embodying Generative Agents
 
 - Decouple game simulations and agent technology stacks via an HTTP API, so that your agent can be built with your preferred technology stack.
 
-- Allow one or more players to connect to the game worlds so they can interact both with agents and other players in real time.
+- Allow one or more players to connect to the game worlds, so they can interact both with agents and other players in real time.
 
-- Strive to maintain high code quality and maintainability of the game simulation so that it can be extended or remixed for various research use cases. For starters, both client and simulation server should be written in type-safe languages (Kotlin/Typescript), even if generative agents are written in more dynamic languages (e.g. python).
+- Prioritize maintainability, code quality, and game development best practices of the game simulation code base, so that it can be extended or remixed for various research use cases.
 
 ## Motivations
 - Research whether or not virtually embodying generative agents allows them to be more convincingly intelligent compared to disembodied agents (e.g. chat bots and virtual assistants).
@@ -20,7 +20,23 @@ Multiplayer Game Platform for Embodying Generative Agents
 
 - Explore UX and game design challenges of games that utilize generative agents.
 
+
+## Current Features
+A playable browser-based 2D game with a basic implementation of harvesting, crafting, and farming mechanics.
+Characters in the game can be controlled either by human players of generative agents.
+Supports server-authorative real time multiplayer.
+Playable on mobile in the browser.
+
 ## Project Architecture
+Both client and simulation server are written in type-safe languages (Kotlin and Typescript).
+The first agent implementation is also written in Kotlin, but it communicates with the simulation over HTTP, so other languages could be used to implement agents.
+
+A lightweight entity-component-system architecture is used to implement the game simulation.
+Entity component state is synchronized to the client.
+React is used to render the game's UI, with the goal being to represent the game UI as a function of the game state.
+Similarly, the rendering of the game world uses a thin layer above Phaser3 to represent game visuals as a function of game state.
+Basically, every frame the game describes what sprites should exist and how they should be configured for the current game state, vs. manually creating, updating, and destroying sprites in response to events.
+
 The project is composed of three major components.
 * **Simulation Server**
     - Runs the game simulation
@@ -114,8 +130,7 @@ See [How to Play](docs/how-to-play.md)
 ## Deployment
 See [Deployment](docs/deployment.md)
 
-
-## Areas to Contribute
+## Areas to Develop
 Along with continuing broad development on the existing functionality, the following are some discrete areas the project could grow in.
 
 - Developing example agents using other technology stacks, especially those that are popular in the AI/ML community, would be a huge help for the project. Both as a way to make it easier for other people to get started building an agent with other technology stacks, but also as a way to evaluate and iterate on the simulation/agent integration APIs.
@@ -132,7 +147,7 @@ Along with continuing broad development on the existing functionality, the follo
 
 - Decouple the simulation server from the main application servers, and ultimately support an autoscaling fleet of simulation servers.
 
-- Deployment streamlining. Currently the project has been deployed via AWS Elastic Beanstalk. Initial setup for this deployment currently requires manual work on the AWS console across Elastic Beanstalk, EC2, CloudFront, S3, Certificate Manager, etc..
+- Deployment streamlining. Currently, the project has been deployed via AWS Elastic Beanstalk. Initial setup for this deployment currently requires manual work on the AWS console across Elastic Beanstalk, EC2, CloudFront, S3, Certificate Manager, etc..
 
 - Windows/Linux development environment testing. Theoretically should just work, but has not been tested.
 
@@ -142,11 +157,11 @@ Along with continuing broad development on the existing functionality, the follo
 
 - Pause agents once a configurable total simulation cost is reached.
 
-- Farming mechanics.
-
 - Basic combat mechanics (so we can evaluate which situations agents would choose to engage in violence)
 
-- Clothing items, and integration into entity description provided to agents.
+- Hunger mechanics to drive problem-solving of food productions
+
+- Clothing items, and integration into entity description provided to agents
 
 - Dynamic pathfinding grid (update path finding grid when placing blocking entities like houses/trees)
 
