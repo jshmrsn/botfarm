@@ -146,7 +146,6 @@ class GameSimulation(
                time = currentTime,
                sourceLocation = location,
                sourceEntityId = entity.entityId,
-               sourceIconPath = null,
                shouldReportToAi = false // AI is made aware of conversations through separate mechanism
             )
          )
@@ -300,7 +299,8 @@ class GameSimulation(
             title = "$name equipped ${itemConfigToEquip.name}",
             sourceLocation = entity.resolvePosition(),
             targetIconPath = itemConfigToEquip.iconUrl,
-            actionType = "equipItem"
+            actionType = "equipItem",
+            sourceEntityId = entity.entityId
          )
       )
 
@@ -590,7 +590,8 @@ class GameSimulation(
             title = "$name dropped a ${itemConfig.name}",
             sourceLocation = droppingEntity.resolvePosition(),
             targetIconPath = itemConfig.iconUrl,
-            actionType = "dropItem"
+            actionType = "dropItem",
+            sourceEntityId = droppingEntity.entityId
          )
       )
 
@@ -704,6 +705,7 @@ class GameSimulation(
                      sourceIconPath = null,
                      title = "$interactingEntityName created a ${spawnItemConfig.name}",
                      sourceLocation = interactingEntity.resolvePosition(),
+                     sourceEntityId = interactingEntity.entityId,
                      targetIconPath = spawnItemConfig.iconUrl,
                      actionType = "spawnOnUse"
                   )
@@ -849,7 +851,8 @@ class GameSimulation(
                      title = "$interactingEntityName planted ${equippedToolItemConfig.name}",
                      sourceLocation = interactingEntity.resolvePosition(),
                      targetIconPath = equippedToolItemConfig.iconUrl,
-                     actionType = "placeGrowableInGrower"
+                     actionType = "placeGrowableInGrower",
+                     sourceEntityId = interactingEntity.entityId
                   )
                )
 
@@ -1410,7 +1413,7 @@ class GameSimulation(
 
             if (entity != null && name != null) {
                val characterComponent = entity.getComponent<CharacterComponentData>()
-               this.broadcastAlertAsGameMessage("${characterComponent.data.name} changed name to $name")
+               //this.broadcastAlertAsGameMessage("${characterComponent.data.name} changed name to $name")
 
                characterComponent.modifyData {
                   it.copy(
@@ -1428,7 +1431,7 @@ class GameSimulation(
 
             if (entity != null) {
                val characterComponent = entity.getComponent<CharacterComponentData>()
-               this.broadcastAlertAsGameMessage("${characterComponent.data.name} re-rolled")
+//               this.broadcastAlertAsGameMessage("${characterComponent.data.name} re-rolled")
 
                characterComponent.modifyData {
                   it.copy(

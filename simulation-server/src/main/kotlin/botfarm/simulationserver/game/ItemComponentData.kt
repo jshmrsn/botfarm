@@ -96,7 +96,7 @@ class GrowableConfig(
 class SpawnItemOnUseConfig(
    val spawnItemConfigKey: String,
    val randomDistanceScale: Double = 0.0,
-   val quantity: RandomItemQuantity
+   val quantity: RandomItemQuantity = RandomItemQuantity.amount(1)
 )
 
 class SpawnItemOnDestructionConfig(

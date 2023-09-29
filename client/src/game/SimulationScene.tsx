@@ -15,7 +15,7 @@ import {
 } from "../common/common";
 import {RenderContext} from "../common/RenderContext";
 import {
-  ActionTypes,
+  ActionTypes, CharacterBodySelections,
   CharacterComponentData,
   InventoryComponentData,
   UseEquippedToolItemRequest
@@ -73,6 +73,7 @@ interface SheetDefinitionLayer {
   zPos: number
   custom_animation: string | null
   textureKeysByCategoryByVariant: Record<string, Record<string, string>>
+  texturePartialPathsByCategoryByVariant: Record<string, Record<string, string>>
   animationsConfig: AnimationsConfig
   animationConfigsByName: Record<string, AnimationConfig>
 }
@@ -585,6 +586,7 @@ export class SimulationScene extends Phaser.Scene {
         zPos: rawLayer.zPos,
         custom_animation: rawLayer.custom_animation ?? null,
         textureKeysByCategoryByVariant: textureKeysByCategoryByVariant,
+        texturePartialPathsByCategoryByVariant: texturePartialPathsByCategoryByVariant,
         animationsConfig: animationsConfig,
         animationConfigsByName: animationConfigsByName
       }
@@ -645,6 +647,40 @@ export class SimulationScene extends Phaser.Scene {
         }
       }
     })
+  }
+
+  getProfileIconLayerUrlsForBodySelections(characterBodySelections: CharacterBodySelections): string[] {
+    const sheetDefinitionsByKey = this.sheetDefinitionsByKey
+    const head = characterBodySelections.head
+    const skinColor = characterBodySelections.skinColor
+    const hair = characterBodySelections.hair
+
+    const category = characterBodySelections.bodyType
+
+    const result: string[] = []
+
+    function addForCompositeAnimation(
+      spriteDefinitionKey: string,
+      variant: string
+    ) {
+      const layers = sheetDefinitionsByKey[spriteDefinitionKey].layers
+      const layer = layers[layers.length - 1]
+
+      const partialPathsByCategory = layer.texturePartialPathsByCategoryByVariant[variant]
+      console.log("partialPathsByCategory", partialPathsByCategory)
+      const partialPath = partialPathsByCategory[category] ?? partialPathsByCategory["male"]
+      console.log("partialPath", partialPath)
+      const profileIconLayerPath = "assets/liberated-pixel-cup-characters/profile-icons/" + partialPath + variant + ".png"
+      result.push(profileIconLayerPath)
+    }
+
+    addForCompositeAnimation(head, skinColor)
+
+    if (hair != null) {
+      addForCompositeAnimation(hair.key, hair.variant)
+    }
+
+    return result
   }
 
   blurChatTextArea() {

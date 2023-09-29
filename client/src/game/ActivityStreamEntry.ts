@@ -1,5 +1,6 @@
 import {Vector2} from "../misc/Vector2";
 import {EntityId} from "../simulation/EntityData";
+import {CharacterBodySelections} from "./CharacterComponentData";
 
 export interface ActivityStreamEntry {
   time: number

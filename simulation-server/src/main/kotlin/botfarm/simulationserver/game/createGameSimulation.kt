@@ -215,8 +215,7 @@ private fun addItemConfigs(configs: MutableList<Config>) {
          craftingCost = ItemCollection(listOf(ItemCollectionEntry("wood", 25)))
       ),
       spawnItemOnUseConfig = SpawnItemOnUseConfig(
-         spawnItemConfigKey = "farm-plot",
-         quantity = RandomItemQuantity.amount(10)
+         spawnItemConfigKey = "farm-plot"
       )
    )
 
@@ -332,7 +331,7 @@ private fun addItemConfigs(configs: MutableList<Config>) {
             amountPerStack = RandomConfig.range(5, 15)
          )
       ),
-      spriteBaseScale = Vector2.uniform(0.6),
+      spriteBaseScale = Vector2.uniform(0.35),
       killableConfig = KillableConfig(
          canBeDamagedByToolItemConfigKey = "pickaxe",
          maxHp = 100
