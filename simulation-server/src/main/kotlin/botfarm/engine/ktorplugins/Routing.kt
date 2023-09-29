@@ -1,9 +1,9 @@
 package botfarm.engine.ktorplugins
 
-import botfarm.engine.simulation.ClientSimulationData
 import botfarm.engine.simulation.ScenarioRegistration
 import botfarm.engine.simulation.SimulationContainer
 import botfarm.game.ai.AgentServerIntegration
+import botfarmshared.engine.apidata.SimulationId
 import io.ktor.http.HttpStatusCode
 import io.ktor.resources.Resource
 import io.ktor.server.application.Application
@@ -23,7 +23,6 @@ import kotlinx.serialization.Serializable
 import java.io.File
 import io.ktor.server.resources.post as resourcePost
 import io.ktor.server.routing.post as routingPost
-import botfarmshared.engine.apidata.SimulationId
 
 fun Application.configureRouting(
    simulationContainer: SimulationContainer,
@@ -67,30 +66,30 @@ fun Application.configureRouting(
       }
 
       routingPost("${apiPrefix}create-simulation") {
-         val result = synchronized(simulationContainer) {
-            try {
-               val scenario = ScenarioRegistration.registeredScenarios.first()
-               val simulation = scenario.createSimulation(
-                  simulationContainer = simulationContainer,
-                  agentServerIntegration = agentServerIntegration
-               )
-               simulationContainer.addSimulation(simulation)
-            } catch (exception: Exception) {
-               println("Exception calling createDemoSimulation:  ${exception.stackTraceToString()}")
-               throw exception
-            }
-         }
+         val request = call.receive<CreateSimulationRequestData>()
+         val scenario = ScenarioRegistration.registeredScenarios.find { it.identifier == request.scenarioIdentifier }
 
-         call.respond(result)
+         if (scenario == null) {
+            throw Exception("Scenario not found for identifier: " + request.scenarioIdentifier)
+         } else {
+            val result = synchronized(simulationContainer) {
+               try {
+                  val simulation = scenario.createSimulation(
+                     simulationContainer = simulationContainer,
+                     agentServerIntegration = agentServerIntegration
+                  )
+                  simulationContainer.addSimulation(simulation)
+               } catch (exception: Exception) {
+                  println("Exception calling createDemoSimulation:  ${exception.stackTraceToString()}")
+                  throw exception
+               }
+            }
+
+            call.respond(result)
+         }
       }
    }
 }
-
-
-class GetSimulationDataResponse(
-   val simulationData: ClientSimulationData?
-)
-
 
 @Serializable
 @Resource("/api/list-simulations")
@@ -99,5 +98,10 @@ class ListSimulationsRequest()
 @Serializable
 class TerminateSerializationRequestData(
    val simulationId: SimulationId
+)
+
+@Serializable
+class CreateSimulationRequestData(
+   val scenarioIdentifier: String
 )
 

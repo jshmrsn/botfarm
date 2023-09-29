@@ -67,9 +67,9 @@ fun addCharacterConfigs(configs: MutableList<Config>) {
    ): List<Config> {
       return listOf(
          SpriteConfig(
-            textureUrl = "assets/liberated-pixel-cup-characters/spritesheets/$spriteSheetRelativePath",
-            atlasUrl = "assets/liberated-pixel-cup-characters/atlases/animations-$animationsConfigName.json",
-            animationsUrl = "assets/liberated-pixel-cup-characters/animations/animations-$animationsConfigName.json",
+            textureUrl = "/assets/liberated-pixel-cup-characters/spritesheets/$spriteSheetRelativePath",
+            atlasUrl = "/assets/liberated-pixel-cup-characters/atlases/animations-$animationsConfigName.json",
+            animationsUrl = "/assets/liberated-pixel-cup-characters/animations/animations-$animationsConfigName.json",
             key = key
          )
       )

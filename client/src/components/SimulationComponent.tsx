@@ -34,13 +34,7 @@ import {Vector2} from "../misc/Vector2";
 import {HelpPanel} from "./HelpPanel";
 import {ClientId, SimulationId, UserId} from "../simulation/Simulation";
 import {InventoryComponentData} from "../game/CharacterComponentData";
-
-interface SimulationProps {
-  simulationId: SimulationId
-  shouldAllowWebGl: boolean
-  shouldForceWebGl: boolean
-  exit: () => void
-}
+import {useNavigate, useParams} from "react-router-dom";
 
 
 function buildWebSocketMessage(type: string, data: object): string {
@@ -92,8 +86,18 @@ export enum PanelTypes {
   Crafting
 }
 
+type SimulationComponentParams =  {
+  simulationId: string
+}
+
+interface SimulationProps {
+  shouldAllowWebGl: boolean
+  shouldForceWebGl: boolean
+  userId: string
+}
+
 export const SimulationComponent = (props: SimulationProps) => {
-  const simulationId = props.simulationId
+  const { simulationId } = useParams<SimulationComponentParams>()
 
   const [shouldShowDebugPanel, setShouldShowDebugPanel] = useState(false)
   const [shouldShowHelpPanel, setShouldShowHelpPanel] = useState(false)
@@ -106,16 +110,7 @@ export const SimulationComponent = (props: SimulationProps) => {
   const [sceneLoadComplete, setSceneLoadComplete] = useState(false)
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
 
-  const storedUserId = localStorage.getItem("userId")
-
-  let userId: UserId
-  if (storedUserId == null) {
-    userId = generateId()
-    console.log("Storing userId", userId)
-    localStorage.setItem("userId", userId)
-  } else {
-    userId = storedUserId
-  }
+  const userId = props.userId
 
   const [dynamicState, _setDynamicState] = useState<DynamicState>(new DynamicState(userId, setForceUpdateCounter))
 
@@ -126,8 +121,13 @@ export const SimulationComponent = (props: SimulationProps) => {
 
   const userInventoryComponent = userControlledEntity?.getComponent<InventoryComponentData>("InventoryComponentData")
 
-
   const [windowWidth, windowHeight] = useWindowSize()
+
+  const navigate = useNavigate();
+
+  const exit = () => {
+    navigate("/")
+  }
 
   const useMobileLayout = windowWidth < 600
 
@@ -138,7 +138,7 @@ export const SimulationComponent = (props: SimulationProps) => {
   var loc = window.location;
   let websocketProtocol = loc.protocol === "https:" ? "wss" : "ws"
   const websocketHost = loc.host.replace(":3005", ":5001") // replace react-dev-server port with default server port
-  let websocketUrl: string = websocketProtocol + "://" + websocketHost + loc.pathname + "/ws";
+  let websocketUrl: string = websocketProtocol + "://" + websocketHost + "/ws";
 
   const maxSceneContainerWidth = windowWidth
   const maxSceneContainerHeight = windowHeight
@@ -200,7 +200,7 @@ export const SimulationComponent = (props: SimulationProps) => {
       if (dynamicState.webSocket != null) {
         dynamicState.webSocket = null
         alert("Disconnected")
-        props.exit()
+        exit()
       }
     }
   })
@@ -684,7 +684,7 @@ export const SimulationComponent = (props: SimulationProps) => {
             }}
           >
             <ActionIcon size={35} variant={"subtle"} onClick={() => {
-              props.exit()
+              exit()
             }}>
               <IconArrowLeft size={18}/>
             </ActionIcon>

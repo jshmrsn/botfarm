@@ -15,17 +15,19 @@ import {
 } from "../common/common";
 import {RenderContext} from "../common/RenderContext";
 import {
-  ActionTypes, CharacterBodySelections,
+  ActionTypes,
+  CharacterBodySelections,
   CharacterComponentData,
   InventoryComponentData,
   UseEquippedToolItemRequest
 } from "./CharacterComponentData";
 import {
-  EquipmentSlots, GrowerComponent, GrowerComponentData, ItemComponent,
+  EquipmentSlots,
+  GrowerComponent,
+  ItemComponent,
   ItemComponentData,
   ItemConfig,
-  KillableComponent,
-  KillableComponentData
+  KillableComponent
 } from "./ItemComponentData";
 import {Entity} from "../simulation/Entity";
 import {
@@ -39,8 +41,9 @@ import {AgentComponentData} from "./agentComponentData";
 import {UserControlledComponent, UserControlledComponentData} from "./userControlledComponentData";
 import {IconHandGrab, IconTool} from "@tabler/icons-react";
 import {CompositeAnimation} from "./CompositeAnimation";
-import Layer = Phaser.GameObjects.Layer;
 import {GameSimulation} from "./GameSimulation";
+import Layer = Phaser.GameObjects.Layer;
+import FilterMode = Phaser.Textures.FilterMode;
 
 interface AnimationConfig {
   name: string
@@ -213,7 +216,7 @@ export class SimulationScene extends Phaser.Scene {
     const progressBoxY = screenHeight / 2 - progressBoxHeight / 2
     progressBox.fillRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight);
 
-    this.load.image("background-grass", "assets/environment/grass1.png")
+    this.load.image("background-grass", "/assets/environment/grass1.png")
 
     var loadingText = this.make.text({
       x: screenWidth / 2,
@@ -285,34 +288,34 @@ export class SimulationScene extends Phaser.Scene {
       }
     });
 
-    this.load.image("circle", "assets/misc/circle.png");
-    this.load.image("ring", "assets/misc/ring.png");
-    this.load.image("character-shadow", "assets/misc/character-shadow.png");
+    this.load.image("circle", "/assets/misc/circle.png");
+    this.load.image("ring", "/assets/misc/ring.png");
+    this.load.image("character-shadow", "/assets/misc/character-shadow.png");
 
     this.preloadJson(() => {
       this.preloadSprites()
     })
   }
 
-  readonly sheetDefinitionsUrl = "assets/liberated-pixel-cup-characters/sheet-definitions.json"
-  readonly universalAnimationsUrl = "assets/liberated-pixel-cup-characters/animations/animations-universal.json"
-  readonly universalAtlasUrl = "assets/liberated-pixel-cup-characters/atlases/animations-universal.json"
+  readonly sheetDefinitionsUrl = "/assets/liberated-pixel-cup-characters/sheet-definitions.json"
+  readonly universalAnimationsUrl = "/assets/liberated-pixel-cup-characters/animations/animations-universal.json"
+  readonly universalAtlasUrl = "/assets/liberated-pixel-cup-characters/atlases/animations-universal.json"
 
   readonly atlasUrlsByCustomAnimationName: Record<string, string> = {
-    "slash_oversize": "assets/liberated-pixel-cup-characters/atlases/animations-slash-oversize.json",
-    "thrust_oversize": "assets/liberated-pixel-cup-characters/atlases/animations-thrust-oversize.json",
-    "slash_128": "assets/liberated-pixel-cup-characters/atlases/animations-slash-128.json",
-    "walk_128": "assets/liberated-pixel-cup-characters/atlases/animations-slash-oversize.json" // todo
+    "slash_oversize": "/assets/liberated-pixel-cup-characters/atlases/animations-slash-oversize.json",
+    "thrust_oversize": "/assets/liberated-pixel-cup-characters/atlases/animations-thrust-oversize.json",
+    "slash_128": "/assets/liberated-pixel-cup-characters/atlases/animations-slash-128.json",
+    "walk_128": "/assets/liberated-pixel-cup-characters/atlases/animations-slash-oversize.json" // todo
     // "slash_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-128.json",
     // "walk_128": "assets/liberated-pixel-cup-characters/animations/animations-walk-128.json"
   }
 
 
   readonly animationsUrlsByCustomAnimationName: Record<string, string> = {
-    "slash_oversize": "assets/liberated-pixel-cup-characters/animations/animations-slash-oversize.json",
-    "thrust_oversize": "assets/liberated-pixel-cup-characters/animations/animations-thrust-oversize.json",
-    "slash_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-128.json", // todo
-    "walk_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-oversize.json" // todo
+    "slash_oversize": "/assets/liberated-pixel-cup-characters/animations/animations-slash-oversize.json",
+    "thrust_oversize": "/assets/liberated-pixel-cup-characters/animations/animations-thrust-oversize.json",
+    "slash_128": "/assets/liberated-pixel-cup-characters/animations/animations-slash-128.json", // todo
+    "walk_128": "/assets/liberated-pixel-cup-characters/animations/animations-slash-oversize.json" // todo
     // "slash_128": "assets/liberated-pixel-cup-characters/animations/animations-slash-128.json",
     // "walk_128": "assets/liberated-pixel-cup-characters/animations/animations-walk-128.json"
   }
@@ -533,7 +536,7 @@ export class SimulationScene extends Phaser.Scene {
           uniqueLayerPartialPaths.push(partialPath)
 
           for (let includedVariant of includedVariants) {
-            const layerTextureUrl = "assets/liberated-pixel-cup-characters/spritesheets/" + partialPath + includedVariant + ".png"
+            const layerTextureUrl = "/assets/liberated-pixel-cup-characters/spritesheets/" + partialPath + includedVariant + ".png"
             const layerTextureKey = compositeAnimationKey + "_" + includedVariant + "_" + layerIndex + "_" + uniqueLayerPartialPathIndex
 
             if (!animationsUrl) {
@@ -670,7 +673,7 @@ export class SimulationScene extends Phaser.Scene {
       console.log("partialPathsByCategory", partialPathsByCategory)
       const partialPath = partialPathsByCategory[category] ?? partialPathsByCategory["male"]
       console.log("partialPath", partialPath)
-      const profileIconLayerPath = "assets/liberated-pixel-cup-characters/profile-icons/" + partialPath + variant + ".png"
+      const profileIconLayerPath = "/assets/liberated-pixel-cup-characters/profile-icons/" + partialPath + variant + ".png"
       result.push(profileIconLayerPath)
     }
 
@@ -1139,7 +1142,6 @@ export class SimulationScene extends Phaser.Scene {
             layer: this.highlightRingLayer,
             textureName: "ring",
             position: position,
-            size: new Vector2(1, 1), // not working
             scale: new Vector2(0.25, 0.25),
             alpha: 1,
             depth: 0
@@ -1151,7 +1153,6 @@ export class SimulationScene extends Phaser.Scene {
             layer: this.highlightRingLayer,
             textureName: "ring",
             position: position,
-            size: new Vector2(1, 1), // not working
             scale: new Vector2(0.2, 0.2),
             alpha: 1,
             depth: 0
@@ -1163,7 +1164,6 @@ export class SimulationScene extends Phaser.Scene {
             layer: this.highlightRingLayer,
             textureName: "ring",
             position: position,
-            size: new Vector2(1, 1), // not working
             scale: new Vector2(0.2, 0.2),
             alpha: 1,
             depth: 0
@@ -1294,7 +1294,6 @@ export class SimulationScene extends Phaser.Scene {
           textureName: "circle",
           layer: this.navigationPathLayer,
           position: keyFrame.value,
-          size: new Vector2(5, 5), // not working
           scale: new Vector2(0.2, 0.2),
           alpha: 0.5,
           depth: 0
@@ -1685,7 +1684,8 @@ export class SimulationScene extends Phaser.Scene {
               textureName: textureKey,
               position: positionWithOffset,
               animation: animationConfig,
-              scale: scale
+              scale: scale,
+              filterMode: FilterMode.NEAREST
             })
           }
         }

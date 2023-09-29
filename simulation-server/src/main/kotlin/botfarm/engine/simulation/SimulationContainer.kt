@@ -375,20 +375,26 @@ class SimulationContainer {
 
    @Serializable
    class ListSimulationsResult(
-      val simulations: List<Entry>
+      val simulations: List<SimulationInfo>,
+      val scenarios: List<ScenarioInfo>
    ) {
       @Serializable
-      class Entry(
-         val simulationId: SimulationId
+      class SimulationInfo(
+         val simulationId: SimulationId,
+         val scenarioInfo: ScenarioInfo
       )
    }
 
    fun listSimulations(): ListSimulationsResult {
       return ListSimulationsResult(
          simulations = this.simulations.map {
-            ListSimulationsResult.Entry(
-               simulationId = it.simulationId
+            ListSimulationsResult.SimulationInfo(
+               simulationId = it.simulationId,
+               scenarioInfo = it.scenarioInfo
             )
+         },
+         scenarios = ScenarioRegistration.registeredScenarios.map {
+            it.buildInfo()
          }
       )
    }

@@ -39,6 +39,7 @@ open class Simulation(
 
    var lastTickUnixTime = getCurrentUnixTimeSeconds()
 
+   val scenarioInfo: ScenarioInfo = data.scenarioInfo
    val simulationId = data.simulationId
    val configs = data.configs
 
@@ -374,6 +375,7 @@ open class Simulation(
 
    private fun buildData(): SimulationData {
       return SimulationData(
+         scenarioInfo = this.scenarioInfo,
          simulationId = this.simulationId,
          configs = this.configs,
          entities = this.entities.map {

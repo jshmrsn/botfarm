@@ -11,6 +11,7 @@ abstract class Config {
 
 @Serializable
 data class SimulationData(
+   val scenarioInfo: ScenarioInfo,
    val simulationId: SimulationId = SimulationId(buildShortRandomString()),
    val configs: List<Config>,
    val entities: List<EntityData> = listOf(),

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://github.com/jshmrsn/botfarm/blob/main/client/public/logo192.png?raw=true" width="120" >
+<img src="https://github.com/jshmrsn/botfarm/blob/main/client/public/logo192.png?raw=true" width="120" />
 <h1>Botfarm</h1>
 <h3>Multiplayer Game Platform for Embodying Generative Agents</h3>
 </div>

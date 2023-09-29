@@ -1,10 +1,14 @@
 package botfarm.engine.simulation
 
 import botfarm.game.ai.AgentServerIntegration
+import kotlinx.serialization.Serializable
 
-class ScenarioContext(
-   val simulationContainer: SimulationContainer,
-   val agentServerIntegration: AgentServerIntegration
+@Serializable
+class ScenarioInfo(
+   val identifier: String,
+   val gameIdentifier: String,
+   val name: String? = null,
+   val description: String? = null
 )
 
 abstract class Scenario(
@@ -13,6 +17,13 @@ abstract class Scenario(
    val name: String? = null,
    val description: String? = null
 ) {
+   fun buildInfo(): ScenarioInfo = ScenarioInfo(
+      identifier = identifier,
+      gameIdentifier = gameIdentifier,
+      name = name,
+      description = description
+   )
+
    abstract fun createSimulation(
       simulationContainer: SimulationContainer,
       agentServerIntegration: AgentServerIntegration

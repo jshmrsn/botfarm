@@ -14,10 +14,10 @@ export interface SpriteDisplayProperties {
   animationShouldFallbackWhenDoneIdentifier?: string | null
   fallbackAnimation?: Phaser.Types.Animations.PlayAnimationConfig | null
   position: Vector2
-  size?: Vector2 | null // joshr: not working?
   scale?: Vector2 | null
   alpha?: number | null
   depth?: number | null
+  filterMode?: FilterMode | null
 }
 
 export interface TextDisplayProperties {
@@ -278,7 +278,6 @@ export class RenderContext {
         spriteProperties.layer.add(sprite)
       }
 
-      sprite.texture.setFilter(FilterMode.LINEAR)
       renderedGameObject.sprite = sprite
 
       this.scene.uiCamera.ignore(renderedGameObject.sprite);
@@ -309,10 +308,12 @@ export class RenderContext {
       sprite.anims.stop()
     }
 
+    if (previousSpriteProperties == null || previousSpriteProperties.filterMode !== spriteProperties.filterMode) {
+      sprite.texture.setFilter(spriteProperties.filterMode || FilterMode.LINEAR)
+    }
+
     const scale = spriteProperties.scale || Vector2.one
     sprite.setScale(scale.x, scale.y)
-    const size = spriteProperties.size || Vector2.one
-    sprite.setSize(size.x, size.y)
 
     sprite.setDepth(spriteProperties.depth ?? 0)
 
