@@ -1,15 +1,20 @@
-# Botfarm
+<div align="center">
 
-Multiplayer Game Platform for Embodying Generative Agents
+<img src="https://github.com/jshmrsn/botfarm/blob/main/client/public/logo192.png?raw=true" width="120" >
+<h1>Botfarm</h1>
+</div>
 
 ## Goals
-- Make it easier to develop virtually embodied generative agents, and to conduct research/evaluation of those agents.
+- Provide a game simulation platform that can be used to easily integrate generative agents, and to conduct evaluation of those agents in configured scenarios.
 
-- Decouple game simulations and agent technology stacks via an HTTP API, so that your agent can be built with your preferred technology stack.
+- Decouple game simulations and agent technology stacks via an HTTP API, so that generative agents can be built with any preferred technology stack.
 
-- Allow one or more players to connect to the game worlds, so they can interact both with agents and other players in real time.
+- Support real time multiplayer, so players can interact with generative agents and other players.
 
 - Prioritize maintainability, code quality, and game development best practices of the game simulation code base, so that it can be extended or remixed for various research use cases.
+
+![screenshot](https://github.com/jshmrsn/botfarm/blob/main/docs/screenshots/screenshot-1.png)
+
 
 ## Motivations
 - Research whether or not virtually embodying generative agents allows them to be more convincingly intelligent compared to disembodied agents (e.g. chat bots and virtual assistants).
@@ -170,6 +175,3 @@ Along with continuing broad development on the existing functionality, the follo
 - Integrate text-to-speech
 
 - Integrate voice-to-text
-
-## “Botfarm”?
-The current game simulation is a farming/harvesting/crafting game. So bots farming is a positive thing in the context of this project :)
