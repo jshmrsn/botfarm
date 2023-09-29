@@ -1,4 +1,4 @@
-package botfarm.agentserver.agents.common
+package botfarmagent.game.agents.common
 
 import botfarmshared.misc.Vector2
 

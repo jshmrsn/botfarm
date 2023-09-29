@@ -256,7 +256,7 @@ private suspend fun step(
    )
 
    val newObservationsForInput = state.newObservations
-   val remoteStepInputs = AgentStepInputs(
+   val agentSyncInputs = AgentSyncInputs(
       stepId = stepId,
       agentType = agentComponent.data.agentType,
       simulationId = simulation.simulationId,
@@ -280,7 +280,7 @@ private suspend fun step(
       }
    }
 
-   val remoteAgentStepResults = remoteAgentIntegration.remoteStep(remoteStepInputs)
+   val remoteAgentStepResults = remoteAgentIntegration.sync(agentSyncInputs)
 
    context.synchronize {
       agentComponent.modifyData {

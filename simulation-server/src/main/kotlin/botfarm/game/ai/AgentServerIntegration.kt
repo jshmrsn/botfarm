@@ -1,7 +1,9 @@
 package botfarm.game.ai
 
-import botfarmshared.game.apidata.AgentStepInputs
 import botfarmshared.game.apidata.AgentStepResult
+import botfarmshared.game.apidata.AgentSyncInputs
+import botfarmshared.game.apidata.AgentSyncRequest
+import botfarmshared.game.apidata.AgentSyncResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
@@ -12,25 +14,14 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.*
-
-@Serializable
-class RemoteStepRequest(
-   val inputs: AgentStepInputs
-)
-
-@Serializable
-class RemoteStepResponse(
-   val results: List<AgentStepResult>
-)
+import kotlinx.serialization.json.Json
 
 class AgentServerIntegration {
    val agentServerEndpoint = System.getenv()["BOTFARM_AGENT_SERVER_ENDPOINT"] ?: "http://localhost:5002"
 
-   suspend fun remoteStep(inputs: AgentStepInputs): List<AgentStepResult> {
-      val request = RemoteStepRequest(
+   suspend fun sync(inputs: AgentSyncInputs): List<AgentStepResult> {
+      val request = AgentSyncRequest(
          inputs = inputs
       )
 
@@ -47,7 +38,6 @@ class AgentServerIntegration {
             })
          }
       }.use {
-//         println("Sending post request for remoteStep: " + inputs.selfInfo.agentId)
          it.post(agentServerEndpoint + "/api/step") {
             contentType(ContentType.Application.Json)
             val bodyString = Json.encodeToString(request)
@@ -55,15 +45,13 @@ class AgentServerIntegration {
          }
       }
 
-//      println("httpResponse: $httpResponse")
-
       val response = try {
-         httpResponse.body<RemoteStepResponse>()
+         httpResponse.body<AgentSyncResponse>()
       } catch (exception: Exception) {
          throw Exception("Exception getting parsed HTTP body:${httpResponse.bodyAsText()}\n", exception)
       }
 
-      return response.results
+      return response.stepResults
    }
 }
 

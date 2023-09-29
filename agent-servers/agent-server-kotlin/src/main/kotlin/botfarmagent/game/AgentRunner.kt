@@ -1,6 +1,6 @@
-package botfarm.agentserver
+package botfarmagent.game
 
-import botfarmshared.game.apidata.AgentStepInputs
+import botfarmshared.game.apidata.AgentSyncInputs
 import botfarmshared.game.apidata.AgentStepResult
 import botfarmshared.misc.buildShortRandomString
 import kotlinx.coroutines.*
@@ -13,13 +13,13 @@ class AgentRunner(
    val simulationId = this.agent.initialInputs
    val agentId = this.agent.agentId
 
-   private val pendingInputsList = mutableListOf<AgentStepInputs>()
+   private val pendingInputsList = mutableListOf<AgentSyncInputs>()
    private val pendingResultsList = mutableListOf<AgentStepResult>()
 
 
    private var job: Job? = null
 
-   fun addPendingInput(inputs: AgentStepInputs) {
+   fun addPendingInput(inputs: AgentSyncInputs) {
       synchronized(this) {
          this.pendingInputsList.add(inputs)
       }

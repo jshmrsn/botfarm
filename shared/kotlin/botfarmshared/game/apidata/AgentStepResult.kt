@@ -6,6 +6,16 @@ import kotlinx.serialization.Serializable
 
 
 @Serializable
+class AgentSyncResponse(
+   val stepResults: List<AgentStepResult>
+)
+
+@Serializable
+class AgentSyncRequest(
+   val inputs: AgentSyncInputs
+)
+
+@Serializable
 class AgentStepResult(
    val statusStartUnixTime: Double? = null,
    val statusDuration: Double? = null,

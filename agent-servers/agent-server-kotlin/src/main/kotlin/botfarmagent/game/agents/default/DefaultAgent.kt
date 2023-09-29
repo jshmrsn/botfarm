@@ -1,9 +1,11 @@
-package botfarm.agentserver.agents.default
+package botfarmagent.game.agents.default
 
 import botfarm.agentserver.*
 import botfarm.agentserver.ModelInfo
 import botfarm.agentserver.PromptBuilder
-import botfarm.agentserver.agents.common.*
+import botfarmagent.game.Agent
+import botfarmagent.game.AgentContainer
+import botfarmagent.game.agents.common.*
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomString
@@ -17,7 +19,7 @@ private val constants = AgentResponseSchema_v1
 
 class DefaultAgent(
    override val agentContainer: AgentContainer,
-   override val initialInputs: AgentStepInputs,
+   override val initialInputs: AgentSyncInputs,
    val useGpt4: Boolean,
    val useFunctionCalling: Boolean
 ) : Agent() {
@@ -55,7 +57,7 @@ class DefaultAgent(
 
    companion object {
       fun getSortedObservedEntities(
-         inputs: AgentStepInputs,
+         inputs: AgentSyncInputs,
          selfInfo: SelfInfo
       ) = inputs.newObservations.entitiesById
          .values
@@ -76,7 +78,7 @@ class DefaultAgent(
          }
    }
 
-   override fun consumeInputs(inputs: AgentStepInputs) {
+   override fun consumeInputs(inputs: AgentSyncInputs) {
       val pendingEvents = inputs.newObservations
 
       val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
@@ -178,7 +180,7 @@ class DefaultAgent(
    }
 
    override suspend fun step(
-      inputs: AgentStepInputs,
+      inputs: AgentSyncInputs,
       openAI: OpenAI,
       provideResult: (AgentStepResult) -> Unit
    ) {
@@ -411,7 +413,7 @@ class DefaultAgent(
       builder.addSection("observedEntities", reserveTokens = 1000) {
          it.addLine("## OBSERVED_ENTITIES")
 
-         val sortedEntities = DefaultAgent.getSortedObservedEntities(inputs, selfInfo)
+         val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
 
          var entityIndex = 0
          for (entityInfo in sortedEntities) {

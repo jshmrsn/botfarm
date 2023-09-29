@@ -1,4 +1,4 @@
-package botfarm.agentserver.plugins
+package botfarmagent.game.ktorplugins
 
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application

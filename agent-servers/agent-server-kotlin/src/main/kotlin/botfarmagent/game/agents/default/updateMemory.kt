@@ -1,10 +1,10 @@
-package botfarm.agentserver.agents.default
+package botfarmagent.game.agents.default
 
 import botfarm.agentserver.*
-import botfarm.agentserver.agents.common.AutomaticShortTermMemory
-import botfarm.agentserver.agents.common.MemoryState
+import botfarmagent.game.agents.common.AutomaticShortTermMemory
+import botfarmagent.game.agents.common.MemoryState
 import botfarmshared.engine.apidata.PromptUsageInfo
-import botfarmshared.game.apidata.AgentStepInputs
+import botfarmshared.game.apidata.AgentSyncInputs
 import botfarmshared.game.apidata.AgentStepResult
 import botfarmshared.game.apidata.SelfInfo
 import botfarmshared.misc.buildShortRandomString
@@ -36,7 +36,7 @@ sealed class UpdateMemoryResult {
 }
 
 suspend fun updateMemory(
-   inputs: AgentStepInputs,
+   inputs: AgentSyncInputs,
    selfInfo: SelfInfo,
    simulationTime: Double,
    memoryState: MemoryState,

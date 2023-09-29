@@ -1,22 +1,22 @@
-package botfarm.agentserver
+package botfarmagent.game
 
-import botfarmshared.game.apidata.AgentStepInputs
+import botfarmshared.game.apidata.AgentSyncInputs
 import botfarmshared.game.apidata.AgentStepResult
 import com.aallam.openai.client.OpenAI
 
 abstract class Agent {
    abstract val agentContainer: AgentContainer
-   abstract val initialInputs: AgentStepInputs
+   abstract val initialInputs: AgentSyncInputs
 
    val agentId
       get() = this.initialInputs.selfInfo.agentId
 
    abstract fun consumeInputs(
-      inputs: AgentStepInputs
+      inputs: AgentSyncInputs
    )
 
    abstract suspend fun step(
-      inputs: AgentStepInputs,
+      inputs: AgentSyncInputs,
       openAI: OpenAI,
       provideResult: (AgentStepResult) -> Unit
    )

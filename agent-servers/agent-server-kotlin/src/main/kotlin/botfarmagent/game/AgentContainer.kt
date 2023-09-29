@@ -1,7 +1,7 @@
-package botfarm.agentserver
+package botfarmagent.game
 
 import botfarmshared.game.apidata.AgentId
-import botfarmshared.game.apidata.AgentStepInputs
+import botfarmshared.game.apidata.AgentSyncInputs
 import botfarmshared.game.apidata.AgentStepResult
 import botfarmshared.engine.apidata.SimulationId
 import com.aallam.openai.api.http.Timeout
@@ -27,7 +27,7 @@ class AgentContainer {
 
    private val agentRunnersByKey = mutableMapOf<String, AgentRunner>()
 
-   fun addPendingInputs(inputs: AgentStepInputs) {
+   fun addPendingInputs(inputs: AgentSyncInputs) {
       synchronized(this) {
          val agentId = inputs.selfInfo.agentId
          val simulationId = inputs.simulationId

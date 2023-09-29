@@ -1,8 +1,8 @@
-package botfarm.agentserver
+package botfarmagent.game
 
-import botfarm.agentserver.plugins.configureMonitoring
-import botfarm.agentserver.plugins.configureRouting
-import botfarm.agentserver.plugins.configureSerialization
+import botfarmagent.game.ktorplugins.configureMonitoring
+import botfarmagent.game.ktorplugins.configureRouting
+import botfarmagent.game.ktorplugins.configureSerialization
 import io.ktor.server.application.Application
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty

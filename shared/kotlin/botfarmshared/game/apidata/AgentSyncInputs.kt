@@ -180,7 +180,7 @@ class CraftingRecipe(
 )
 
 @Serializable
-class AgentStepInputs(
+class AgentSyncInputs(
    val agentType: String,
    val stepId: String,
    val simulationId: SimulationId,
