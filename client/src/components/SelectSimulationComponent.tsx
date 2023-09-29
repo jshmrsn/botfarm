@@ -144,23 +144,23 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
       }}
     />
 
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        gap: 20
-      }}
-    >
+    {/*<div*/}
+    {/*  style={{*/}
+    {/*    display: "flex",*/}
+    {/*    flexDirection: "row",*/}
+    {/*    gap: 20*/}
+    {/*  }}*/}
+    {/*>*/}
 
-      <Switch checked={props.shouldAllowWebGl}
-              onChange={(event) => props.setShouldAllowWebGl(event.currentTarget.checked)}
-              label={"Allow WebGL"}
-      />
-      <Switch checked={props.shouldForceWebGl}
-              onChange={(event) => props.setShouldForceWebGl(event.currentTarget.checked)}
-              label={"Force WebGL"}
-      />
-    </div>
+    {/*  <Switch checked={props.shouldAllowWebGl}*/}
+    {/*          onChange={(event) => props.setShouldAllowWebGl(event.currentTarget.checked)}*/}
+    {/*          label={"Allow WebGL"}*/}
+    {/*  />*/}
+    {/*  <Switch checked={props.shouldForceWebGl}*/}
+    {/*          onChange={(event) => props.setShouldForceWebGl(event.currentTarget.checked)}*/}
+    {/*          label={"Force WebGL"}*/}
+    {/*  />*/}
+    {/*</div>*/}
   </div>
 }
 
