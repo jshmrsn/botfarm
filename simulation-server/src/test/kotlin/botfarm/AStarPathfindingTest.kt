@@ -1,7 +1,7 @@
 package botfarm
 
-import botfarm.simulationserver.common.IndexPair
-import botfarm.simulationserver.common.aStarPathfinding
+import botfarm.common.IndexPair
+import botfarm.common.aStarPathfinding
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -23,7 +23,7 @@ sourceSets {
 }
 
 application {
-   mainClass.set("botfarm.simulationserver.SimulationServerApplicationKt")
+   mainClass.set("botfarm.game.MainKt")
 
    val isDevelopment: Boolean = project.ext.has("development")
    applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
