@@ -7,7 +7,6 @@ import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.websocket.Frame
-import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -21,7 +20,7 @@ import kotlin.io.path.absolutePathString
 import kotlin.io.path.writeText
 import aws.sdk.kotlin.services.s3.*
 import aws.smithy.kotlin.runtime.content.ByteStream
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
 @JvmInline
 @Serializable
@@ -408,6 +407,7 @@ open class Simulation(
       )
    }
 
+   @OptIn(DelicateCoroutinesApi::class)
    fun saveReplay() {
       val replayUploadBucket = Companion.replayS3UploadBucket
 
@@ -426,16 +426,21 @@ open class Simulation(
       val replayFileName = "replay-" + this.simulationId.value + ".json"
 
       if (replayUploadBucket != null) {
-         runBlocking {
-            S3Client
-               .fromEnvironment { region = Companion.replayS3UploadRegion }
-               .use { s3 ->
-                  s3.putObject {
-                     bucket = replayUploadBucket
-                     key = "replay-data/$replayFileName"
-                     body = ByteStream.fromString(replayDataJson)
+         GlobalScope.launch {
+            try {
+               println("Uploading replay to S3: replayFileName = $replayFileName, bucket = $replayUploadBucket, region = ${Companion.replayS3UploadRegion}")
+               S3Client
+                  .fromEnvironment { region = Companion.replayS3UploadRegion }
+                  .use { s3 ->
+                     s3.putObject {
+                        bucket = replayUploadBucket
+                        key = "replay-data/$replayFileName"
+                        body = ByteStream.fromString(replayDataJson)
+                     }
                   }
-               }
+            } catch (exception: Exception) {
+               println("Exception while uploading replay to S3: ${exception.stackTraceToString()}")
+            }
          }
       } else {
          val replayDirectory = Companion.replayDirectory

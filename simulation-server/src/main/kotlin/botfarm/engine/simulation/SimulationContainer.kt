@@ -112,7 +112,7 @@ class CoroutineSystem(
                   )
                )
             } catch (exception: Exception) {
-               println("Exception in coroutine system logic for entity: ${entity.entityId}\nException was : $exception")
+               println("Exception in coroutine system logic for entity: ${entity.entityId}\nException was : ${exception.stackTraceToString()}")
             }
          }
 
