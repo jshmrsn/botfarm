@@ -432,7 +432,7 @@ open class Simulation(
                .use { s3 ->
                   s3.putObject {
                      bucket = replayUploadBucket
-                     key = "replays/$replayFileName"
+                     key = "replay-data/$replayFileName"
                      body = ByteStream.fromString(replayDataJson)
                   }
                }
