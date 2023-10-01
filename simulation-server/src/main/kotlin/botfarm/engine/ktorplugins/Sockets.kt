@@ -45,9 +45,7 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                   }
 
                   if (simulation != null) {
-                     synchronized(simulation) {
-                        simulation.handleWebSocketClose(session)
-                     }
+                     simulation.handleWebSocketClose(session)
                   }
                }
             } else if (frame is Frame.Text) {
@@ -89,14 +87,12 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
 
 
                         if (simulation != null) {
-                           synchronized(simulation) {
-                              simulation.handleNewWebSocketClient(
-                                 clientId = connectionRequest.clientId,
-                                 userId = connectionRequest.userId,
-                                 userSecret = connectionRequest.userSecret,
-                                 webSocketSession = session
-                              )
-                           }
+                           simulation.handleNewWebSocketClient(
+                              clientId = connectionRequest.clientId,
+                              userId = connectionRequest.userId,
+                              userSecret = connectionRequest.userSecret,
+                              webSocketSession = session
+                           )
                         } else {
                            throw Exception("Simulation not found")
                         }

@@ -48,7 +48,9 @@ abstract class GameScenario(
          agentServerIntegration = agentServerIntegration
       )
 
-      this.configureGameSimulation(simulation)
+      synchronized(simulation) {
+         this.configureGameSimulation(simulation)
+      }
 
       return simulation
    }

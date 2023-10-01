@@ -279,75 +279,79 @@ open class Simulation(
       components: List<EntityComponentData>,
       entityId: EntityId = EntityId(buildShortRandomString())
    ) {
-      if (this.mutableEntitiesById.containsKey(entityId)) {
-         throw Exception("Entity already exists for entityId: $entityId")
-      }
+      synchronized(this) {
+         if (this.mutableEntitiesById.containsKey(entityId)) {
+            throw Exception("Entity already exists for entityId: $entityId")
+         }
 
-      val initialEntityData = EntityData(
-         components = components,
-         entityId = entityId
-      )
-
-      val entity = Entity(
-         data = initialEntityData,
-         simulation = this
-      )
-
-      this.mutableEntities.add(entity)
-      this.mutableEntitiesById[entityId] = entity
-
-      this.activateSystemsForEntity(entity)
-
-//      println("Broadcasting entity created message: entityId = $entityId")
-      this.broadcastMessage(
-         EntityCreatedWebSocketMessage(
-            entityData = entity.buildData(),
-            simulationTime = this.getCurrentSimulationTime()
+         val initialEntityData = EntityData(
+            components = components,
+            entityId = entityId
          )
-      )
+
+         val entity = Entity(
+            data = initialEntityData,
+            simulation = this
+         )
+
+         this.broadcastMessage(
+            EntityCreatedWebSocketMessage(
+               entityData = entity.buildData(),
+               simulationTime = this.getCurrentSimulationTime()
+            )
+         )
+
+         this.mutableEntities.add(entity)
+         this.mutableEntitiesById[entityId] = entity
+
+         this.activateSystemsForEntity(entity)
+      }
    }
 
    fun handleEntityDestroyed(entity: Entity) {
-      this.broadcastMessage(
-         EntityDestroyedWebSocketMessage(
-            entityId = entity.entityId,
-            simulationTime = this.getCurrentSimulationTime()
+      synchronized(this) {
+         this.broadcastMessage(
+            EntityDestroyedWebSocketMessage(
+               entityId = entity.entityId,
+               simulationTime = this.getCurrentSimulationTime()
+            )
          )
-      )
 
-      this.tickSystems.forEach { system ->
-         system.deactivateForEntity(entity)
+         this.tickSystems.forEach { system ->
+            system.deactivateForEntity(entity)
+         }
+
+         this.coroutineSystems.forEach { system ->
+            system.deactivateForEntity(
+               entity = entity
+            )
+         }
+
+         this.mutableEntities.remove(entity)
+         this.mutableEntitiesById.remove(entity.entityId)
+
+         this.mutableDestroyedEntitiesById[entity.entityId] = entity
       }
-
-      this.coroutineSystems.forEach { system ->
-         system.deactivateForEntity(
-            entity = entity
-         )
-      }
-
-      this.mutableEntities.remove(entity)
-      this.mutableEntitiesById.remove(entity.entityId)
-
-      this.mutableDestroyedEntitiesById[entity.entityId] = entity
    }
 
    private fun broadcastMessage(message: WebSocketMessage) {
-      val serializedMessage = DynamicSerialization.serialize(message)
-      val messageString = Json.encodeToString(serializedMessage)
+      synchronized(this) {
+         val serializedMessage = DynamicSerialization.serialize(message)
+         val messageString = Json.encodeToString(serializedMessage)
 
-      this.pendingReplayData.sentMessages.add(
-         ReplaySentMessage(
-            simulationTime = this.getCurrentSimulationTime(),
-            message = serializedMessage
+         this.pendingReplayData.sentMessages.add(
+            ReplaySentMessage(
+               simulationTime = this.getCurrentSimulationTime(),
+               message = serializedMessage
+            )
          )
-      )
 
-      this.clients.forEach { client ->
-//         println("Broadcasting message to client (${message::class}): " + client.clientId)
-         this.sendWebSocketMessage(
-            client = client,
-            messageString = messageString
-         )
+         this.clients.forEach { client ->
+            this.sendWebSocketMessage(
+               client = client,
+               messageString = messageString
+            )
+         }
       }
    }
 
@@ -391,32 +395,36 @@ open class Simulation(
       userSecret: UserSecret,
       webSocketSession: DefaultWebSocketServerSession
    ) {
-      println("handleNewWebSocketClient: $clientId, $webSocketSession")
+      synchronized(this) {
+         println("handleNewWebSocketClient: $clientId, $webSocketSession")
 
-      val client = Client(
-         clientId = clientId,
-         webSocketSession = webSocketSession,
-         userId = userId,
-         userSecret = userSecret
-      )
+         val client = Client(
+            clientId = clientId,
+            webSocketSession = webSocketSession,
+            userId = userId,
+            userSecret = userSecret
+         )
 
-      this.clients.add(client)
+         this.clients.add(client)
 
-      this.sendSnapshotMessage(client)
+         this.sendSnapshotMessage(client)
 
-      this.handleNewClient(client)
+         this.handleNewClient(client)
+      }
    }
 
    open fun handleNewClient(client: Client) {}
 
    fun handleWebSocketClose(webSocketSession: DefaultWebSocketServerSession) {
-      println("handleWebSocketClose")
-      this.clients.removeIf {
-         if (it.webSocketSession == webSocketSession) {
-            println("handleWebSocketClose: removing client ${it.clientId}")
-            true
-         } else {
-            false
+      synchronized(this) {
+         println("handleWebSocketClose")
+         this.clients.removeIf {
+            if (it.webSocketSession == webSocketSession) {
+               println("handleWebSocketClose: removing client ${it.clientId}")
+               true
+            } else {
+               false
+            }
          }
       }
    }

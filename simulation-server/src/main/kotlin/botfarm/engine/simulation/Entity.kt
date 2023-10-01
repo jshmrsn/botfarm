@@ -68,9 +68,11 @@ class Entity(
    }
 
    fun destroy() {
-      if (this.destroyedAtTime == null) {
-         this.destroyedAtTime = this.simulation.getCurrentSimulationTime()
-         this.simulation.handleEntityDestroyed(entity = this)
+      synchronized(this.simulation) {
+         if (this.destroyedAtTime == null) {
+            this.destroyedAtTime = this.simulation.getCurrentSimulationTime()
+            this.simulation.handleEntityDestroyed(entity = this)
+         }
       }
    }
 
