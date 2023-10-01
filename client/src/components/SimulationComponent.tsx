@@ -127,7 +127,6 @@ export const SimulationComponent = (props: SimulationProps) => {
     dynamicState.selectedEntityId = selectedEntityId
   }
 
-
   const maxSceneContainerWidth = windowWidth
   const maxSceneContainerHeight = windowHeight
 
@@ -213,7 +212,7 @@ export const SimulationComponent = (props: SimulationProps) => {
 
       const config: Phaser.Types.Core.GameConfig = {
         type: props.shouldForceWebGl ? Phaser.WEBGL : (props.shouldAllowWebGl ? Phaser.AUTO : Phaser.CANVAS),
-        backgroundColor: '#1A1A1A',
+        backgroundColor: '#D7EAC0',
         width: "100%",
         height: "100%",
         parent: phaserContainerDiv,

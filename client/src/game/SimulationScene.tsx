@@ -212,61 +212,63 @@ export class SimulationScene extends Phaser.Scene {
 
     var progressBar = this.add.graphics();
     var progressBox = this.add.graphics();
-    progressBox.fillStyle(0x222222, 0.8);
+    progressBox.fillStyle(0x222222, 0.2);
     const progressBoxWidth = 320
-    const progressBoxHeight = 50
+    const progressBoxHeight = 20
     const progressBoxX = screenWidth / 2 - progressBoxWidth / 2
     const progressBoxY = screenHeight / 2 - progressBoxHeight / 2
     progressBox.fillRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight);
 
     this.load.image("background-grass", "/assets/environment/grass1.png")
 
-    var loadingText = this.make.text({
+    const loadingText = this.make.text({
       x: screenWidth / 2,
-      y: screenHeight / 2 - 50,
+      y: screenHeight / 2 - 30,
       text: 'Loading...',
       style: {
-        font: '20px monospace',
-        color: '#ffffff'
-      }
+        font: '20px',
+        color: 'black'
+      },
+      alpha: 0.5
     });
     loadingText.setOrigin(0.5, 0.5);
     mainCamera.ignore(loadingText)
 
-    var percentText = this.make.text({
-      x: screenWidth / 2,
-      y: screenHeight / 2,
-      text: '0%',
-      style: {
-        font: '18px monospace',
-        color: '#ffffff'
-      }
-    });
-    percentText.setOrigin(0.5, 0.5);
-    mainCamera.ignore(percentText)
+    // var percentText = this.make.text({
+    //   x: screenWidth / 2,
+    //   y: screenHeight / 2,
+    //   text: '0%',
+    //   style: {
+    //     font: '18px monospace',
+    //     color: '#ffffff'
+    //   }
+    // });
+    // percentText.setOrigin(0.5, 0.5);
+    // mainCamera.ignore(percentText)
 
     var assetText = this.make.text({
       x: screenWidth / 2,
       y: screenHeight / 2 + 50,
       text: '',
       style: {
-        font: '18px monospace',
-        color: '#ffffff'
-      }
+        font: '18px ',
+        color: 'black'
+      },
+      alpha: 0.25
     });
-    assetText.setOrigin(0.5, 0.5);
+    assetText.setOrigin(0.5, 0.5)
     mainCamera.ignore(assetText)
 
     this.load.on('progress', (value: number) => {
       // joshr: Avoid errors modifying text if an error during preload causes simulation scene to be destroyed
       // before progress callbacks stop
       if (this.dynamicState.phaserScene === this) {
-        percentText.setText((value * 100).toFixed(0) + '%');
+        // percentText.setText((value * 100).toFixed(0) + '%');
         progressBar.clear();
         progressBar.fillStyle(0xffffff, 1);
 
-        const progressBarWidth = progressBoxWidth - 6
-        const progressBarHeight = progressBoxHeight - 6
+        const progressBarWidth = progressBoxWidth - 2
+        const progressBarHeight = progressBoxHeight - 2
         const progressBarX = screenWidth / 2 - progressBarWidth / 2
         const progressBarY = screenHeight / 2 - progressBarHeight / 2
 
@@ -283,8 +285,8 @@ export class SimulationScene extends Phaser.Scene {
     this.load.on('complete', () => {
       progressBar.destroy();
       progressBox.destroy();
-      loadingText.destroy();
-      percentText.destroy();
+      // loadingText.destroy();
+      // percentText.destroy();
       assetText.destroy();
       for (let onLoadCompleteFunction of this.onLoadCompleteFunctions) {
         onLoadCompleteFunction()
