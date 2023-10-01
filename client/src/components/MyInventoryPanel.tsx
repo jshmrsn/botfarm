@@ -1,16 +1,16 @@
 import {Text} from "@mantine/core";
 import {IconGridDots} from "@tabler/icons-react";
-import {DynamicState} from "./SimulationComponent";
 import React from "react";
 import {InventoryComponent} from "./InventoryComponent";
 import {Entity} from "../simulation/Entity";
 import {ActivityStreamComponentData} from "../game/activityStreamComponentData";
+import {DynamicState} from "./DynamicState";
 
 interface MyInventoryPanelProps {
   windowHeight: number
   windowWidth: number
   dynamicState: DynamicState
-  userControlledEntity?: Entity
+  userControlledEntity: Entity | null
   useMobileLayout: boolean
 }
 

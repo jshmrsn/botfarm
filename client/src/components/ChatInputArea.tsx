@@ -1,7 +1,8 @@
 import React, {useState} from "react";
 import {ActionIcon, Textarea} from "@mantine/core";
 import {IconChartBubble, IconGridDots, IconMessageCircle, IconMessages, IconSend} from "@tabler/icons-react";
-import {DynamicState, PanelTypes} from "./SimulationComponent";
+import {PanelTypes} from "./SimulationComponent";
+import {DynamicState} from "./DynamicState";
 
 
 interface ChatInputAreaProps {
@@ -38,13 +39,10 @@ export function ChatInputArea(props: ChatInputAreaProps): JSX.Element {
   return <div
     key={"chat-input-area"}
     style={{
-      // top: "auto",
-      // position: "absolute",
       backgroundColor: "rgba(255, 255, 255, 0.5)",
       bottom: 10,
       backdropFilter: "blur(5px)",
       WebkitBackdropFilter: "blur(5px)",
-      paddingBottom: 5,
       borderRadius: 6,
       left: remainingWindowWidth / 2,
       width: chatAreaWidth
@@ -54,13 +52,13 @@ export function ChatInputArea(props: ChatInputAreaProps): JSX.Element {
       display: "flex",
       flexDirection: "row",
       width: "100%",
-      paddingLeft: 5,
-      paddingRight: 5,
-      paddingTop: 5,
+      paddingLeft: 4,
+      paddingRight: 2,
+      paddingTop: 2,
+      paddingBottom: 2,
       alignItems: "center"
     }}>
       <div style={{
-        //display: "flex",
         flexDirection: "column",
         flexGrow: 1.0
       }}>
@@ -112,6 +110,7 @@ export function ChatInputArea(props: ChatInputAreaProps): JSX.Element {
 
       <ActionIcon
         size={50}
+        color={typedPrompt.length > 0 ? "default" : "gray"}
         ref={actionIcon => sendButton = actionIcon}
         onClick={() => {
           sendTypedPrompt()

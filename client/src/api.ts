@@ -1,6 +1,21 @@
 import axios from "axios";
 
 
+export function getFileRequest(
+  path: string,
+  handleResponse: (response: any) => void,
+  handleError: (error: any) => void
+) {
+  axios.get(path)
+    .then((response) => {
+      const responseData = response.data
+      handleResponse(responseData)
+    })
+    .catch(error => {
+      handleError(error)
+    })
+}
+
 export function postRequest<REQUEST, RESPONSE>(
   path: string,
   requestData: REQUEST,

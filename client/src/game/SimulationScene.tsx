@@ -2,7 +2,6 @@ import Phaser from "phaser";
 import {Config, EntityId} from "../simulation/EntityData";
 
 import {getUnixTimeSeconds, throwError} from "../misc/utils";
-import {DynamicState} from "../components/SimulationComponent";
 import {Simulation, SimulationId, UserId} from "../simulation/Simulation";
 import {clampZeroOne, lerp, Vector2} from "../misc/Vector2";
 import {Vector2Animation} from "../misc/Vector2Animation";
@@ -40,10 +39,11 @@ import {
 import {AgentComponentData} from "./agentComponentData";
 import {UserControlledComponent, UserControlledComponentData} from "./userControlledComponentData";
 import {IconHandGrab, IconTool} from "@tabler/icons-react";
-import {CompositeAnimation} from "./CompositeAnimation";
+import {CompositeAnimationSelection} from "./CompositeAnimationSelection";
 import {GameSimulation} from "./GameSimulation";
 import Layer = Phaser.GameObjects.Layer;
 import FilterMode = Phaser.Textures.FilterMode;
+import {DynamicState} from "../components/DynamicState";
 
 interface AnimationConfig {
   name: string
@@ -95,6 +95,7 @@ export interface SimulationSceneContext {
   setSelectedEntityId: (entityId: EntityId | null) => void
   closePanels: () => void
   showHelpPanel: () => void
+  showMenuPanel: () => void
 }
 
 export enum AutoInteractActionType {
@@ -142,9 +143,10 @@ function getAnimationDirectionForRelativeLocation(delta: Vector2): string | null
 }
 
 export class SimulationScene extends Phaser.Scene {
-  simulationId: SimulationId
-  dynamicState: DynamicState
-  simulation: Simulation
+  readonly simulationId: SimulationId
+  readonly dynamicState: DynamicState
+  readonly simulation: Simulation
+  readonly isReplay: boolean
 
   focusChatTextAreaKey: Phaser.Input.Keyboard.Key | undefined = undefined
 
@@ -182,6 +184,7 @@ export class SimulationScene extends Phaser.Scene {
     super("SimulationPhaserScene");
 
     this.simulation = simulation
+    this.isReplay = simulation.isReplay
     this.userId = context.dynamicState.userId
     this.simulationId = simulation.simulationId
 
@@ -209,61 +212,63 @@ export class SimulationScene extends Phaser.Scene {
 
     var progressBar = this.add.graphics();
     var progressBox = this.add.graphics();
-    progressBox.fillStyle(0x222222, 0.8);
+    progressBox.fillStyle(0x222222, 0.2);
     const progressBoxWidth = 320
-    const progressBoxHeight = 50
+    const progressBoxHeight = 20
     const progressBoxX = screenWidth / 2 - progressBoxWidth / 2
     const progressBoxY = screenHeight / 2 - progressBoxHeight / 2
     progressBox.fillRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight);
 
     this.load.image("background-grass", "/assets/environment/grass1.png")
 
-    var loadingText = this.make.text({
+    const loadingText = this.make.text({
       x: screenWidth / 2,
-      y: screenHeight / 2 - 50,
+      y: screenHeight / 2 - 30,
       text: 'Loading...',
       style: {
-        font: '20px monospace',
-        color: '#ffffff'
-      }
+        font: '20px',
+        color: 'black'
+      },
+      alpha: 0.5
     });
     loadingText.setOrigin(0.5, 0.5);
     mainCamera.ignore(loadingText)
 
-    var percentText = this.make.text({
-      x: screenWidth / 2,
-      y: screenHeight / 2,
-      text: '0%',
-      style: {
-        font: '18px monospace',
-        color: '#ffffff'
-      }
-    });
-    percentText.setOrigin(0.5, 0.5);
-    mainCamera.ignore(percentText)
+    // var percentText = this.make.text({
+    //   x: screenWidth / 2,
+    //   y: screenHeight / 2,
+    //   text: '0%',
+    //   style: {
+    //     font: '18px monospace',
+    //     color: '#ffffff'
+    //   }
+    // });
+    // percentText.setOrigin(0.5, 0.5);
+    // mainCamera.ignore(percentText)
 
     var assetText = this.make.text({
       x: screenWidth / 2,
       y: screenHeight / 2 + 50,
       text: '',
       style: {
-        font: '18px monospace',
-        color: '#ffffff'
-      }
+        font: '18px ',
+        color: 'black'
+      },
+      alpha: 0.25
     });
-    assetText.setOrigin(0.5, 0.5);
+    assetText.setOrigin(0.5, 0.5)
     mainCamera.ignore(assetText)
 
     this.load.on('progress', (value: number) => {
       // joshr: Avoid errors modifying text if an error during preload causes simulation scene to be destroyed
       // before progress callbacks stop
       if (this.dynamicState.phaserScene === this) {
-        percentText.setText((value * 100).toFixed(0) + '%');
+        // percentText.setText((value * 100).toFixed(0) + '%');
         progressBar.clear();
         progressBar.fillStyle(0xffffff, 1);
 
-        const progressBarWidth = progressBoxWidth - 6
-        const progressBarHeight = progressBoxHeight - 6
+        const progressBarWidth = progressBoxWidth - 2
+        const progressBarHeight = progressBoxHeight - 2
         const progressBarX = screenWidth / 2 - progressBarWidth / 2
         const progressBarY = screenHeight / 2 - progressBarHeight / 2
 
@@ -280,8 +285,8 @@ export class SimulationScene extends Phaser.Scene {
     this.load.on('complete', () => {
       progressBar.destroy();
       progressBox.destroy();
-      loadingText.destroy();
-      percentText.destroy();
+      // loadingText.destroy();
+      // percentText.destroy();
       assetText.destroy();
       for (let onLoadCompleteFunction of this.onLoadCompleteFunctions) {
         onLoadCompleteFunction()
@@ -670,9 +675,7 @@ export class SimulationScene extends Phaser.Scene {
       const layer = layers[layers.length - 1]
 
       const partialPathsByCategory = layer.texturePartialPathsByCategoryByVariant[variant]
-      console.log("partialPathsByCategory", partialPathsByCategory)
       const partialPath = partialPathsByCategory[category] ?? partialPathsByCategory["male"]
-      console.log("partialPath", partialPath)
       const profileIconLayerPath = "/assets/liberated-pixel-cup-characters/profile-icons/" + partialPath + variant + ".png"
       result.push(profileIconLayerPath)
     }
@@ -705,6 +708,14 @@ export class SimulationScene extends Phaser.Scene {
     this.cameras.resize(width, height);
   }
 
+  sendMoveToPointRequest(moveToPointRequest: MoveToPointRequest) {
+    if (this.isReplay) {
+      return
+    }
+
+    this.simulationContext.sendWebSocketMessage("MoveToPointRequest", moveToPointRequest)
+  }
+
   setupInput() {
     const mainCamera = this.mainCamera
 
@@ -722,23 +733,17 @@ export class SimulationScene extends Phaser.Scene {
     escapeKey?.on("down", (event: any) => {
       if (this.dynamicState.selectedEntityId != null) {
         this.simulationContext.setSelectedEntityId(null)
-        this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
+        this.clearPendingInteractionTargetRequest()
       } else {
-        this.simulationContext.closePanels()
+        this.simulationContext.showMenuPanel()
       }
     })
 
 
     this.focusChatTextAreaKey = this.input.keyboard?.addKey("SHIFT")
     this.focusChatTextAreaKey?.on("down", (event: any) => {
-      console.log("KEY DOWN!")
       this.focusChatTextArea()
     })
-
-    // shiftKey?.on("down", (event: any) => {
-    //   console.log("W")
-    //   this.focusChatTextArea()
-    // })
 
     if (this.cursorKeys) {
       this.cursorKeys.space.on("down", () => {
@@ -779,8 +784,6 @@ export class SimulationScene extends Phaser.Scene {
         const simulation = this.simulation
         for (const entity of simulation.entities) {
           const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
-          const userControlledComponent = entity.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
-          // const isControlledByLocalUser = userControlledComponent != null && userControlledComponent.data.userId === this.userId
 
           if (positionComponent != null) {
             const position = resolvePositionForTime(positionComponent, simulationTime)
@@ -799,18 +802,17 @@ export class SimulationScene extends Phaser.Scene {
           this.lastClickTime = getUnixTimeSeconds()
 
           if (nearestEntity != null && nearestDistance < 60) {
-            this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
+            this.clearPendingInteractionTargetRequest()
             this.simulationContext.setSelectedEntityId(nearestEntity.entityId)
           } else {
             this.simulationContext.setSelectedEntityId(null)
-            this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
+            this.clearPendingInteractionTargetRequest()
           }
         } else {
           this.lastClickTime = -1;
-          this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
-          //this.simulationContext.setSelectedEntityId(null)
+          this.clearPendingInteractionTargetRequest()
 
-          this.simulationContext.sendWebSocketMessage("MoveToPointRequest", {
+          this.sendMoveToPointRequest({
             point: worldPoint
           })
         }
@@ -849,6 +851,14 @@ export class SimulationScene extends Phaser.Scene {
     });
   }
 
+  private clearPendingInteractionTargetRequest() {
+    if (this.isReplay) {
+      return
+    }
+
+    this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
+  }
+
   clampCamera() {
     const mainCamera = this.mainCamera
     mainCamera.scrollX = Math.min(Math.max(mainCamera.scrollX, 0), this.worldBounds.x)
@@ -856,6 +866,10 @@ export class SimulationScene extends Phaser.Scene {
   }
 
   calculateAutoInteractAction(): AutoInteractAction | null {
+    if (this.isReplay) {
+      return null
+    }
+
     const playerControlledEntity = this.simulation.entities.find(entity => {
       const userControlledComponent = entity.getComponentDataOrNull<UserControlledComponentData>("UserControlledComponentData")
       return userControlledComponent != null && userControlledComponent.userId === this.userId
@@ -981,6 +995,10 @@ export class SimulationScene extends Phaser.Scene {
   }
 
   autoInteract() {
+    if (this.isReplay) {
+      return
+    }
+
     const playerControlledEntity = this.simulation.entities.find(entity => {
       const userControlledComponent = entity.getComponentDataOrNull<UserControlledComponentData>("UserControlledComponentData")
       return userControlledComponent != null && userControlledComponent.userId === this.userId
@@ -1005,29 +1023,25 @@ export class SimulationScene extends Phaser.Scene {
 
     if (actionType === AutoInteractActionType.Clear) {
       this.simulationContext.setSelectedEntityId(null)
-      this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
+      this.clearPendingInteractionTargetRequest()
     } else if (actionType === AutoInteractActionType.SelectEntity) {
       if (targetEntity != null) {
         this.simulationContext.setSelectedEntityId(targetEntity.entityId)
-        this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
+        this.clearPendingInteractionTargetRequest()
       }
     } else if (actionType === AutoInteractActionType.UseEquippedTool) {
-      const request: MoveToPointRequest = {
+      this.sendMoveToPointRequest({
         point: playerPosition,
         pendingUseEquippedToolItemRequest: {
           expectedItemConfigKey: autoInteractAction.equippedToolItemConfig!.key
         }
-      }
-
-      this.simulationContext.sendWebSocketMessage("MoveToPointRequest", request)
+      })
     } else if (actionType === AutoInteractActionType.StopMoving) {
       const playerPositionAfterLatencyBuffer = resolveEntityPositionForTime(playerControlledEntity, simulationTime + 0.3)
 
-      const request: MoveToPointRequest = {
+      this.sendMoveToPointRequest({
         point: playerPositionAfterLatencyBuffer
-      }
-
-      this.simulationContext.sendWebSocketMessage("MoveToPointRequest", request)
+      })
     } else if (actionType === AutoInteractActionType.UseToolToDamageEntity ||
       actionType === AutoInteractActionType.Pickup ||
       actionType === AutoInteractActionType.PlaceGrowableInGrower) {
@@ -1040,12 +1054,10 @@ export class SimulationScene extends Phaser.Scene {
 
         const desiredLocation = Vector2.plus(nearestEntityPosition, Vector2.timesScalar(Vector2.normalize(delta), desiredDistance))
 
-        const request: MoveToPointRequest = {
+        this.sendMoveToPointRequest({
           point: desiredLocation,
           pendingInteractionEntityId: targetEntity.entityId
-        }
-
-        this.simulationContext.sendWebSocketMessage("MoveToPointRequest", request)
+        })
       }
     }
   }
@@ -1649,7 +1661,7 @@ export class SimulationScene extends Phaser.Scene {
 
     const positionWithOffset = Vector2.plus(position, offset)
 
-    const renderCompositeAnimation = (spriteKeySuffix: string, compositeAnimation: CompositeAnimation) => {
+    const renderCompositeAnimation = (spriteKeySuffix: string, compositeAnimation: CompositeAnimationSelection) => {
       const sheetDefinition = this.sheetDefinitionsByKey[compositeAnimation.key]
 
       if (sheetDefinition == null) {

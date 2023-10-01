@@ -11,7 +11,7 @@ import {
 export class GameSimulation extends Simulation {
   constructor(
     initialSimulationData: ClientSimulationData,
-    onSimulationDataChanged: (newData: ClientSimulationData) => void,
+    onSimulationDataChanged: () => void,
     sendMessageImplementation: (type: string, data: any) => void
   ) {
     super(initialSimulationData, onSimulationDataChanged, sendMessageImplementation)

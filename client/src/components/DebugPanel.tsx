@@ -1,11 +1,11 @@
 import {Tabs} from "@mantine/core";
-import {DynamicState} from "./SimulationComponent";
 import {renderSelectedEntityInspection} from "./RenderSelectedEntityInspection";
 import React from "react";
 import {CharacterComponentData, InventoryComponentData} from "../game/CharacterComponentData";
 import {ItemComponentData, ItemConfig} from "../game/ItemComponentData";
 import {UserControlledComponentData} from "../game/userControlledComponentData";
 import {EntityId} from "../simulation/EntityData";
+import {DynamicState} from "./DynamicState";
 
 
 interface DebugPanelProps {

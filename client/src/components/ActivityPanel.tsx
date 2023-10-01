@@ -3,14 +3,14 @@ import {Text} from "@mantine/core";
 import {IconMessages} from "@tabler/icons-react";
 import {ActivityStreamComponent} from "./ActivityStreamComponent";
 import React from "react";
-import {DynamicState} from "./SimulationComponent";
 import {Entity} from "../simulation/Entity";
+import {DynamicState} from "./DynamicState";
 
 interface ActivityPanelProps {
   windowHeight: number
   windowWidth: number
   dynamicState: DynamicState
-  userControlledEntity?: Entity
+  userControlledEntity: Entity | null
   useMobileLayout: boolean
 }
 

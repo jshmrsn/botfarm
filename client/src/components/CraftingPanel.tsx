@@ -1,19 +1,17 @@
-import {ActivityStreamComponentData} from "../game/activityStreamComponentData";
-import {IconArrowDown, IconGridDots, IconHammer, IconHandGrab, IconHandOff, IconTool} from "@tabler/icons-react";
+import {IconHammer} from "@tabler/icons-react";
 import {ActionIcon, Text} from "@mantine/core";
-import {InventoryComponent} from "./InventoryComponent";
 import React from "react";
-import {DynamicState} from "./SimulationComponent";
 import {Entity} from "../simulation/Entity";
 import {ItemConfig} from "../game/ItemComponentData";
-import {InventoryComponentData} from "../game/CharacterComponentData";
+import {Inventory, InventoryComponentData} from "../game/CharacterComponentData";
+import {DynamicState} from "./DynamicState";
 
 
 interface CraftingPanelProps {
   windowHeight: number
   windowWidth: number
   dynamicState: DynamicState
-  userControlledEntity?: Entity
+  userControlledEntity: Entity | null
   useMobileLayout: boolean
 }
 
@@ -31,23 +29,18 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
 
   const userControlledEntity = props.userControlledEntity
 
-  if (userControlledEntity == null) {
-    return null
-  }
-
   const craftingItemConfigs = simulation.configs
     .filter(it => it.type === "ItemConfig")
     .map(it => (it as any) as ItemConfig)
     .filter(it => it.craftableConfig != null)
 
 
-  const inventoryComponent = userControlledEntity.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
+  const inventoryComponent = userControlledEntity?.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
 
-  if (inventoryComponent == null) {
-    return null
+  const inventory: Inventory = inventoryComponent?.data.inventory ?? {
+    itemStacks: []
   }
 
-  const inventory = inventoryComponent.data.inventory;
   const itemStacks = inventory.itemStacks
 
   const inventoryAmountByItemConfigKey: Record<string, number> = {}
@@ -104,6 +97,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
           const craftableConfig = craftableItemConfig.craftableConfig!
 
           let canAfford = true
+
           for (let costEntry of craftableConfig.craftingCost.entries) {
             const hasAmount = inventoryAmountByItemConfigKey[costEntry.itemConfigKey] || 0
 
@@ -141,7 +135,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
                 }}
               />
               {craftableConfig.craftingAmount > 1 ? <Text><b>x{craftableConfig.craftingAmount}</b></Text> : null}
-              {canAfford ? <ActionIcon size={35} variant={"filled"} onClick={() => {
+              {(canAfford && userControlledEntity != null) ? <ActionIcon size={35} variant={"filled"} onClick={() => {
                 simulation.sendMessage("CraftItemRequest", {
                   itemConfigKey: itemConfigKey
                 })
@@ -181,7 +175,13 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
                       height: 40
                     }}
                   />
-                  <Text color={hasAmount >= costEntry.amount ? "green" : "red"}><b>{hasAmount}/{costEntry.amount}</b></Text>
+                  <Text
+                    color={userControlledEntity == null
+                      ? "black"
+                      : hasAmount >= costEntry.amount
+                      ? "green"
+                      : "red"}
+                  ><b>{hasAmount}/{costEntry.amount}</b></Text>
                 </div>
               })}
             </div>

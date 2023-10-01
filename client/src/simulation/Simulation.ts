@@ -1,4 +1,4 @@
-import {ClientSimulationData, Config, EntityId} from "./EntityData";
+import {ClientSimulationData, Config, EntityId, ReplayData} from "./EntityData";
 import {Entity} from "./Entity";
 import {
   AlertWebSocketMessage,
@@ -13,7 +13,7 @@ export type ClientId = string
 export type SimulationId = string
 
 export class Simulation {
-  private readonly initialData: ClientSimulationData
+  private readonly replayData: ReplayData | null
   private receivedSimulationTime: number
 
   private smoothedSimulationTime: number
@@ -23,8 +23,10 @@ export class Simulation {
   readonly configsByKeyByTypeName: Record<string, Record<string, Config>> = {}
   readonly entities: Entity[]
   readonly entitiesById: Record<string, Entity> = {}
-  onSimulationDataChanged: (newData: ClientSimulationData) => void
+  onSimulationDataChanged: () => void
   private sendMessageImplementation: (type: string, data: any) => void
+  readonly isReplay: boolean
+  isReplayPaused = false
 
   getCurrentSimulationTime(): number {
     return this.smoothedSimulationTime
@@ -32,16 +34,18 @@ export class Simulation {
 
   constructor(
     initialSimulationData: ClientSimulationData,
-    onSimulationDataChanged: (newData: ClientSimulationData) => void,
+    onSimulationDataChanged: () => void,
     sendMessageImplementation: (type: string, data: any) => void
   ) {
     this.sendMessageImplementation = sendMessageImplementation
     this.onSimulationDataChanged = onSimulationDataChanged
-    this.initialData = initialSimulationData
+
+    this.isReplay = initialSimulationData.replayData != null
+    this.replayData = initialSimulationData.replayData
+
     this.receivedSimulationTime = initialSimulationData.simulationTime
     this.smoothedSimulationTime = initialSimulationData.simulationTime
     this.simulationId = initialSimulationData.simulationId
-
     this.configs = initialSimulationData.configs
 
     for (let config of this.configs) {
@@ -59,6 +63,26 @@ export class Simulation {
     for (const entity of this.entities) {
       this.entitiesById[entity.entityId] = entity
     }
+
+    this.handleInitialReplayData()
+  }
+
+  handleInitialReplayData() {
+    if (this.replayData != null) {
+      for (let sentMessage of this.replayData.sentMessages) {
+        if (sentMessage.message["type"] === "EntityCreatedWebSocketMessage") {
+          const entityCreatedMessage: EntityCreatedWebSocketMessage = sentMessage.message
+          const characterComponent = entityCreatedMessage.entityData.components.find(it => it.type === "CharacterComponentData")
+
+          if (characterComponent != null) {
+            this.receivedSimulationTime = sentMessage.simulationTime
+            this.smoothedSimulationTime = sentMessage.simulationTime
+          }
+        }
+      }
+
+      this.processReplayMessages()
+    }
   }
 
   sendMessage(type: string, data: any) {
@@ -67,6 +91,36 @@ export class Simulation {
 
   getEntityOrNull(entityId: EntityId): Entity | null {
     return this.entitiesById[entityId]
+  }
+
+  nextReplaySentMessageIndex = 0
+
+  processReplayMessages() {
+    const replayData = this.replayData
+
+    if (replayData == null) {
+      return
+    }
+
+    const simulationTime = this.getCurrentSimulationTime()
+    let didChange = false
+    while (true) {
+      const nextSentMessage = replayData.sentMessages[this.nextReplaySentMessageIndex]
+
+      if (!nextSentMessage || simulationTime < nextSentMessage.simulationTime) {
+        break
+      }
+
+      ++this.nextReplaySentMessageIndex
+
+      const messageType = nextSentMessage.message["type"]
+      this.handleWebSocketMessage(messageType, nextSentMessage.message)
+      didChange = true
+    }
+
+    if (didChange) {
+      this.onSimulationDataChanged()
+    }
   }
 
   getEntity(entityId: EntityId): Entity {
@@ -100,7 +154,6 @@ export class Simulation {
   ) {
     if (messageType === "EntityCreatedWebSocketMessage") {
       const entityCreatedMessage: EntityCreatedWebSocketMessage = messageData
-      console.log("Handling EntityCreatedWebSocketMessage", entityCreatedMessage)
 
       const newEntity = new Entity(this, entityCreatedMessage.entityData)
       this.entities.push(newEntity)
@@ -126,9 +179,7 @@ export class Simulation {
       const entityComponentMessage: EntityComponentWebSocketMessage = messageData
 
       const componentTypeName = entityComponentMessage.componentTypeName
-      // console.log("componentTypeNameFromMessage", componentTypeNameFromMessage)
       const diffFromMessage = entityComponentMessage.diff
-      // console.log("diffFromMessage", diffFromMessage)
 
       const entityId = entityComponentMessage.entityId;
 
@@ -156,8 +207,39 @@ export class Simulation {
   }
 
   update(deltaTime: number) {
-    this.receivedSimulationTime += deltaTime
-    this.smoothedSimulationTime += deltaTime
-    this.smoothedSimulationTime += (this.receivedSimulationTime - this.smoothedSimulationTime) * Math.min(deltaTime * 3.0, 1.0)
+    if (!this.isReplayPaused) {
+      this.receivedSimulationTime += deltaTime
+      this.smoothedSimulationTime += deltaTime
+    }
+
+    if (this.replayData == null) {
+      this.smoothedSimulationTime += (this.receivedSimulationTime - this.smoothedSimulationTime) * Math.min(deltaTime * 3.0, 1.0)
+    }
+
+    this.processReplayMessages()
+
+    if (this.replayData != null && this.smoothedSimulationTime >= this.replayData.replayGeneratedAtSimulationTime) {
+      this.smoothedSimulationTime = this.replayData.replayGeneratedAtSimulationTime
+    }
+  }
+
+  removeAllEntities() {
+    for (let entity of this.entities) {
+      delete this.entitiesById[entity.entityId]
+    }
+    this.entities.splice(0, this.entities.length)
+  }
+
+  seekReplayToSimulationTime(value: number) {
+    const previousSimulationTime = this.smoothedSimulationTime
+    this.smoothedSimulationTime = value
+    this.receivedSimulationTime = value
+
+    if (value < previousSimulationTime) {
+      this.nextReplaySentMessageIndex = 0
+      this.removeAllEntities()
+    }
+
+    this.processReplayMessages()
   }
 }

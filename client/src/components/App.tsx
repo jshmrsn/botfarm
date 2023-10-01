@@ -43,7 +43,7 @@ export default function App() {
         shouldForceWebGl={shouldForceWebGl}
         userId={userId}
         />
-    },
+    }
   ]);
 
   return (

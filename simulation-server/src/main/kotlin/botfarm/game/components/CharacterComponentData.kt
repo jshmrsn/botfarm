@@ -6,6 +6,7 @@ import botfarm.engine.simulation.EntityComponentData
 import botfarmshared.engine.apidata.EntityId
 import botfarm.engine.simulation.Entity
 import botfarm.game.UseEquippedToolItemRequest
+import kotlinx.serialization.Serializable
 
 
 class CharacterBodySelections(
@@ -14,9 +15,9 @@ class CharacterBodySelections(
    val head: String?,
    val body: String?,
    val nose: String? = null,
-   val eyes: CompositeAnimation? = null,
+   val eyes: CompositeAnimationSelection? = null,
    val wrinkles: String? = null,
-   val hair: CompositeAnimation? = null
+   val hair: CompositeAnimationSelection? = null
 )
 
 enum class ActionType {
@@ -79,7 +80,7 @@ class CompositeAnimationRegistryConfig(
    val includedCategories: List<String> = listOf()
 ) : Config()
 
-class CompositeAnimation(
+class CompositeAnimationSelection(
    val key: String,
    val variant: String
 )

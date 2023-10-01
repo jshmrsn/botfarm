@@ -1,17 +1,26 @@
 package botfarm.engine.simulation
 
 import botfarmshared.engine.apidata.EntityId
+import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.DynamicSerialization
 import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.websocket.Frame
-import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import java.nio.file.Files
+import java.nio.file.Paths
+import kotlin.io.path.Path
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.writeText
+import aws.sdk.kotlin.services.s3.*
+import aws.smithy.kotlin.runtime.content.ByteStream
+import kotlinx.coroutines.*
 
 @JvmInline
 @Serializable
@@ -27,15 +36,56 @@ class Client(
    val userId: UserId
 )
 
+@Serializable
+class ReplaySentMessage(
+   val message: JsonElement,
+   val simulationTime: Double
+)
+
+
+@Serializable
+class SimulationInfo(
+   val simulationId: SimulationId,
+   val scenarioInfo: ScenarioInfo,
+   val isTerminated: Boolean,
+   val startedAtUnixTime: Double
+)
+
+@Serializable
+class ReplayData(
+   val compatibilityVersion: Int = 1,
+   val simulationStartedAtUnixTime: Double,
+   val replayGeneratedAtSimulationTime: Double,
+   val scenarioInfo: ScenarioInfo,
+   val configs: List<JsonElement>,
+   val simulationId: SimulationId,
+   val sentMessages: List<ReplaySentMessage>
+)
+
+class PendingReplayData {
+   val sentMessages = mutableListOf<ReplaySentMessage>()
+}
+
 
 open class Simulation(
    data: SimulationData,
    val simulationContainer: SimulationContainer,
    val systems: Systems = Systems.default
 ) {
+   companion object {
+      val replayS3UploadBucket = System.getenv()["BOTFARM_S3_REPLAY_BUCKET"]
+      val replayS3UploadRegion = System.getenv()["BOTFARM_S3_REPLAY_REGION"] ?: "us-west-2"
+
+      val replayDirectory = if (this.replayS3UploadBucket != null) {
+         Path("/tmp/botfarm-simulation-replays")
+      } else {
+         Paths.get("replays")
+      }
+   }
+
    var shouldPauseAi = false
 
-   val startUnixTime = getCurrentUnixTimeSeconds()
+   val startedAtUnixTime = data.simulationStartedAtUnixTime
 
    var lastTickUnixTime = getCurrentUnixTimeSeconds()
 
@@ -55,6 +105,8 @@ open class Simulation(
    val destroyedEntitiesById: Map<EntityId, Entity> = this.mutableDestroyedEntitiesById
 
    val queuedCallbacks = QueuedCallbacks()
+
+   val pendingReplayData = PendingReplayData()
 
    fun queueCallbackAfterSimulationTimeDelay(
       simulationTimeDelay: Double,
@@ -121,7 +173,7 @@ open class Simulation(
    }
 
    class TickResult(
-      val shouldKeep: Boolean
+      val shouldTerminate: Boolean
    )
 
    private val clients = mutableListOf<Client>()
@@ -255,7 +307,15 @@ open class Simulation(
    }
 
    private fun broadcastMessage(message: WebSocketMessage) {
-      val messageString = Json.encodeToString(DynamicSerialization.serialize(message))
+      val serializedMessage = DynamicSerialization.serialize(message)
+      val messageString = Json.encodeToString(serializedMessage)
+
+      this.pendingReplayData.sentMessages.add(
+         ReplaySentMessage(
+            simulationTime = this.getCurrentSimulationTime(),
+            message = serializedMessage
+         )
+      )
 
       this.clients.forEach { client ->
 //         println("Broadcasting message to client (${message::class}): " + client.clientId)
@@ -297,7 +357,7 @@ open class Simulation(
    }
 
    fun getCurrentSimulationTime(): Double {
-      return getCurrentUnixTimeSeconds() - this.startUnixTime
+      return getCurrentUnixTimeSeconds() - this.startedAtUnixTime
    }
 
    fun handleNewWebSocketClient(
@@ -334,8 +394,73 @@ open class Simulation(
       }
    }
 
+   fun buildReplayData(): ReplayData {
+      return ReplayData(
+         simulationStartedAtUnixTime = this.startedAtUnixTime,
+         replayGeneratedAtSimulationTime = this.getCurrentSimulationTime(),
+         scenarioInfo = this.scenarioInfo,
+         configs = this.configs.map {
+            DynamicSerialization.serialize(it)
+         },
+         simulationId = this.simulationId,
+         sentMessages = this.pendingReplayData.sentMessages
+      )
+   }
+
+   @OptIn(DelicateCoroutinesApi::class)
+   fun saveReplay() {
+      val replayUploadBucket = Companion.replayS3UploadBucket
+
+      val replayData = this.buildReplayData()
+      val replayDataJson = try {
+         Json.encodeToString(replayData)
+      } catch (exception: Exception) {
+         println("Failed to serialize replay data as JSON: " + exception.stackTraceToString())
+         null
+      }
+
+      if (replayDataJson == null) {
+         return
+      }
+
+      val replayFileName = "replay-" + this.simulationId.value + ".json"
+
+      if (replayUploadBucket != null) {
+         GlobalScope.launch {
+            try {
+               println("Uploading replay to S3: replayFileName = $replayFileName, bucket = $replayUploadBucket, region = ${Companion.replayS3UploadRegion}")
+               S3Client
+                  .fromEnvironment { region = Companion.replayS3UploadRegion }
+                  .use { s3 ->
+                     s3.putObject {
+                        bucket = replayUploadBucket
+                        key = "replay-data/$replayFileName"
+                        body = ByteStream.fromString(replayDataJson)
+                     }
+                  }
+            } catch (exception: Exception) {
+               println("Exception while uploading replay to S3: ${exception.stackTraceToString()}")
+            }
+         }
+      } else {
+         val replayDirectory = Companion.replayDirectory
+
+         Files.createDirectories(replayDirectory)
+
+         val replayFilePath = replayDirectory.resolve(replayFileName)
+         println("Writing replay to file: " + replayFilePath.absolutePathString())
+
+         replayFilePath.writeText(replayDataJson)
+      }
+   }
 
    fun tick(): TickResult {
+      if (this.isTerminated) {
+         return TickResult(
+            shouldTerminate = false
+         )
+      }
+
       val currentUnixTimeSeconds = getCurrentUnixTimeSeconds()
       val deltaTime = Math.max(currentUnixTimeSeconds - this.lastTickUnixTime, 0.00001)
       this.lastTickUnixTime = currentUnixTimeSeconds
@@ -365,7 +490,7 @@ open class Simulation(
       }
 
       return TickResult(
-         shouldKeep = true
+         shouldTerminate = false
       )
    }
 
@@ -386,13 +511,22 @@ open class Simulation(
       )
    }
 
-   fun handleTermination() {
-      this.entities.forEach {
-         it.stop()
-      }
+   var isTerminated = false
+      private set
 
-      this.coroutineSystems.forEach { system ->
-         system.handleTermination()
+   fun handleTermination() {
+      synchronized(this) {
+         this.isTerminated = true
+
+         this.entities.forEach {
+            it.stop()
+         }
+
+         this.coroutineSystems.forEach { system ->
+            system.handleTermination()
+         }
+
+         this.saveReplay()
       }
    }
 
@@ -445,6 +579,11 @@ open class Simulation(
    }
 
    fun handleWebSocketMessage(session: DefaultWebSocketServerSession, messageType: String, messageData: JsonObject) {
+      if (this.isTerminated) {
+         println("handleWebSocketMessage: Ignoring message because simulation is terminated ($messageType)")
+         return
+      }
+
       val client = this.clients.find { it.webSocketSession == session }
 
       if (client == null) {
@@ -556,5 +695,14 @@ open class Simulation(
 
    fun getClientsForUserId(userId: UserId): List<Client> {
       return this.clients.filter { it.userId == userId }
+   }
+
+   fun buildInfo(): SimulationInfo {
+      return SimulationInfo(
+         simulationId = this.simulationId,
+         scenarioInfo = this.scenarioInfo,
+         isTerminated = this.isTerminated,
+         startedAtUnixTime = this.startedAtUnixTime
+      )
    }
 }

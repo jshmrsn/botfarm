@@ -1,7 +1,7 @@
 package botfarm.game.config
 
 import botfarm.engine.simulation.Config
-import botfarm.game.components.CompositeAnimation
+import botfarm.game.components.CompositeAnimationSelection
 import botfarmshared.game.apidata.ItemCollection
 
 class GrowerConfig(
@@ -53,7 +53,7 @@ class StorableConfig(
 
 class EquippableConfig(
    val equipmentSlot: EquipmentSlot,
-   val equippedCompositeAnimation: CompositeAnimation? = null
+   val equippedCompositeAnimation: CompositeAnimationSelection? = null
 )
 
 class ItemConfig(
