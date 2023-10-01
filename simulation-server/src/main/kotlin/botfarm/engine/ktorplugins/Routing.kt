@@ -3,6 +3,7 @@ package botfarm.engine.ktorplugins
 import botfarm.engine.simulation.ScenarioRegistration
 import botfarm.engine.simulation.Simulation
 import botfarm.engine.simulation.SimulationContainer
+import botfarm.engine.simulation.SimulationInfo
 import botfarm.game.ai.AgentServerIntegration
 import botfarmshared.engine.apidata.SimulationId
 import io.ktor.http.HttpStatusCode
@@ -48,9 +49,7 @@ fun Application.configureRouting(
 
       val listSimulationsBody: suspend PipelineContext<Unit, ApplicationCall>.(ListSimulationsRequest) -> Unit =
          { article ->
-            val result = synchronized(simulationContainer) {
-               simulationContainer.listSimulations()
-            }
+            val result = simulationContainer.listSimulations()
 
             call.respond(result)
          }
@@ -59,33 +58,42 @@ fun Application.configureRouting(
       resourcePost<ListSimulationsRequest>(listSimulationsBody)
 
       routingPost("${apiPrefix}terminate-simulation") {
-         val request = call.receive<TerminateSerializationRequestData>()
+         val request = call.receive<TerminateSerializationRequest>()
 
-         val result = synchronized(simulationContainer) {
-            simulationContainer.terminateSimulation(request.simulationId)
-         }
+         val result = simulationContainer.terminateSimulation(request.simulationId)
 
          call.respond(result)
       }
 
+      routingPost("${apiPrefix}get-simulation-info") {
+         val request = call.receive<GetSimulationInfoRequest>()
+
+         val simulation = simulationContainer.getSimulation(request.simulationId)
+
+         val simulationInfo = simulation?.buildInfo()
+
+         call.respond(GetSimulationInfoResponse(
+            simulationInfo = simulationInfo
+         ))
+      }
+
       routingPost("${apiPrefix}create-simulation") {
-         val request = call.receive<CreateSimulationRequestData>()
+         val request = call.receive<CreateSimulationRequest>()
          val scenario = ScenarioRegistration.registeredScenarios.find { it.identifier == request.scenarioIdentifier }
 
          if (scenario == null) {
             throw Exception("Scenario not found for identifier: " + request.scenarioIdentifier)
          } else {
-            val result = synchronized(simulationContainer) {
-               try {
-                  val simulation = scenario.createSimulation(
-                     simulationContainer = simulationContainer,
-                     agentServerIntegration = agentServerIntegration
-                  )
-                  simulationContainer.addSimulation(simulation)
-               } catch (exception: Exception) {
-                  println("Exception calling createDemoSimulation:  ${exception.stackTraceToString()}")
-                  throw exception
-               }
+            val simulation = scenario.createSimulation(
+               simulationContainer = simulationContainer,
+               agentServerIntegration = agentServerIntegration
+            )
+
+            val result = try {
+               simulationContainer.addSimulation(simulation)
+            } catch (exception: Exception) {
+               println("Exception calling createDemoSimulation:  ${exception.stackTraceToString()}")
+               throw exception
             }
 
             call.respond(result)
@@ -99,12 +107,21 @@ fun Application.configureRouting(
 class ListSimulationsRequest()
 
 @Serializable
-class TerminateSerializationRequestData(
+class TerminateSerializationRequest(
    val simulationId: SimulationId
 )
 
 @Serializable
-class CreateSimulationRequestData(
+class CreateSimulationRequest(
    val scenarioIdentifier: String
 )
 
+@Serializable
+class GetSimulationInfoRequest(
+   val simulationId: SimulationId
+)
+
+@Serializable
+class GetSimulationInfoResponse(
+   val simulationInfo: SimulationInfo?
+)

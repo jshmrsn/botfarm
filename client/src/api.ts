@@ -3,7 +3,8 @@ import axios from "axios";
 
 export function getFileRequest(
   path: string,
-  handleResponse: (response: any) => void
+  handleResponse: (response: any) => void,
+  handleError: (error: any) => void
 ) {
   axios.get(path)
     .then((response) => {
@@ -11,7 +12,7 @@ export function getFileRequest(
       handleResponse(responseData)
     })
     .catch(error => {
-      console.error("Got error from get file request", path, error)
+      handleError(error)
     })
 }
 

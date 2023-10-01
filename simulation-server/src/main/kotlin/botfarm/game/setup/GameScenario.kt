@@ -311,7 +311,7 @@ abstract class GameScenario(
          description = "A house",
          textureUrl = "/assets/items/house/house.png",
          iconUrl = "/assets/items/house/house.png",
-         spriteBaseScale = Vector2.uniform(0.6),
+         spriteBaseScale = Vector2.uniform(0.8),
          craftableConfig = CraftableConfig(
             craftingCost = ItemCollection(
                listOf(
@@ -321,8 +321,6 @@ abstract class GameScenario(
             )
          )
       )
-
-      val gameSimulation = GameSimulation
    }
 
    abstract fun configureGameSimulation(simulation: GameSimulation)

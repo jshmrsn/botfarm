@@ -22,7 +22,6 @@ import kotlin.io.path.writeText
 import aws.sdk.kotlin.services.s3.*
 import aws.smithy.kotlin.runtime.content.ByteStream
 import kotlinx.coroutines.runBlocking
-import java.util.UUID
 
 @JvmInline
 @Serializable
@@ -42,6 +41,15 @@ class Client(
 class ReplaySentMessage(
    val message: JsonElement,
    val simulationTime: Double
+)
+
+
+@Serializable
+class SimulationInfo(
+   val simulationId: SimulationId,
+   val scenarioInfo: ScenarioInfo,
+   val isTerminated: Boolean,
+   val startedAtUnixTime: Double
 )
 
 @Serializable
@@ -78,7 +86,7 @@ open class Simulation(
 
    var shouldPauseAi = false
 
-   val simulationStartedAtUnixTime = data.simulationStartedAtUnixTime
+   val startedAtUnixTime = data.simulationStartedAtUnixTime
 
    var lastTickUnixTime = getCurrentUnixTimeSeconds()
 
@@ -166,7 +174,7 @@ open class Simulation(
    }
 
    class TickResult(
-      val shouldKeep: Boolean
+      val shouldTerminate: Boolean
    )
 
    private val clients = mutableListOf<Client>()
@@ -350,7 +358,7 @@ open class Simulation(
    }
 
    fun getCurrentSimulationTime(): Double {
-      return getCurrentUnixTimeSeconds() - this.simulationStartedAtUnixTime
+      return getCurrentUnixTimeSeconds() - this.startedAtUnixTime
    }
 
    fun handleNewWebSocketClient(
@@ -389,7 +397,7 @@ open class Simulation(
 
    fun buildReplayData(): ReplayData {
       return ReplayData(
-         simulationStartedAtUnixTime = this.simulationStartedAtUnixTime,
+         simulationStartedAtUnixTime = this.startedAtUnixTime,
          replayGeneratedAtSimulationTime = this.getCurrentSimulationTime(),
          scenarioInfo = this.scenarioInfo,
          configs = this.configs.map {
@@ -430,20 +438,24 @@ open class Simulation(
                }
          }
       } else {
-         println(Paths.get("replays").absolutePathString())
-
          val replayDirectory = Companion.replayDirectory
 
          Files.createDirectories(replayDirectory)
 
          val replayFilePath = replayDirectory.resolve(replayFileName)
-         println("Writing replay: " + replayFilePath.absolutePathString())
+         println("Writing replay to file: " + replayFilePath.absolutePathString())
 
          replayFilePath.writeText(replayDataJson)
       }
    }
 
    fun tick(): TickResult {
+      if (this.isTerminated) {
+         return TickResult(
+            shouldTerminate = false
+         )
+      }
+
       val currentUnixTimeSeconds = getCurrentUnixTimeSeconds()
       val deltaTime = Math.max(currentUnixTimeSeconds - this.lastTickUnixTime, 0.00001)
       this.lastTickUnixTime = currentUnixTimeSeconds
@@ -473,7 +485,7 @@ open class Simulation(
       }
 
       return TickResult(
-         shouldKeep = true
+         shouldTerminate = false
       )
    }
 
@@ -494,13 +506,22 @@ open class Simulation(
       )
    }
 
-   fun handleTermination() {
-      this.entities.forEach {
-         it.stop()
-      }
+   var isTerminated = false
+      private set
 
-      this.coroutineSystems.forEach { system ->
-         system.handleTermination()
+   fun handleTermination() {
+      synchronized(this) {
+         this.isTerminated = true
+
+         this.entities.forEach {
+            it.stop()
+         }
+
+         this.coroutineSystems.forEach { system ->
+            system.handleTermination()
+         }
+
+         this.saveReplay()
       }
    }
 
@@ -553,6 +574,11 @@ open class Simulation(
    }
 
    fun handleWebSocketMessage(session: DefaultWebSocketServerSession, messageType: String, messageData: JsonObject) {
+      if (this.isTerminated) {
+         println("handleWebSocketMessage: Ignoring message because simulation is terminated ($messageType)")
+         return
+      }
+
       val client = this.clients.find { it.webSocketSession == session }
 
       if (client == null) {
@@ -664,5 +690,14 @@ open class Simulation(
 
    fun getClientsForUserId(userId: UserId): List<Client> {
       return this.clients.filter { it.userId == userId }
+   }
+
+   fun buildInfo(): SimulationInfo {
+      return SimulationInfo(
+         simulationId = this.simulationId,
+         scenarioInfo = this.scenarioInfo,
+         isTerminated = this.isTerminated,
+         startedAtUnixTime = this.startedAtUnixTime
+      )
    }
 }

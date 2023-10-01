@@ -37,9 +37,14 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
 
             if (frame is Frame.Close) {
                if (requestedConnectionToSimulationId != null) {
-                  synchronized(simulationContainer) {
-                     val simulation = simulationContainer.getSimulation(requestedConnectionToSimulationId)
-                     simulation?.handleWebSocketClose(session)
+                  val simulation = synchronized(simulationContainer) {
+                     simulationContainer.getSimulation(requestedConnectionToSimulationId)
+                  }
+
+                  if (simulation != null) {
+                     synchronized(simulation) {
+                        simulation.handleWebSocketClose(session)
+                     }
                   }
                }
             } else if (frame is Frame.Text) {
@@ -69,34 +74,39 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                         val simulationId = connectionRequest.simulationId
                         requestedConnectionToSimulationIdVar = simulationId
 
-                        synchronized(simulationContainer) {
-                           val simulation = simulationContainer.getSimulation(simulationId)
+                        val simulation = synchronized(simulationContainer) {
+                           simulationContainer.getSimulation(simulationId)
+                        }
 
-                           if (simulation != null) {
+
+                        if (simulation != null) {
+                           synchronized(simulation) {
                               simulation.handleNewWebSocketClient(
                                  clientId = connectionRequest.clientId,
                                  userId = connectionRequest.userId,
                                  webSocketSession = session
                               )
-                           } else {
-                              throw Exception("Simulation not found")
                            }
+                        } else {
+                           throw Exception("Simulation not found")
                         }
                      } else if (requestedConnectionToSimulationId == null) {
                         throw Exception("Already requested connection")
                      } else {
-                        synchronized(simulationContainer) {
-                           val simulation = simulationContainer.getSimulation(requestedConnectionToSimulationId)
+                        val simulation = synchronized(simulationContainer) {
+                           simulationContainer.getSimulation(requestedConnectionToSimulationId)
+                        }
 
-                           if (simulation != null) {
+                        if (simulation != null) {
+                           synchronized(simulation) {
                               simulation.handleWebSocketMessage(
                                  session = session,
                                  messageType = messageType,
                                  messageData = messageData
                               )
-                           } else {
-                              throw Exception("Simulation not found")
                            }
+                        } else {
+                           throw Exception("Simulation not found")
                         }
                      }
                   } catch (exception: Exception) {
@@ -104,7 +114,12 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                   }
                } catch (exception: Exception) {
                   println("Exception while handling websocket frame: $exception, ${exception.stackTrace}")
-                  session.close(CloseReason(CloseReason.Codes.INTERNAL_ERROR, "Exception while handling websocket frame"))
+                  session.close(
+                     CloseReason(
+                        CloseReason.Codes.INTERNAL_ERROR,
+                        "Exception while handling websocket frame"
+                     )
+                  )
                }
             }
          }

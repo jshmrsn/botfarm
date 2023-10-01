@@ -1,7 +1,7 @@
 import {Fragment, useEffect, useState} from "react";
 
-import {ActionIcon, Button, Text} from "@mantine/core";
-import {IconPlayerPlayFilled, IconTrashFilled} from "@tabler/icons-react";
+import {ActionIcon, Text} from "@mantine/core";
+import {IconTrashFilled} from "@tabler/icons-react";
 import {apiRequest} from "../api";
 import {SimulationId} from "../simulation/Simulation";
 import {useNavigate} from "react-router-dom";
@@ -11,12 +11,15 @@ import {ScenarioInfo} from "../simulation/EntityData";
 export interface SimulationInfo {
   simulationId: SimulationId
   scenarioInfo: ScenarioInfo
+  isTerminated: boolean
+  startedAtUnixTime: number
 }
 
 
 export interface ListSimulationsResult {
   scenarios: ScenarioInfo[]
   simulations: SimulationInfo[]
+  terminatedSimulations: SimulationInfo[]
 }
 
 interface SelectSimulationProps {
@@ -29,7 +32,7 @@ interface SelectSimulationProps {
 }
 
 interface CreateSimulationResponse {
-  simulationId: SimulationId
+  simulationInfo: SimulationInfo
 }
 
 const ListButton = styled.div`
@@ -41,7 +44,7 @@ const ListButton = styled.div`
   background: rgba(255, 255, 255, 0.5);
   padding: 5px;
   padding-left: 10px;
-  
+
   &:hover {
     background-color: rgba(255, 255, 255, 0.75);
   }
@@ -65,8 +68,8 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
     })
   }
 
-  const simulationSelected = (simulationId: string) => {
-    navigate(`/simulation/${simulationId}`)
+  const simulationSelected = (simulationInfo: SimulationInfo) => {
+    navigate(`/simulation/${simulationInfo.simulationId}`)
   }
 
   useEffect(() => {
@@ -95,7 +98,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
               apiRequest("create-simulation", {
                 scenarioIdentifier: scenario.identifier
               }, (response: CreateSimulationResponse) => {
-                simulationSelected(response.simulationId)
+                simulationSelected(response.simulationInfo)
               })
             }}
           >
@@ -118,17 +121,17 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
         {
           listResult.simulations.length === 0 ?
             <Text>No simulations found.</Text> :
-            listResult.simulations.map((simulation, index) => <ListButton
-                key={index + ":" + simulation.simulationId}
+            listResult.simulations.map((simulationInfo, index) => <ListButton
+                key={index + ":" + simulationInfo.simulationId}
                 style={{}}
                 onClick={() => {
-                  simulationSelected(simulation.simulationId)
+                  simulationSelected(simulationInfo)
                 }}
               >
-                <Text>{simulation.simulationId} ({simulation.scenarioInfo.name || simulation.scenarioInfo.identifier})</Text>
+                <Text>{simulationInfo.simulationId} ({simulationInfo.scenarioInfo.name || simulationInfo.scenarioInfo.identifier})</Text>
 
                 <div
-                  key={index + ":" + simulation.simulationId}
+                  key={index + ":" + simulationInfo.simulationId}
                   style={{
                     flexGrow: 1.0,
                     flexBasis: 0
@@ -141,7 +144,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
                   onClick={(event) => {
                     event.stopPropagation()
                     apiRequest("terminate-simulation", {
-                      simulationId: simulation.simulationId
+                      simulationId: simulationInfo.simulationId
                     }, (response) => {
                       refreshList()
                     })
@@ -152,6 +155,43 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
               </ListButton>
             )}
       </div>
+
+      {listResult.terminatedSimulations.length === 0
+        ? null
+        : <div>
+          <Text size={20} weight={"bold"}>Terminated Simulations</Text>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              borderRadius: 3,
+              padding: 5,
+              gap: 5
+            }}
+          >
+            {
+              listResult.terminatedSimulations.map((simulationInfo, index) => <ListButton
+                  key={index + ":" + simulationInfo.simulationId}
+                  style={{}}
+                  onClick={() => {
+                    simulationSelected(simulationInfo)
+                  }}
+                >
+                  <Text>{simulationInfo.simulationId} ({simulationInfo.scenarioInfo.name || simulationInfo.scenarioInfo.identifier})</Text>
+
+                  <div
+                    key={index + ":" + simulationInfo.simulationId}
+                    style={{
+                      flexGrow: 1.0,
+                      flexBasis: 0
+                    }}
+                  />
+                </ListButton>
+              )
+            }
+          </div>
+        </div>}
     </Fragment>
   }
 

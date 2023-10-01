@@ -1,9 +1,10 @@
-import React, {useCallback, useEffect} from "react";
+import React, {useEffect} from "react";
 import {ActionIcon, Text} from "@mantine/core";
 import {IconX} from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 import {attributionsMarkdown, howToPlayMarkdown} from "./HowToPlayMarkdown";
 import {DynamicState} from "./DynamicState";
+import {useOnKeyDown} from "./useOnKeyDown";
 
 interface HelpPanelProps {
   windowHeight: number
@@ -12,50 +13,11 @@ interface HelpPanelProps {
   close: () => void
 }
 
-
-function useOnKeyDown(key: String, handleClose: () => void) {
-  const handleEscKey = useCallback((event: any) => {
-    if (event.key === key) {
-      handleClose();
-    }
-  }, [handleClose]);
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleEscKey, false);
-
-    return () => {
-      document.removeEventListener('keydown', handleEscKey, false);
-    };
-  }, [handleEscKey]);
-}
-
 export function HelpPanel(props: HelpPanelProps) {
   const simulation = props.dynamicState.simulation
 
-
-  let phaserScene = props.dynamicState.phaserScene
-
   useOnKeyDown('Escape', props.close)
   useOnKeyDown('/', props.close)
-
-  useEffect(() => {
-    if (phaserScene != null &&
-      phaserScene.input !== undefined &&
-      phaserScene.input.keyboard != null) {
-      phaserScene.input.keyboard.enabled = false
-      phaserScene.input.keyboard.disableGlobalCapture()
-    }
-
-    return () => {
-      if (phaserScene != null &&
-        phaserScene.input !== undefined &&
-        phaserScene.input.keyboard != null) {
-        phaserScene.input.keyboard.enabled = true
-        phaserScene.input.keyboard.enableGlobalCapture()
-      }
-    }
-  }, []);
-
 
   if (simulation == null) {
     return null
@@ -148,3 +110,6 @@ export function HelpPanel(props: HelpPanelProps) {
     </div>
   </div>
 }
+
+
+

@@ -343,64 +343,77 @@ class SimulationContainer {
    val coroutineDispatcher: ExecutorCoroutineDispatcher = this.threadPool.asCoroutineDispatcher()
 
    private val simulations = mutableListOf<Simulation>()
+   private val terminatedSimulations = mutableListOf<Simulation>()
 
    @Serializable
    class CreateSimulationResult(
-      val simulationId: SimulationId
+      val simulationInfo: SimulationInfo
    )
 
    fun addSimulation(simulation: Simulation): CreateSimulationResult {
-      val simulationId = simulation.simulationId
+      synchronized(this) {
+         this.simulations.add(simulation)
 
-      this.simulations.add(simulation)
+         val startContext = StartContext(
+            simulationContainer = this
+         )
 
-      val startContext = StartContext(
-         simulationContainer = this
-      )
+         simulation.start(startContext)
 
-      simulation.start(startContext)
-      return CreateSimulationResult(
-         simulationId = simulationId
-      )
-   }
-
-   fun tick() {
-      this.simulations.filter {
-         val tickResult = it.tick()
-
-         tickResult.shouldKeep
+         return CreateSimulationResult(
+            simulationInfo = simulation.buildInfo()
+         )
       }
    }
 
+   fun tick() {
+      val simulations = synchronized(this) {
+         this.simulations.toList()
+      }
+
+      val simulationsToTerminate = simulations.filter { simulation ->
+         val tickResult = synchronized(simulation) {
+            simulation.tick()
+         }
+
+         tickResult.shouldTerminate
+      }
+
+      simulationsToTerminate.forEach { simulationToRemove ->
+         this.terminateSimulation(
+            simulationId = simulationToRemove.simulationId
+         )
+      }
+   }
 
    @Serializable
    class ListSimulationsResult(
       val simulations: List<SimulationInfo>,
+      val terminatedSimulations: List<SimulationInfo>,
       val scenarios: List<ScenarioInfo>
-   ) {
-      @Serializable
-      class SimulationInfo(
-         val simulationId: SimulationId,
-         val scenarioInfo: ScenarioInfo
-      )
-   }
+   )
 
    fun listSimulations(): ListSimulationsResult {
-      return ListSimulationsResult(
-         simulations = this.simulations.map {
-            ListSimulationsResult.SimulationInfo(
-               simulationId = it.simulationId,
-               scenarioInfo = it.scenarioInfo
-            )
-         },
-         scenarios = ScenarioRegistration.registeredScenarios.map {
-            it.buildInfo()
-         }
-      )
+      synchronized(this) {
+         return ListSimulationsResult(
+            simulations = this.simulations.map {
+               it.buildInfo()
+            },
+            terminatedSimulations = this.terminatedSimulations.map {
+               it.buildInfo()
+            },
+            scenarios = ScenarioRegistration.registeredScenarios.map {
+               it.buildInfo()
+            }
+         )
+      }
    }
 
    fun getSimulation(simulationId: SimulationId): Simulation? {
-      return this.simulations.find { it.simulationId == simulationId }
+      synchronized(this) {
+         return this.simulations.find { it.simulationId == simulationId } ?:
+                 this.terminatedSimulations.find { it.simulationId == simulationId }
+      }
    }
 
    @Serializable
@@ -409,15 +422,22 @@ class SimulationContainer {
    )
 
    fun terminateSimulation(simulationId: SimulationId): TerminateSimulationResult {
-      val simulation = this.getSimulation(simulationId)
+      synchronized(this) {
+         val simulation = this.getSimulation(simulationId)
 
-      if (simulation != null) {
-         simulation.handleTermination()
-         this.simulations.remove(simulation)
+         if (simulation != null) {
+            synchronized(simulation) {
+               if (!simulation.isTerminated) {
+                  simulation.handleTermination()
+                  this.simulations.remove(simulation)
+                  this.terminatedSimulations.add(simulation)
+               }
 
-         return TerminateSimulationResult(success = true)
-      } else {
-         return TerminateSimulationResult(success = false)
+               return TerminateSimulationResult(success = true)
+            }
+         } else {
+            return TerminateSimulationResult(success = false)
+         }
       }
    }
 }

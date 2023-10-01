@@ -95,6 +95,7 @@ export interface SimulationSceneContext {
   setSelectedEntityId: (entityId: EntityId | null) => void
   closePanels: () => void
   showHelpPanel: () => void
+  showMenuPanel: () => void
 }
 
 export enum AutoInteractActionType {
@@ -146,7 +147,6 @@ export class SimulationScene extends Phaser.Scene {
   readonly dynamicState: DynamicState
   readonly simulation: Simulation
   readonly isReplay: boolean
-
 
   focusChatTextAreaKey: Phaser.Input.Keyboard.Key | undefined = undefined
 
@@ -733,9 +733,9 @@ export class SimulationScene extends Phaser.Scene {
     escapeKey?.on("down", (event: any) => {
       if (this.dynamicState.selectedEntityId != null) {
         this.simulationContext.setSelectedEntityId(null)
-        this.clearPendingInteractoinTargetRequest()
+        this.clearPendingInteractionTargetRequest()
       } else {
-        this.simulationContext.closePanels()
+        this.simulationContext.showMenuPanel()
       }
     })
 
@@ -802,15 +802,15 @@ export class SimulationScene extends Phaser.Scene {
           this.lastClickTime = getUnixTimeSeconds()
 
           if (nearestEntity != null && nearestDistance < 60) {
-            this.clearPendingInteractoinTargetRequest()
+            this.clearPendingInteractionTargetRequest()
             this.simulationContext.setSelectedEntityId(nearestEntity.entityId)
           } else {
             this.simulationContext.setSelectedEntityId(null)
-            this.clearPendingInteractoinTargetRequest()
+            this.clearPendingInteractionTargetRequest()
           }
         } else {
           this.lastClickTime = -1;
-          this.clearPendingInteractoinTargetRequest()
+          this.clearPendingInteractionTargetRequest()
 
           this.sendMoveToPointRequest({
             point: worldPoint
@@ -851,7 +851,7 @@ export class SimulationScene extends Phaser.Scene {
     });
   }
 
-  private clearPendingInteractoinTargetRequest() {
+  private clearPendingInteractionTargetRequest() {
     if (this.isReplay) {
       return
     }
@@ -1023,11 +1023,11 @@ export class SimulationScene extends Phaser.Scene {
 
     if (actionType === AutoInteractActionType.Clear) {
       this.simulationContext.setSelectedEntityId(null)
-      this.clearPendingInteractoinTargetRequest()
+      this.clearPendingInteractionTargetRequest()
     } else if (actionType === AutoInteractActionType.SelectEntity) {
       if (targetEntity != null) {
         this.simulationContext.setSelectedEntityId(targetEntity.entityId)
-        this.clearPendingInteractoinTargetRequest()
+        this.clearPendingInteractionTargetRequest()
       }
     } else if (actionType === AutoInteractActionType.UseEquippedTool) {
       this.sendMoveToPointRequest({

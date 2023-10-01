@@ -19,9 +19,7 @@ fun Application.module() {
 
    thread {
       while (true) {
-         synchronized(simulationContainer) {
-            simulationContainer.tick()
-         }
+         simulationContainer.tick()
 
          val tickIntervalSeconds = 1.0 / 30.0
          Thread.sleep((tickIntervalSeconds * 1000).toLong())

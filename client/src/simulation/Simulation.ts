@@ -26,6 +26,7 @@ export class Simulation {
   onSimulationDataChanged: () => void
   private sendMessageImplementation: (type: string, data: any) => void
   readonly isReplay: boolean
+  isReplayPaused = false
 
   getCurrentSimulationTime(): number {
     return this.smoothedSimulationTime
@@ -36,14 +37,15 @@ export class Simulation {
     onSimulationDataChanged: () => void,
     sendMessageImplementation: (type: string, data: any) => void
   ) {
-    this.isReplay = initialSimulationData.replayData != null
     this.sendMessageImplementation = sendMessageImplementation
     this.onSimulationDataChanged = onSimulationDataChanged
+
+    this.isReplay = initialSimulationData.replayData != null
     this.replayData = initialSimulationData.replayData
+
     this.receivedSimulationTime = initialSimulationData.simulationTime
     this.smoothedSimulationTime = initialSimulationData.simulationTime
     this.simulationId = initialSimulationData.simulationId
-
     this.configs = initialSimulationData.configs
 
     for (let config of this.configs) {
@@ -62,6 +64,10 @@ export class Simulation {
       this.entitiesById[entity.entityId] = entity
     }
 
+    this.handleInitialReplayData()
+  }
+
+  handleInitialReplayData() {
     if (this.replayData != null) {
       for (let sentMessage of this.replayData.sentMessages) {
         if (sentMessage.message["type"] === "EntityCreatedWebSocketMessage") {
@@ -74,9 +80,9 @@ export class Simulation {
           }
         }
       }
-    }
 
-    this.processReplayMessages()
+      this.processReplayMessages()
+    }
   }
 
   sendMessage(type: string, data: any) {
@@ -200,8 +206,6 @@ export class Simulation {
     }
   }
 
-  isReplayPaused = false
-
   update(deltaTime: number) {
     if (!this.isReplayPaused) {
       this.receivedSimulationTime += deltaTime
@@ -219,6 +223,13 @@ export class Simulation {
     }
   }
 
+  removeAllEntities() {
+    for (let entity of this.entities) {
+      delete this.entitiesById[entity.entityId]
+    }
+    this.entities.splice(0, this.entities.length)
+  }
+
   seekReplayToSimulationTime(value: number) {
     const previousSimulationTime = this.smoothedSimulationTime
     this.smoothedSimulationTime = value
@@ -226,10 +237,7 @@ export class Simulation {
 
     if (value < previousSimulationTime) {
       this.nextReplaySentMessageIndex = 0
-      for (let entity of this.entities) {
-        delete this.entitiesById[entity.entityId]
-      }
-      this.entities.splice(0, this.entities.length)
+      this.removeAllEntities()
     }
 
     this.processReplayMessages()
