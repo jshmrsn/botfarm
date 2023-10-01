@@ -10,6 +10,7 @@ interface ChatInputAreaProps {
   dynamicState: DynamicState
   showingPanels: PanelTypes[]
   setShowingPanels: (panels: PanelTypes[]) => void
+  notifyChatInputIsFocused: (focused: boolean) => void
 }
 
 export function ChatInputArea(props: ChatInputAreaProps): JSX.Element {
@@ -69,22 +70,10 @@ export function ChatInputArea(props: ChatInputAreaProps): JSX.Element {
           }}
           onChange={(event) => setTypedPrompt(event.target.value)}
           onFocus={(focusEvent) => {
-            let phaserScene = dynamicState.phaserScene;
-            if (phaserScene != null &&
-              phaserScene.input !== undefined &&
-              phaserScene.input.keyboard != null) {
-              phaserScene.input.keyboard.enabled = false
-              phaserScene.input.keyboard.disableGlobalCapture()
-            }
+            props.notifyChatInputIsFocused(true)
           }}
           onBlur={() => {
-            let phaserScene = dynamicState.phaserScene;
-            if (phaserScene != null &&
-              phaserScene.input !== undefined &&
-              phaserScene.input.keyboard != null) {
-              phaserScene.input.keyboard.enabled = true
-              phaserScene.input.keyboard.enableGlobalCapture()
-            }
+            props.notifyChatInputIsFocused(false)
           }}
           autosize={true}
           style={{

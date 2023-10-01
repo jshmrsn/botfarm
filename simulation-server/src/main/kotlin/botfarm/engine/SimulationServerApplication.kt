@@ -1,7 +1,9 @@
 package botfarm.engine
 
-import botfarm.engine.ktorplugins.*
-import botfarm.game.ai.AgentServerIntegration
+import botfarm.engine.ktorplugins.configureMonitoring
+import botfarm.engine.ktorplugins.configureRouting
+import botfarm.engine.ktorplugins.configureSerialization
+import botfarm.engine.ktorplugins.configureSockets
 import botfarm.engine.simulation.SimulationContainer
 import io.ktor.server.application.Application
 import kotlin.concurrent.thread
@@ -10,12 +12,11 @@ fun Application.module() {
    println("Application.module")
 
    val simulationContainer = SimulationContainer()
-   val agentServerIntegration = AgentServerIntegration()
 
    configureSerialization()
    configureSockets(simulationContainer)
    configureMonitoring()
-   configureRouting(simulationContainer, agentServerIntegration)
+   configureRouting(simulationContainer)
 
    thread {
       while (true) {

@@ -2,19 +2,21 @@ import {MantineProvider} from '@mantine/core';
 import {SelectSimulationComponent} from "./SelectSimulationComponent";
 import {useState} from "react";
 import {SimulationComponent} from "./SimulationComponent";
-import {
-  createBrowserRouter,
-  RouterProvider,
-  useNavigate
-} from "react-router-dom";
-import {UserId} from "../simulation/Simulation";
-import {generateId} from "../misc/utils";
+import {createBrowserRouter, RouterProvider} from "react-router-dom";
+import {UserId, UserSecret} from "../simulation/Simulation";
+import {generateId, getUnixTimeSeconds} from "../misc/utils";
+import {AdminRequest, buildAdminRequestForSecret} from "./AdminRequest";
+
 
 export default function App() {
   const [shouldAllowWebGl, setShouldAllowWebGl] = useState(true)
   const [shouldForceWebGl, setShouldForceWebGl] = useState(false)
 
   const storedUserId = localStorage.getItem("userId")
+  const storedUserSecret = localStorage.getItem("userSecret")
+  const storedAdminSecret = localStorage.getItem("adminSecret")
+
+  const [adminSecret, setAdminSecret] = useState(storedAdminSecret ?? "")
 
   let userId: UserId
   if (storedUserId == null) {
@@ -23,6 +25,22 @@ export default function App() {
     localStorage.setItem("userId", userId)
   } else {
     userId = storedUserId
+  }
+
+  let userSecret: UserSecret
+  if (storedUserSecret == null) {
+    userSecret = generateId()
+    localStorage.setItem("userSecret", userSecret)
+  } else {
+    userSecret = storedUserSecret
+  }
+
+  const buildAdminRequest: () => AdminRequest | null = () => {
+    if (adminSecret.length > 0) {
+      return buildAdminRequestForSecret(adminSecret)
+    } else {
+      return null
+    }
   }
 
   const router = createBrowserRouter([
@@ -34,6 +52,13 @@ export default function App() {
         setShouldAllowWebGl={setShouldAllowWebGl}
         setShouldForceWebGl={setShouldForceWebGl}
         userId={userId}
+        userSecret={userSecret}
+        adminSecret={adminSecret}
+        setAdminSecret={value => {
+          localStorage.setItem("adminSecret", value)
+          setAdminSecret(value)
+        }}
+        buildAdminRequest={buildAdminRequest}
       />
     },
     {
@@ -42,7 +67,9 @@ export default function App() {
         shouldAllowWebGl={shouldAllowWebGl}
         shouldForceWebGl={shouldForceWebGl}
         userId={userId}
-        />
+        userSecret={userSecret}
+        buildAdminRequest={buildAdminRequest}
+      />
     }
   ]);
 
@@ -50,10 +77,9 @@ export default function App() {
     <MantineProvider
       withGlobalStyles
       withNormalizeCSS
-      theme={{
-      }}
+      theme={{}}
     >
-      <RouterProvider router={router} />
+      <RouterProvider router={router}/>
     </MantineProvider>
   );
 }

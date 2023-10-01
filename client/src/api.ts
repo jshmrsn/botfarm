@@ -30,6 +30,7 @@ export function postRequest<REQUEST, RESPONSE>(
     })
     .catch(error => {
       console.error("Got error from post request", path, error)
+      alert("Got error from post request: " + path)
     })
 }
 

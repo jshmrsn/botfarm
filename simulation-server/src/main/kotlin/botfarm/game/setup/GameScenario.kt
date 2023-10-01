@@ -4,7 +4,6 @@ import botfarm.common.SpriteConfig
 import botfarm.engine.simulation.*
 import botfarm.game.*
 import botfarm.game.ai.AgentServerIntegration
-import botfarm.game.components.ActivityStreamComponentData
 import botfarm.game.components.CompositeAnimationSelection
 import botfarm.game.config.*
 import botfarmshared.game.apidata.ItemCollection
@@ -13,19 +12,22 @@ import botfarmshared.misc.RandomConfig
 import botfarmshared.misc.Vector2
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 
+val agentServerIntegration = AgentServerIntegration()
+
 abstract class GameScenario(
    identifier: String,
    name: String? = null,
-   description: String? = null
+   description: String? = null,
+   spawnPlayersMode: SpawnPlayersMode = SpawnPlayersMode.All
 ) : Scenario(
    identifier = identifier,
    gameIdentifier = "game",
    name = name,
-   description = description
+   description = description,
+   spawnPlayersEntityMode = spawnPlayersMode
 ) {
    override fun createSimulation(
-      simulationContainer: SimulationContainer,
-      agentServerIntegration: AgentServerIntegration
+      context: SimulationContext
    ): Simulation {
       val configs = mutableListOf<Config>()
 
@@ -41,14 +43,9 @@ abstract class GameScenario(
       )
 
       val simulation = GameSimulation(
+         context = context,
          data = simulationData,
-         simulationContainer = simulationContainer,
          agentServerIntegration = agentServerIntegration
-      )
-
-      simulation.createEntity(
-         components = listOf(ActivityStreamComponentData()),
-         entityId = GameSimulation.activityStreamEntityId
       )
 
       this.configureGameSimulation(simulation)

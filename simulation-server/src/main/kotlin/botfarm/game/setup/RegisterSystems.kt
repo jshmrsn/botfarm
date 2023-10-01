@@ -7,10 +7,12 @@ import botfarm.game.systems.pendingInteractionTickSystem
 import botfarm.game.systems.cleanupKilledEntitiesTickSystem
 import botfarm.game.systems.updateGrowersTickSystem
 
+val gameSystems = Systems()
+
 fun registerGameSystems() {
-   Systems.default.registerTickSystem2(::pendingInteractionTickSystem)
-   Systems.default.registerTickSystem(::cleanupKilledEntitiesTickSystem)
-   Systems.default.registerTickSystem(::updateGrowersTickSystem)
-   Systems.default.registerCoroutineSystem<AgentComponentData>(::agentCoroutineSystem)
+   gameSystems.registerTickSystem2(::pendingInteractionTickSystem)
+   gameSystems.registerTickSystem(::cleanupKilledEntitiesTickSystem)
+   gameSystems.registerTickSystem(::updateGrowersTickSystem)
+   gameSystems.registerCoroutineSystem<AgentComponentData>(::agentCoroutineSystem)
 }
 

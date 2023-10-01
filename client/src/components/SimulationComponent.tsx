@@ -24,7 +24,7 @@ import {
 } from "../common/PositionComponentData";
 import {Vector2} from "../misc/Vector2";
 import {HelpPanel} from "./HelpPanel";
-import {SimulationId} from "../simulation/Simulation";
+import {SimulationId, UserId, UserSecret} from "../simulation/Simulation";
 import {useNavigate, useParams} from "react-router-dom";
 import {apiRequest, getFileRequest} from "../api";
 import {DynamicState} from "./DynamicState";
@@ -32,6 +32,7 @@ import {ReplayControls} from "./ReplayControls";
 import {SimulationInfo} from "./SelectSimulationComponent";
 import {MenuPanel} from "./MenuPanel";
 import {Options} from "react-use-websocket/src/lib/types";
+import {AdminRequest} from "./AdminRequest";
 
 
 export enum PanelTypes {
@@ -47,7 +48,9 @@ type SimulationComponentParams = {
 interface SimulationProps {
   shouldAllowWebGl: boolean
   shouldForceWebGl: boolean
-  userId: string
+  userId: UserId
+  userSecret: UserSecret
+  buildAdminRequest: () => AdminRequest | null
 }
 
 export interface GetSimulationInfoResponse {
@@ -66,6 +69,7 @@ export const SimulationComponent = (props: SimulationProps) => {
   const [shouldShowMenuPanel, setShouldShowMenuPanel] = useState(false)
 
   const [showingPanels, setShowingPanels] = useState<PanelTypes[]>([])
+  const [chatInputIsFocused, setChatInputIsFocused] = useState(false)
 
   const [_forceUpdateCounter, setForceUpdateCounter] = useState(0)
   const [phaserContainerDiv, setPhaserContainerDiv] = useState<HTMLDivElement | null>(null)
@@ -80,6 +84,7 @@ export const SimulationComponent = (props: SimulationProps) => {
   const userId = props.userId
 
   const [dynamicState, _setDynamicState] = useState<DynamicState>(new DynamicState(userId, setForceUpdateCounter))
+  dynamicState.buildAdminRequest = props.buildAdminRequest
 
   const [isViewingReplay, setIsViewingReplay] = useState(false)
   const [loadReplayError, setLoadReplayError] = useState<string | null>(null)
@@ -97,7 +102,8 @@ export const SimulationComponent = (props: SimulationProps) => {
 
   const getSimulationInfo = () => {
     apiRequest("get-simulation-info", {
-      simulationId: simulationId
+      simulationId: simulationId,
+      userSecret: props.userSecret
     }, (response: GetSimulationInfoResponse) => {
       setGetSimulationInfoResponse(response)
 
@@ -146,7 +152,9 @@ export const SimulationComponent = (props: SimulationProps) => {
 
   const terminateSimulation = () => {
     apiRequest("terminate-simulation", {
-      simulationId: simulationId
+      simulationId: simulationId,
+      userSecret: props.userSecret,
+      adminRequest: props.buildAdminRequest()
     }, (response) => {
       getSimulationInfo()
     })
@@ -230,7 +238,8 @@ export const SimulationComponent = (props: SimulationProps) => {
       dynamicState.webSocket = event.target as WebSocket
 
       dynamicState.sendWebSocketMessage("ConnectionRequest", {
-        userId: dynamicState.userId,
+        userId: props.userId,
+        userSecret: props.userSecret,
         clientId: dynamicState.clientId,
         simulationId: simulationId
       })
@@ -429,7 +438,8 @@ export const SimulationComponent = (props: SimulationProps) => {
 
     const shouldDisableGameSceneInput = shouldShowMenuPanel ||
       shouldShowHelpPanel ||
-      getSimulationInfoResponse == null
+      getSimulationInfoResponse == null ||
+      chatInputIsFocused
 
     if (dynamicState.phaserScene != null &&
       dynamicState.phaserScene.input !== undefined &&
@@ -674,6 +684,7 @@ export const SimulationComponent = (props: SimulationProps) => {
           dynamicState={dynamicState}
           showingPanels={showingPanels}
           setShowingPanels={setShowingPanels}
+          notifyChatInputIsFocused={(value) => setChatInputIsFocused(value)}
         /> : null}
       </div>
     </React.Fragment>

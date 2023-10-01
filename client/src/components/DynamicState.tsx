@@ -3,6 +3,7 @@ import {SimulationScene} from "../game/SimulationScene";
 import {GameSimulation} from "../game/GameSimulation";
 import {EntityId} from "../simulation/EntityData";
 import {generateId} from "../misc/utils";
+import {AdminRequest, buildAdminRequestForSecret} from "./AdminRequest";
 
 export class DynamicState {
   forceRenderIndex: number = 0
@@ -17,6 +18,7 @@ export class DynamicState {
   readonly clientId: ClientId = generateId()
 
   hasSentGetReplayRequest = false
+  buildAdminRequest: () => AdminRequest | null = () => null
 
   constructor(userId: UserId, setForceUpdateCounter: (counter: number) => void) {
     this.userId = userId
@@ -30,7 +32,8 @@ export class DynamicState {
 
     this.webSocket.send(JSON.stringify({
       "type": type,
-      "data": data
+      "data": data,
+      "adminRequest": this.buildAdminRequest()
     }))
   }
 

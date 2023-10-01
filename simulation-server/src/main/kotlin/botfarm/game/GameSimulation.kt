@@ -4,6 +4,7 @@ import botfarm.common.IndexPair
 import botfarm.common.PositionComponentData
 import botfarm.common.aStarPathfinding
 import botfarm.common.resolvePosition
+import botfarm.engine.ktorplugins.AdminRequest
 import botfarm.engine.simulation.*
 import botfarm.game.ai.AgentServerIntegration
 import botfarm.game.components.*
@@ -11,6 +12,7 @@ import botfarm.game.config.CharacterBodySelectionsConfig
 import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
 import botfarm.game.config.RandomItemQuantity
+import botfarm.game.setup.gameSystems
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.AgentId
 import botfarmshared.misc.*
@@ -71,13 +73,12 @@ class AddCharacterMessageRequest(
 
 class GameSimulation(
    val agentServerIntegration: AgentServerIntegration,
-   data: SimulationData,
-   simulationContainer: SimulationContainer,
-   systems: Systems = Systems.default
+   context: SimulationContext,
+   data: SimulationData
 ) : Simulation(
-   data = data,
-   simulationContainer = simulationContainer,
-   systems = systems
+   context = context,
+   systems = gameSystems,
+   data = data
 ) {
    companion object {
       val activityStreamEntityId = EntityId("activity-stream")
@@ -107,6 +108,16 @@ class GameSimulation(
       this.collisionMapColumnCount = columnCount
       this.collisionWorldWidth = columnCount * tilewidth.toDouble()
       this.collisionWorldHeight = rowCount * tileheight.toDouble()
+
+      this.createEntity(
+         components = listOf(ActivityStreamComponentData()),
+         entityId = GameSimulation.activityStreamEntityId
+      )
+
+      if (AdminRequest.serverHasAdminSecret && !this.context.wasCreatedByAdmin) {
+         this.shouldPauseAi = true
+         this.broadcastAlertAsGameMessage("Pausing AI because this simulation was not created by an admin")
+      }
    }
 
    fun getActivityStreamEntity() =
@@ -127,6 +138,10 @@ class GameSimulation(
       }
    }
 
+
+   override fun onStart() {
+
+   }
 
    fun addCharacterMessage(entity: Entity, message: String) {
       val characterComponent = entity.getComponentOrNull<CharacterComponentData>()
@@ -1317,7 +1332,12 @@ class GameSimulation(
       ).firstOrNull()
    }
 
-   override fun handleClientMessage(client: Client, messageType: String, messageData: JsonObject) {
+   override fun handleClientMessage(
+      client: Client,
+      messageType: String,
+      messageData: JsonObject,
+      isAdminRequest: Boolean
+   ) {
       val userControlledEntity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
       val playerPosition = userControlledEntity?.resolvePosition() ?: Vector2.zero
 
@@ -1362,7 +1382,8 @@ class GameSimulation(
                messageData = messageData,
                client = client,
                playerPosition = playerPosition,
-               userControlledEntity = userControlledEntity
+               userControlledEntity = userControlledEntity,
+               isAdminRequest = isAdminRequest
             )
          }
 
@@ -1374,12 +1395,19 @@ class GameSimulation(
       messageData: JsonObject,
       client: Client,
       playerPosition: Vector2,
-      userControlledEntity: Entity?
+      userControlledEntity: Entity?,
+      isAdminRequest: Boolean
    ) {
       val request = Json.decodeFromJsonElement<AddCharacterMessageRequest>(messageData)
 
       if (request.message.startsWith("/")) {
-         this.handleServerCommandRequest(request, client, playerPosition, userControlledEntity)
+         this.handleServerCommandRequest(
+            message = request,
+            client = client,
+            playerPosition = playerPosition,
+            userControlledEntity = userControlledEntity,
+            isAdminRequest = isAdminRequest
+         )
       } else if (userControlledEntity != null) {
          this.addCharacterMessage(userControlledEntity, request.message)
       }
@@ -1389,7 +1417,8 @@ class GameSimulation(
       message: AddCharacterMessageRequest,
       client: Client,
       playerPosition: Vector2,
-      userControlledEntity: Entity?
+      userControlledEntity: Entity?,
+      isAdminRequest: Boolean
    ) {
       val nearestOtherCharacterEntity = this.getNearestEntity(
          searchLocation = playerPosition,
@@ -1398,9 +1427,15 @@ class GameSimulation(
          }
       )
 
-
       val components = message.message.split(" ")
       val command = components.first().replace("/", "")
+
+      fun requireAdmin() {
+         if (!isAdminRequest) {
+            sendAlertMessage(client, "Admin access required for command: " + command)
+            throw Exception("Admin required: " + command)
+         }
+      }
 
       when (command) {
          "pause-ai" -> {
@@ -1409,6 +1444,8 @@ class GameSimulation(
          }
 
          "resume-ai" -> {
+            requireAdmin()
+
             broadcastAlertMessage("AI resumed")
             this.shouldPauseAi = false
          }
@@ -1453,6 +1490,8 @@ class GameSimulation(
          }
 
          "spawn-item" -> {
+            requireAdmin()
+
             val configKey = components.getOrNull(1) ?: "stone"
             val amount = components.getOrNull(2)?.toInt() ?: 1
             val stackCount = components.getOrNull(3)?.toInt()
@@ -1475,6 +1514,8 @@ class GameSimulation(
          }
 
          "take-item" -> {
+            requireAdmin()
+
             val configKey = components.getOrNull(1) ?: "stone"
             val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
             val stacks = components.getOrNull(3)?.toInt() ?: 1
@@ -1494,6 +1535,8 @@ class GameSimulation(
          }
 
          "give-item" -> {
+            requireAdmin()
+
             val configKey = components.getOrNull(1) ?: "stone"
             val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
             val stacks = components.getOrNull(3)?.toInt() ?: 1
@@ -1509,6 +1552,8 @@ class GameSimulation(
          }
 
          "give-item-near" -> {
+            requireAdmin()
+
             val configKey = components.getOrNull(1) ?: "stone"
             val amountPerStack = components.getOrNull(2)?.toInt() ?: 1
             val stacks = components.getOrNull(3)?.toInt() ?: 1
@@ -1524,64 +1569,30 @@ class GameSimulation(
          }
 
          "save-replay" -> {
+            requireAdmin()
             this.saveReplay()
          }
 
          "spawn-agent" -> {
-            val type = components.getOrNull(1) ?: "1"
-            val agentType = components.getOrNull(2) ?: AgentComponentData.defaultAgentType
-            val name = components.getOrNull(3)
+            requireAdmin()
+
+            val agentType = components.getOrNull(1) ?: AgentComponentData.defaultAgentType
+            val name = components.getOrNull(2)
 
             val spawnLocation = playerPosition + Vector2.randomSignedXY(150.0)
 
-            when (type) {
-               "1" -> {
-                  this.spawnAgent(
-                     name = name ?: "Agent Joe",
-                     corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
-                     initialMemories = listOf(
-                        "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
-                        "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
-                     ),
-                     agentType = agentType,
-                     bodySelections = this.buildRandomCharacterBodySelections(
-                        bodyType = "male",
-                        hairColor = "black",
-                        skinColor = "light"
-                     ),
-                     age = 25,
-                     location = spawnLocation
-                  )
-               }
-
-               "2" -> {
-                  this.spawnAgent(
-                     name = name ?: "Bob",
-                     corePersonality = "Friendly and trusting. Always tries to follow requests from other people, even if they don't make sense.",
-                     initialMemories = listOf(
-                        "I want to do whatever I'm told to do."
-                     ),
-                     agentType = agentType,
-                     bodySelections = this.buildRandomCharacterBodySelections("male"),
-                     age = 30,
-                     location = spawnLocation
-                  )
-               }
-
-               "3" -> {
-                  this.spawnAgent(
-                     name = name ?: "Linda",
-                     corePersonality = "Artsy.",
-                     initialMemories = listOf(
-                        "I want to learn how to paint."
-                     ),
-                     agentType = agentType,
-                     bodySelections = this.buildRandomCharacterBodySelections("female"),
-                     age = 24,
-                     location = spawnLocation
-                  )
-               }
-            }
+            this.spawnAgent(
+               name = name ?: "Agent",
+               corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
+               initialMemories = listOf(
+                  "I want to make progress.",
+                  "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
+               ),
+               agentType = agentType,
+               bodySelections = this.buildRandomCharacterBodySelections(),
+               age = 25,
+               location = spawnLocation
+            )
          }
 
          else -> {
@@ -1641,9 +1652,7 @@ class GameSimulation(
       )
    }
 
-   override fun handleNewClient(client: Client) {
-      println("handleNewClient: " + client.clientId)
-
+   fun spawnPlayerCharacter(client: Client) {
       val existingControlledEntity = this.entities.find {
          val userControlled = it.getComponentOrNull<UserControlledComponentData>()
 
@@ -1683,6 +1692,20 @@ class GameSimulation(
             )
          )
       )
+   }
+
+   override fun handleNewClient(client: Client) {
+      val isCreator = this.context.createdByUserSecret == client.userSecret
+
+      val shouldSpawnPlayerEntity = when (this.scenario.spawnPlayersEntityMode) {
+         SpawnPlayersMode.All -> true
+         SpawnPlayersMode.NonCreator -> !isCreator
+         SpawnPlayersMode.None -> false
+      }
+
+      if (shouldSpawnPlayerEntity) {
+         this.spawnPlayerCharacter(client)
+      }
    }
 
    fun getUserControlledEntities(userId: UserId) = this.entities.filter {

@@ -1,22 +1,25 @@
-import {Fragment, useEffect, useState} from "react";
+import React, {Fragment, useEffect, useState} from "react";
 
-import {ActionIcon, Text} from "@mantine/core";
+import {ActionIcon, PasswordInput, Text, Textarea} from "@mantine/core";
 import {IconTrashFilled} from "@tabler/icons-react";
 import {apiRequest} from "../api";
-import {SimulationId} from "../simulation/Simulation";
+import {SimulationId, UserId, UserSecret} from "../simulation/Simulation";
 import {useNavigate} from "react-router-dom";
 import styled from "styled-components";
 import {ScenarioInfo} from "../simulation/EntityData";
+import {AdminRequest} from "./AdminRequest";
 
 export interface SimulationInfo {
   simulationId: SimulationId
   scenarioInfo: ScenarioInfo
   isTerminated: boolean
   startedAtUnixTime: number
+  belongsToUser: boolean
+  wasCreatedByAdmin: boolean
 }
 
-
 export interface ListSimulationsResult {
+  serverHasAdminSecret: boolean
   scenarios: ScenarioInfo[]
   simulations: SimulationInfo[]
   terminatedSimulations: SimulationInfo[]
@@ -28,7 +31,11 @@ interface SelectSimulationProps {
 
   setShouldAllowWebGl: (value: boolean) => void
   setShouldForceWebGl: (value: boolean) => void
-  userId: string
+  userId: UserId
+  userSecret: UserSecret
+  adminSecret: string
+  setAdminSecret: (value: string) => void
+  buildAdminRequest: () => AdminRequest | null
 }
 
 interface CreateSimulationResponse {
@@ -53,16 +60,17 @@ const ListButton = styled.div`
 `;
 
 export const SelectSimulationComponent = (props: SelectSimulationProps) => {
-  const [isCreatingSimulation, setIsCreatingSimulation] = useState(false)
   const [listResult, setListResult] = useState<ListSimulationsResult | null>(null)
   const navigate = useNavigate()
   const userId = props.userId
+  const userSecret = props.userSecret
 
   const refreshList = () => {
     setListResult(null)
 
     apiRequest("list-simulations", {
-      userId: userId
+      userSecret: userSecret,
+      adminRequest: props.buildAdminRequest()
     }, (response: ListSimulationsResult) => {
       setListResult(response)
     })
@@ -85,7 +93,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
           simulationSelected(simulationInfo)
         }}
       >
-        <Text>{simulationInfo.simulationId} ({simulationInfo.scenarioInfo.name || simulationInfo.scenarioInfo.identifier})</Text>
+        <Text>{simulationInfo.simulationId} - {simulationInfo.scenarioInfo.name || simulationInfo.scenarioInfo.identifier}</Text>
 
         <div
           key={index + ":" + simulationInfo.simulationId}
@@ -95,13 +103,18 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
           }}
         />
 
+        {!simulationInfo.belongsToUser ? <Text>Belongs to other user</Text> : null}
+        {simulationInfo.wasCreatedByAdmin ? <Text>Created by Admin</Text> : null}
+
         {!simulationInfo.isTerminated ? <ActionIcon
           variant="filled"
           color={"red"}
           onClick={(event) => {
             event.stopPropagation()
             apiRequest("terminate-simulation", {
-              simulationId: simulationInfo.simulationId
+              simulationId: simulationInfo.simulationId,
+              userSecret: props.userSecret,
+              adminRequest: props.buildAdminRequest()
             }, (response) => {
               refreshList()
             })
@@ -115,6 +128,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
 
   function renderContent(listResult: ListSimulationsResult) {
     return <Fragment>
+      {listResult.serverHasAdminSecret ? <Text weight={"bold"}>NOTE: This server will not enable agent AI for non-admins to avoid API costs</Text> : null}
       <Text size={20} weight={"bold"}>Scenarios</Text>
       <div
         style={{
@@ -131,9 +145,9 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
             key={"scenario:" + scenarioIndex + ":" + scenario.identifier}
             style={{}}
             onClick={() => {
-              setIsCreatingSimulation(true)
               apiRequest("create-simulation", {
-                scenarioIdentifier: scenario.identifier
+                scenarioIdentifier: scenario.identifier,
+                userSecret: props.userSecret
               }, (response: CreateSimulationResponse) => {
                 simulationSelected(response.simulationInfo)
               })
@@ -233,20 +247,29 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
       }}
     >
       {listResult ? renderContent(listResult) : <Text>Loading...</Text>}
+    </div>
 
-      <div key={"spacer"} style={{flexGrow: 1.0}}/>
+    <div key={"spacer"} style={{flexGrow: 1.0}}/>
 
-      <div
-        key={"footer"}
+    <div
+      key={"footer"}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        width: "100%",
+        padding: 10,
+        justifyContent: "right"
+      }}
+    >
+      <PasswordInput
+        value={props.adminSecret}
         style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyItems: "center",
-          width: "100%"
+          flexBasis: 200
         }}
-      >
-      </div>
+        onChange={(event) => props.setAdminSecret(event.target.value)}
+        description={"Admin password"}
+        placeholder="(optional)"
+      />
     </div>
   </div>
 }

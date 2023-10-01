@@ -1,5 +1,6 @@
 package botfarm.engine.simulation
 
+import botfarm.engine.ktorplugins.AdminRequest
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.buildShortRandomString
@@ -21,7 +22,7 @@ class CoroutineSystemContext(
    val simulationContainer: SimulationContainer
 ) {
    fun synchronize(logic: () -> Unit) {
-      synchronized(this.simulationContainer) {
+      synchronized(this.simulation) {
          logic()
       }
    }
@@ -345,12 +346,9 @@ class SimulationContainer {
    private val simulations = mutableListOf<Simulation>()
    private val terminatedSimulations = mutableListOf<Simulation>()
 
-   @Serializable
-   class CreateSimulationResult(
-      val simulationInfo: SimulationInfo
-   )
-
-   fun addSimulation(simulation: Simulation): CreateSimulationResult {
+   fun addSimulation(
+      simulation: Simulation
+   ) {
       synchronized(this) {
          this.simulations.add(simulation)
 
@@ -359,10 +357,6 @@ class SimulationContainer {
          )
 
          simulation.start(startContext)
-
-         return CreateSimulationResult(
-            simulationInfo = simulation.buildInfo()
-         )
       }
    }
 
@@ -388,20 +382,27 @@ class SimulationContainer {
 
    @Serializable
    class ListSimulationsResult(
+      val serverHasAdminSecret: Boolean,
       val simulations: List<SimulationInfo>,
       val terminatedSimulations: List<SimulationInfo>,
       val scenarios: List<ScenarioInfo>
    )
 
-   fun listSimulations(): ListSimulationsResult {
+   fun listSimulations(
+      userSecret: UserSecret,
+      isAdmin: Boolean
+   ): ListSimulationsResult {
       synchronized(this) {
          return ListSimulationsResult(
-            simulations = this.simulations.map {
-               it.buildInfo()
+            serverHasAdminSecret = AdminRequest.serverHasAdminSecret,
+            simulations = this.simulations
+               .filter { it.context.createdByUserSecret == userSecret || isAdmin }
+               .map {
+               it.buildInfo(checkBelongsToUserSecret = userSecret)
             },
-            terminatedSimulations = this.terminatedSimulations.map {
-               it.buildInfo()
-            },
+            terminatedSimulations = this.terminatedSimulations
+               .filter { it.context.createdByUserSecret == userSecret || isAdmin }
+               .map { it.buildInfo(checkBelongsToUserSecret = userSecret) },
             scenarios = ScenarioRegistration.registeredScenarios.map {
                it.buildInfo()
             }

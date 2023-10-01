@@ -9,6 +9,7 @@ import {
 import {deserializeDiff} from "../misc/serializationDiff";
 
 export type UserId = string
+export type UserSecret = string
 export type ClientId = string
 export type SimulationId = string
 

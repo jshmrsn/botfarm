@@ -117,7 +117,7 @@ private suspend fun step(
 
    val simulationTimeForStep: Double
 
-   synchronized(context.simulationContainer) {
+   synchronized(simulation) {
       val observationDistance = agentComponent.data.observationDistance
 
       simulationTimeForStep = simulation.getCurrentSimulationTime()
@@ -280,7 +280,7 @@ private suspend fun step(
       }
    }
 
-   val remoteAgentStepResults = remoteAgentIntegration.sync(agentSyncInputs)
+   val remoteAgentStepResults = remoteAgentIntegration.sendSyncRequest(agentSyncInputs)
 
    context.synchronize {
       agentComponent.modifyData {
@@ -288,9 +288,7 @@ private suspend fun step(
             agentIntegrationStatus = "idle"
          )
       }
-   }
 
-   synchronized(context.simulationContainer) {
       remoteAgentStepResults.forEach { agentStepResult ->
          try {
             handleAgentStepResult(

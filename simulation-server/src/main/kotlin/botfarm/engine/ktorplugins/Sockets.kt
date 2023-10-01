@@ -4,6 +4,8 @@ import botfarm.engine.simulation.ClientId
 import botfarm.engine.simulation.SimulationContainer
 import botfarmshared.engine.apidata.SimulationId
 import botfarm.engine.simulation.UserId
+import botfarm.engine.simulation.UserSecret
+import botfarmshared.misc.jsonNullToNull
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
@@ -17,7 +19,8 @@ import java.time.Duration
 class ConnectionRequest(
    val simulationId: SimulationId,
    val clientId: ClientId,
-   val userId: UserId
+   val userId: UserId,
+   val userSecret: UserSecret
 )
 
 fun Application.configureSockets(simulationContainer: SimulationContainer) {
@@ -58,6 +61,12 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                         throw Exception("Failed to parse websocket JSON: $error")
                      }
 
+                     val adminRequest = parsedJson.jsonObject.get("adminRequest")?.jsonNullToNull?.jsonObject?.let {
+                        Json.decodeFromJsonElement<AdminRequest>(it)
+                     }
+
+                     val isAdminRequest = AdminRequest.shouldGiveRequestAdminCapabilities(adminRequest)
+
                      val messageType = parsedJson.jsonObject.get("type")?.jsonPrimitive?.contentOrNull
                         ?: throw Exception("Websocket json message has no type string")
 
@@ -84,6 +93,7 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                               simulation.handleNewWebSocketClient(
                                  clientId = connectionRequest.clientId,
                                  userId = connectionRequest.userId,
+                                 userSecret = connectionRequest.userSecret,
                                  webSocketSession = session
                               )
                            }
@@ -102,7 +112,8 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                               simulation.handleWebSocketMessage(
                                  session = session,
                                  messageType = messageType,
-                                 messageData = messageData
+                                 messageData = messageData,
+                                 isAdminRequest = isAdminRequest
                               )
                            }
                         } else {

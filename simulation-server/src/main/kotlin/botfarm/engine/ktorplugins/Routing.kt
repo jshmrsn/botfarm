@@ -1,10 +1,6 @@
 package botfarm.engine.ktorplugins
 
-import botfarm.engine.simulation.ScenarioRegistration
-import botfarm.engine.simulation.Simulation
-import botfarm.engine.simulation.SimulationContainer
-import botfarm.engine.simulation.SimulationInfo
-import botfarm.game.ai.AgentServerIntegration
+import botfarm.engine.simulation.*
 import botfarmshared.engine.apidata.SimulationId
 import io.ktor.http.HttpStatusCode
 import io.ktor.resources.Resource
@@ -27,9 +23,9 @@ import kotlin.io.path.absolutePathString
 import io.ktor.server.resources.post as resourcePost
 import io.ktor.server.routing.post as routingPost
 
+
 fun Application.configureRouting(
-   simulationContainer: SimulationContainer,
-   agentServerIntegration: AgentServerIntegration
+   simulationContainer: SimulationContainer
 ) {
    install(StatusPages) {
       exception<Throwable> { call, cause ->
@@ -47,18 +43,32 @@ fun Application.configureRouting(
       staticFiles("/replay-data", File(Simulation.replayDirectory.absolutePathString()))
       staticFiles("/", File("public"))
 
-      val listSimulationsBody: suspend PipelineContext<Unit, ApplicationCall>.(ListSimulationsRequest) -> Unit =
-         { article ->
-            val result = simulationContainer.listSimulations()
+      routingPost("${apiPrefix}list-simulations") {
+         val request = call.receive<ListSimulationsRequest>()
 
-            call.respond(result)
-         }
+         val isAdmin = AdminRequest.shouldGiveRequestAdminCapabilities(request.adminRequest)
 
-      get<ListSimulationsRequest>(listSimulationsBody)
-      resourcePost<ListSimulationsRequest>(listSimulationsBody)
+         val result = simulationContainer.listSimulations(
+            userSecret = request.userSecret,
+            isAdmin = isAdmin
+         )
+
+         call.respond(result)
+      }
 
       routingPost("${apiPrefix}terminate-simulation") {
          val request = call.receive<TerminateSerializationRequest>()
+         val isAdmin = AdminRequest.shouldGiveRequestAdminCapabilities(request.adminRequest)
+
+         val simulation = simulationContainer.getSimulation(request.simulationId)
+
+         if (simulation != null) {
+            if (simulation.context.createdByUserSecret != request.userSecret) {
+               if (!isAdmin) {
+                  throw Exception("Only admin can terminate other user's simulations")
+               }
+            }
+         }
 
          val result = simulationContainer.terminateSimulation(request.simulationId)
 
@@ -70,55 +80,88 @@ fun Application.configureRouting(
 
          val simulation = simulationContainer.getSimulation(request.simulationId)
 
-         val simulationInfo = simulation?.buildInfo()
+         val simulationInfo = simulation?.buildInfo(checkBelongsToUserSecret = request.userSecret)
 
-         call.respond(GetSimulationInfoResponse(
-            simulationInfo = simulationInfo
-         ))
+         call.respond(
+            GetSimulationInfoResponse(
+               simulationInfo = simulationInfo
+            )
+         )
       }
 
       routingPost("${apiPrefix}create-simulation") {
          val request = call.receive<CreateSimulationRequest>()
+         val isAdmin = AdminRequest.shouldGiveRequestAdminCapabilities(request.adminRequest)
+
          val scenario = ScenarioRegistration.registeredScenarios.find { it.identifier == request.scenarioIdentifier }
 
          if (scenario == null) {
             throw Exception("Scenario not found for identifier: " + request.scenarioIdentifier)
          } else {
-            val simulation = scenario.createSimulation(
+            val simulationContext = SimulationContext(
+               wasCreatedByAdmin = isAdmin,
                simulationContainer = simulationContainer,
-               agentServerIntegration = agentServerIntegration
+               createdByUserSecret = request.userSecret,
+               scenario = scenario
             )
 
-            val result = try {
+            val simulation = scenario.createSimulation(
+               context = simulationContext
+            )
+
+            try {
                simulationContainer.addSimulation(simulation)
             } catch (exception: Exception) {
-               println("Exception calling createDemoSimulation:  ${exception.stackTraceToString()}")
+               println("Exception calling simulationContainer.addSimulation:  ${exception.stackTraceToString()}")
                throw exception
             }
 
-            call.respond(result)
+            val simulationInfo = synchronized(simulation) {
+               simulation.buildInfo(
+                  checkBelongsToUserSecret = request.userSecret
+               )
+            }
+
+            call.respond(
+               CreateSimulationResponse(
+                  simulationInfo = simulationInfo
+               )
+            )
          }
       }
    }
 }
 
+
 @Serializable
-@Resource("/api/list-simulations")
-class ListSimulationsRequest()
+class CreateSimulationResponse(
+   val simulationInfo: SimulationInfo
+)
+
+@Serializable
+class ListSimulationsRequest(
+   val userSecret: UserSecret,
+   val adminRequest: AdminRequest? = null
+)
 
 @Serializable
 class TerminateSerializationRequest(
-   val simulationId: SimulationId
+   val simulationId: SimulationId,
+   val userSecret: UserSecret,
+   val adminRequest: AdminRequest? = null
 )
 
 @Serializable
 class CreateSimulationRequest(
-   val scenarioIdentifier: String
+   val scenarioIdentifier: String,
+   val userSecret: UserSecret,
+   val adminRequest: AdminRequest? = null
 )
 
 @Serializable
 class GetSimulationInfoRequest(
-   val simulationId: SimulationId
+   val simulationId: SimulationId,
+   val userSecret: UserSecret
 )
 
 @Serializable

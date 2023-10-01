@@ -1,6 +1,5 @@
 package botfarm.engine.simulation
 
-import botfarm.game.ai.AgentServerIntegration
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -11,11 +10,18 @@ class ScenarioInfo(
    val description: String? = null
 )
 
+enum class SpawnPlayersMode {
+   None,
+   NonCreator,
+   All
+}
+
 abstract class Scenario(
    val identifier: String,
    val gameIdentifier: String,
    val name: String? = null,
-   val description: String? = null
+   val description: String? = null,
+   val spawnPlayersEntityMode: SpawnPlayersMode = SpawnPlayersMode.All
 ) {
    fun buildInfo(): ScenarioInfo = ScenarioInfo(
       identifier = identifier,
@@ -25,8 +31,7 @@ abstract class Scenario(
    )
 
    abstract fun createSimulation(
-      simulationContainer: SimulationContainer,
-      agentServerIntegration: AgentServerIntegration
+      context: SimulationContext
    ): Simulation
 }
 

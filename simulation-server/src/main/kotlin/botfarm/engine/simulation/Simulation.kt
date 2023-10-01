@@ -1,5 +1,8 @@
 package botfarm.engine.simulation
 
+import aws.sdk.kotlin.services.s3.S3Client
+import aws.sdk.kotlin.services.s3.putObject
+import aws.smithy.kotlin.runtime.content.ByteStream
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.DynamicSerialization
@@ -7,6 +10,10 @@ import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.websocket.Frame
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -18,13 +25,14 @@ import java.nio.file.Paths
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.writeText
-import aws.sdk.kotlin.services.s3.*
-import aws.smithy.kotlin.runtime.content.ByteStream
-import kotlinx.coroutines.*
 
 @JvmInline
 @Serializable
 value class UserId(val value: String)
+
+@JvmInline
+@Serializable
+value class UserSecret(val value: String)
 
 @JvmInline
 @Serializable
@@ -33,7 +41,8 @@ value class ClientId(val value: String)
 class Client(
    val webSocketSession: DefaultWebSocketServerSession,
    val clientId: ClientId,
-   val userId: UserId
+   val userId: UserId,
+   val userSecret: UserSecret
 )
 
 @Serializable
@@ -48,7 +57,9 @@ class SimulationInfo(
    val simulationId: SimulationId,
    val scenarioInfo: ScenarioInfo,
    val isTerminated: Boolean,
-   val startedAtUnixTime: Double
+   val startedAtUnixTime: Double,
+   val belongsToUser: Boolean,
+   val wasCreatedByAdmin: Boolean
 )
 
 @Serializable
@@ -66,11 +77,17 @@ class PendingReplayData {
    val sentMessages = mutableListOf<ReplaySentMessage>()
 }
 
+class SimulationContext(
+   val wasCreatedByAdmin: Boolean,
+   val simulationContainer: SimulationContainer,
+   val createdByUserSecret: UserSecret,
+   val scenario: Scenario
+)
 
 open class Simulation(
-   data: SimulationData,
-   val simulationContainer: SimulationContainer,
-   val systems: Systems = Systems.default
+   val context: SimulationContext,
+   val systems: Systems = Systems.default,
+   val data: SimulationData
 ) {
    companion object {
       val replayS3UploadBucket = System.getenv()["BOTFARM_S3_REPLAY_BUCKET"]
@@ -83,12 +100,16 @@ open class Simulation(
       }
    }
 
+   val wasCreatedByAdmin = this.context.wasCreatedByAdmin
+   val simulationContainer = this.context.simulationContainer
+
    var shouldPauseAi = false
 
    val startedAtUnixTime = data.simulationStartedAtUnixTime
 
    var lastTickUnixTime = getCurrentUnixTimeSeconds()
 
+   val scenario = this.context.scenario
    val scenarioInfo: ScenarioInfo = data.scenarioInfo
    val simulationId = data.simulationId
    val configs = data.configs
@@ -130,7 +151,6 @@ open class Simulation(
          logic = logic
       )
    }
-
 
    fun queueCallback(
       condition: () -> Boolean,
@@ -187,6 +207,10 @@ open class Simulation(
       }.toMutableList()
 
       this.entities = this.mutableEntities
+   }
+
+   open fun onStart() {
+
    }
 
    private fun sendWebSocketMessage(
@@ -363,6 +387,7 @@ open class Simulation(
    fun handleNewWebSocketClient(
       clientId: ClientId,
       userId: UserId,
+      userSecret: UserSecret,
       webSocketSession: DefaultWebSocketServerSession
    ) {
       println("handleNewWebSocketClient: $clientId, $webSocketSession")
@@ -370,7 +395,8 @@ open class Simulation(
       val client = Client(
          clientId = clientId,
          webSocketSession = webSocketSession,
-         userId = userId
+         userId = userId,
+         userSecret = userSecret
       )
 
       this.clients.add(client)
@@ -541,6 +567,8 @@ open class Simulation(
       this.entities.forEach { entity ->
          this.activateSystemsForEntity(entity)
       }
+
+      this.onStart()
    }
 
    private fun activateSystemsForEntity(entity: Entity) {
@@ -574,11 +602,21 @@ open class Simulation(
       return entity
    }
 
-   open fun handleClientMessage(client: Client, messageType: String, messageData: JsonObject) {
+   open fun handleClientMessage(
+      client: Client,
+      messageType: String,
+      messageData: JsonObject,
+      isAdminRequest: Boolean
+   ) {
 
    }
 
-   fun handleWebSocketMessage(session: DefaultWebSocketServerSession, messageType: String, messageData: JsonObject) {
+   fun handleWebSocketMessage(
+      session: DefaultWebSocketServerSession,
+      messageType: String,
+      messageData: JsonObject,
+      isAdminRequest: Boolean
+   ) {
       if (this.isTerminated) {
          println("handleWebSocketMessage: Ignoring message because simulation is terminated ($messageType)")
          return
@@ -597,7 +635,8 @@ open class Simulation(
          this.handleClientMessage(
             client = client,
             messageType = messageType,
-            messageData = messageData
+            messageData = messageData,
+            isAdminRequest = isAdminRequest
          )
       } catch (exception: Exception) {
          val errorId = buildShortRandomString().substring(0, 6)
@@ -697,12 +736,14 @@ open class Simulation(
       return this.clients.filter { it.userId == userId }
    }
 
-   fun buildInfo(): SimulationInfo {
+   fun buildInfo(checkBelongsToUserSecret: UserSecret?): SimulationInfo {
       return SimulationInfo(
          simulationId = this.simulationId,
          scenarioInfo = this.scenarioInfo,
          isTerminated = this.isTerminated,
-         startedAtUnixTime = this.startedAtUnixTime
+         startedAtUnixTime = this.startedAtUnixTime,
+         belongsToUser = checkBelongsToUserSecret == this.context.createdByUserSecret,
+         wasCreatedByAdmin = this.context.wasCreatedByAdmin
       )
    }
 }
