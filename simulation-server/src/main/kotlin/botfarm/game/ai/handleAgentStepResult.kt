@@ -140,10 +140,14 @@ fun handleAgentStepResult(
       }
 
       if (useEquippedToolItem != null) {
-         simulation.useEquippedToolItem(
+         val result = simulation.useEquippedToolItem(
             interactingEntity = entity,
             expectedItemConfigKey = null
          )
+
+         if (result != GameSimulation.UseEquippedItemResult.Success) {
+            simulation.broadcastAlertAsGameMessage("Unable to use equipped item for agent ($debugInfo): result ${result.name}")
+         }
       }
 
       if (actionOnInventoryItem != null) {
@@ -170,10 +174,10 @@ fun handleAgentStepResult(
             "dropItem" -> {
                val stackIndex = actionOnInventoryItem.stackIndex
                   ?: inventory.itemStacks
-                     .filter {
-                        it.itemConfigKey == itemConfigKey
-                     }
                      .mapIndexed { index, it -> index to it }
+                     .filter {
+                        it.second.itemConfigKey == itemConfigKey
+                     }
                      .sortedWith { a, b ->
                         val isEquippedA = a.second.isEquipped
                         val isEquippedB = b.second.isEquipped
