@@ -76,6 +76,43 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
     refreshList()
   }, []);
 
+
+  function renderSimulationsList(simulations: SimulationInfo[]): JSX.Element[] {
+    return simulations.map((simulationInfo, index) => <ListButton
+        key={index + ":" + simulationInfo.simulationId}
+        style={{}}
+        onClick={() => {
+          simulationSelected(simulationInfo)
+        }}
+      >
+        <Text>{simulationInfo.simulationId} ({simulationInfo.scenarioInfo.name || simulationInfo.scenarioInfo.identifier})</Text>
+
+        <div
+          key={index + ":" + simulationInfo.simulationId}
+          style={{
+            flexGrow: 1.0,
+            flexBasis: 0
+          }}
+        />
+
+        {!simulationInfo.isTerminated ? <ActionIcon
+          variant="filled"
+          color={"red"}
+          onClick={(event) => {
+            event.stopPropagation()
+            apiRequest("terminate-simulation", {
+              simulationId: simulationInfo.simulationId
+            }, (response) => {
+              refreshList()
+            })
+          }}
+        >
+          <IconTrashFilled size="1rem"/>
+        </ActionIcon> : null}
+      </ListButton>
+    )
+  }
+
   function renderContent(listResult: ListSimulationsResult) {
     return <Fragment>
       <Text size={20} weight={"bold"}>Scenarios</Text>
@@ -120,40 +157,8 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
       >
         {
           listResult.simulations.length === 0 ?
-            <Text>No simulations found.</Text> :
-            listResult.simulations.map((simulationInfo, index) => <ListButton
-                key={index + ":" + simulationInfo.simulationId}
-                style={{}}
-                onClick={() => {
-                  simulationSelected(simulationInfo)
-                }}
-              >
-                <Text>{simulationInfo.simulationId} ({simulationInfo.scenarioInfo.name || simulationInfo.scenarioInfo.identifier})</Text>
-
-                <div
-                  key={index + ":" + simulationInfo.simulationId}
-                  style={{
-                    flexGrow: 1.0,
-                    flexBasis: 0
-                  }}
-                />
-
-                <ActionIcon
-                  variant="filled"
-                  color={"red"}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    apiRequest("terminate-simulation", {
-                      simulationId: simulationInfo.simulationId
-                    }, (response) => {
-                      refreshList()
-                    })
-                  }}
-                >
-                  <IconTrashFilled size="1rem"/>
-                </ActionIcon>
-              </ListButton>
-            )}
+            <Text>No simulations found.</Text> : renderSimulationsList(listResult.simulations)
+        }
       </div>
 
       {listResult.terminatedSimulations.length === 0
@@ -170,26 +175,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
               gap: 5
             }}
           >
-            {
-              listResult.terminatedSimulations.map((simulationInfo, index) => <ListButton
-                  key={index + ":" + simulationInfo.simulationId}
-                  style={{}}
-                  onClick={() => {
-                    simulationSelected(simulationInfo)
-                  }}
-                >
-                  <Text>{simulationInfo.simulationId} ({simulationInfo.scenarioInfo.name || simulationInfo.scenarioInfo.identifier})</Text>
-
-                  <div
-                    key={index + ":" + simulationInfo.simulationId}
-                    style={{
-                      flexGrow: 1.0,
-                      flexBasis: 0
-                    }}
-                  />
-                </ListButton>
-              )
-            }
+            {renderSimulationsList(listResult.terminatedSimulations)}
           </div>
         </div>}
     </Fragment>
