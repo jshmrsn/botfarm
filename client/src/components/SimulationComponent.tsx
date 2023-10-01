@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import {ActionIcon, Button, Text} from "@mantine/core";
-import {IconGridDots, IconHammer, IconInfoCircle, IconMenu2, IconMessages} from "@tabler/icons-react";
+import {IconGridDots, IconHammer, IconInfoCircle, IconMenu2, IconMessages, IconQuestionMark} from "@tabler/icons-react";
 import Phaser from "phaser";
 import {AutoInteractActionType, SimulationScene, SimulationSceneContext} from "../game/SimulationScene";
 import {ClientSimulationData, ReplayData} from "../simulation/EntityData";
@@ -596,6 +596,29 @@ export const SimulationComponent = (props: SimulationProps) => {
             color: "white",
             textAlign: "right"
           }}>v0.1.1</Text>
+        </div>
+
+        <div
+          key="help-button-container"
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            padding: 0,
+            alignItems: "center",
+            backgroundColor: "rgba(255, 255, 255, 0.5)",
+            height: 35,
+            backdropFilter: "blur(5px)",
+            WebkitBackdropFilter: "blur(5px)",
+            borderRadius: 5,
+            gap: 10
+          }}
+        >
+          <ActionIcon ref={button => helpButtonRef = button} size={35} variant={"subtle"} onClick={() => {
+            setShouldShowHelpPanel(!shouldShowHelpPanel)
+            helpButtonRef?.blur()
+          }}>
+            <IconQuestionMark size={18}/>
+          </ActionIcon>
         </div>
       </div>
 
