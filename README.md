@@ -29,10 +29,11 @@
 
 
 ## Current Features
-A playable browser-based 2D game with a basic implementation of harvesting, crafting, and farming mechanics.
-Characters in the game can be controlled either by human players of generative agents.
-Supports server-authorative real time multiplayer.
-Playable on mobile in the browser.
+- A playable browser-based 2D game with a basic implementation of harvesting, crafting, and farming mechanics.
+- Characters in the game can be controlled either by human players or generative agents.
+- Supports server-authorative real time multiplayer.
+- Replay system with timeline scrubbing support.
+- Playable on mobile browsers.
 
 ## Project Architecture
 Both client and simulation server are written in type-safe languages (Kotlin and Typescript).
@@ -152,8 +153,6 @@ Along with continuing broad development on the existing functionality, the follo
 - Developing example agents using other technology stacks, especially those that are popular in the AI/ML community, would be a huge help for the project. Both as a way to make it easier for other people to get started building an agent with other technology stacks, but also as a way to evaluate and iterate on the simulation/agent integration APIs.
 
 - Building additional simulation features that could be useful for exploring emergent social behavior of generative agents.
-
-- Simulation replay saving and playback systems.
 
 - More decoupling of the specific game simulation from the simulation framework, so entirely different games could be supported (note: there is already a significant amount of decoupling, just not 100% there yet).
 

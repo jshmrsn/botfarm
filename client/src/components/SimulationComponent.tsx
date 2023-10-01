@@ -669,10 +669,12 @@ export const SimulationComponent = (props: SimulationProps) => {
           {actionButton}
         </div>
 
-        <ChatInputArea windowWidth={windowWidth}
-                       dynamicState={dynamicState}
-                       showingPanels={showingPanels}
-                       setShowingPanels={setShowingPanels}/>
+        {!isViewingReplay ? <ChatInputArea
+          windowWidth={windowWidth}
+          dynamicState={dynamicState}
+          showingPanels={showingPanels}
+          setShowingPanels={setShowingPanels}
+        /> : null}
       </div>
     </React.Fragment>
   }
