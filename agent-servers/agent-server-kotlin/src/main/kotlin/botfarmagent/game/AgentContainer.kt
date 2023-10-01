@@ -78,7 +78,6 @@ class AgentContainer {
 
       return synchronized(this) {
          val agentRunner = this.agentRunnersByKey[agentKey]
-
          agentRunner?.consumePendingResults() ?: listOf()
       }
    }

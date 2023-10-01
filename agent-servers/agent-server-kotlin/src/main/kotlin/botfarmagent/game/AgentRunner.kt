@@ -3,6 +3,7 @@ package botfarmagent.game
 import botfarmshared.game.apidata.AgentSyncInputs
 import botfarmshared.game.apidata.AgentStepResult
 import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.*
 
 class AgentRunner(
@@ -16,12 +17,18 @@ class AgentRunner(
    private val pendingInputsList = mutableListOf<AgentSyncInputs>()
    private val pendingResultsList = mutableListOf<AgentStepResult>()
 
-
    private var job: Job? = null
+   private var shouldTerminate = false
+   private var lastSyncUnixTimeSeconds = getCurrentUnixTimeSeconds()
+
+   companion object {
+      val unusedAgentCleanupMinutes = 15
+   }
 
    fun addPendingInput(inputs: AgentSyncInputs) {
       synchronized(this) {
          this.pendingInputsList.add(inputs)
+         this.lastSyncUnixTimeSeconds = getCurrentUnixTimeSeconds()
       }
    }
 
@@ -29,6 +36,12 @@ class AgentRunner(
       synchronized(this) {
          this.job?.cancel()
          this.job = null
+      }
+   }
+
+   fun softTerminate() {
+      synchronized(this) {
+         this.shouldTerminate = true
       }
    }
 
@@ -41,6 +54,18 @@ class AgentRunner(
       this.job = CoroutineScope(this.coroutineDispatcher).launch {
          try {
             while (true) {
+               if (self.shouldTerminate) {
+                  println("Agent runner breaking loop because shouldTerminate is true: ${self.agentId}")
+                  break
+               }
+
+               val secondsSinceLastSync = getCurrentUnixTimeSeconds() - self.lastSyncUnixTimeSeconds
+
+               if (secondsSinceLastSync > 60 * Companion.unusedAgentCleanupMinutes) {
+                  println("Agent runner breaking loop because time since last sync exceeded cleanup time: ${self.agentId} ${secondsSinceLastSync.toInt()}s")
+                  break
+               }
+
                val inputsList = synchronized(self) {
                   val copy = self.pendingInputsList.toList()
                   self.pendingInputsList.clear()
@@ -74,8 +99,8 @@ class AgentRunner(
                      synchronized(this) {
                         self.pendingResultsList.add(
                            AgentStepResult(
-                           error = "Error on agent server: $errorId"
-                        )
+                              error = "Error on agent server: $errorId"
+                           )
                         )
                      }
                   }
@@ -83,6 +108,8 @@ class AgentRunner(
 
                delay(250)
             }
+
+            println("Agent runner loop has soft terminated: ${self.agentId}")
          } catch (exception: Exception) {
             println("Exception in coroutine system logic for agent: simulationId = $simulationId, agentId = $agentId\nException was : $exception")
          }
@@ -90,7 +117,6 @@ class AgentRunner(
    }
 
    fun consumePendingResults(): List<AgentStepResult> {
-//      println("consumePendingResults: ${this.agent.agentId}")
       return synchronized(this) {
          val copy = this.pendingResultsList.toList()
          this.pendingResultsList.clear()

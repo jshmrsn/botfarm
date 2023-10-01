@@ -33,7 +33,7 @@ fun Application.configureRouting(remoteAgentContainer: AgentContainer) {
       println("Files: " + File("files").absolutePath)
 
       get {
-         call.respondText("Hello, world!")
+         call.respondText("Botfarm Agent Server")
       }
 
       routingPost("${apiPrefix}step") {
