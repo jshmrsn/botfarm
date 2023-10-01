@@ -1,7 +1,8 @@
 import React, {useState} from "react";
 import {ActionIcon, Textarea} from "@mantine/core";
 import {IconChartBubble, IconGridDots, IconMessageCircle, IconMessages, IconSend} from "@tabler/icons-react";
-import {DynamicState, PanelTypes} from "./SimulationComponent";
+import {PanelTypes} from "./SimulationComponent";
+import {DynamicState} from "./DynamicState";
 
 
 interface ChatInputAreaProps {

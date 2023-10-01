@@ -1,10 +1,10 @@
-import {DynamicState} from "./SimulationComponent";
 import {CharacterComponentData, InventoryComponentData} from "../game/CharacterComponentData";
 import {Entity} from "../simulation/Entity";
 import {ItemConfig} from "../game/ItemComponentData";
 import {ActionIcon, Text} from "@mantine/core";
 import React from "react";
 import {IconArrowDown, IconHandGrab, IconHandOff} from "@tabler/icons-react";
+import {DynamicState} from "./DynamicState";
 
 interface InventoryComponentProps {
   entity: Entity

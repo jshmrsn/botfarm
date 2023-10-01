@@ -2,6 +2,7 @@ package botfarm.engine.simulation
 
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -12,6 +13,7 @@ abstract class Config {
 @Serializable
 data class SimulationData(
    val scenarioInfo: ScenarioInfo,
+   val simulationStartedAtUnixTime: Double = getCurrentUnixTimeSeconds(),
    val simulationId: SimulationId = SimulationId(buildShortRandomString()),
    val configs: List<Config>,
    val entities: List<EntityData> = listOf(),

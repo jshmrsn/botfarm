@@ -5,7 +5,7 @@ import botfarm.engine.simulation.*
 import botfarm.game.*
 import botfarm.game.ai.AgentServerIntegration
 import botfarm.game.components.ActivityStreamComponentData
-import botfarm.game.components.CompositeAnimation
+import botfarm.game.components.CompositeAnimationSelection
 import botfarm.game.config.*
 import botfarmshared.game.apidata.ItemCollection
 import botfarmshared.game.apidata.ItemCollectionEntry
@@ -148,7 +148,7 @@ abstract class GameScenario(
             maxStackSize = 1
          ),
          equippableConfig = EquippableConfig(
-            equippedCompositeAnimation = CompositeAnimation(
+            equippedCompositeAnimation = CompositeAnimationSelection(
                key = "weapon_blunt_waraxe",
                variant = "waraxe"
             ),
@@ -172,7 +172,7 @@ abstract class GameScenario(
             maxStackSize = 1
          ),
          equippableConfig = EquippableConfig(
-            equippedCompositeAnimation = CompositeAnimation(
+            equippedCompositeAnimation = CompositeAnimationSelection(
                key = "tool_thrust",
                variant = "hoe"
             ),
@@ -201,7 +201,7 @@ abstract class GameScenario(
             craftingCost = ItemCollection(listOf(ItemCollectionEntry("wood", 75)))
          ),
          equippableConfig = EquippableConfig(
-            equippedCompositeAnimation = CompositeAnimation(
+            equippedCompositeAnimation = CompositeAnimationSelection(
                key = "pickaxe",
                variant = "pickaxe"
             ),
@@ -270,7 +270,7 @@ abstract class GameScenario(
          description = "A tree",
          textureUrl = "/assets/items/tree/tree.png",
          iconUrl = "/assets/items/tree/tree.png",
-         spriteBaseScale = Vector2.uniform(0.8),
+         spriteBaseScale = Vector2.uniform(0.7),
          spriteBaseOffset = Vector2(0.0, -70.0),
          spawnItemOnDestructionConfig = SpawnItemOnDestructionConfig(
             spawnItemConfigKey = "wood",

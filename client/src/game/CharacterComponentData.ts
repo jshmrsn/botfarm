@@ -1,5 +1,5 @@
 import {EntityComponentData, EntityId} from "../simulation/EntityData";
-import {CompositeAnimation} from "./CompositeAnimation";
+import {CompositeAnimationSelection} from "./CompositeAnimationSelection";
 import {Vector2} from "../misc/Vector2";
 import {EntityComponentGetter} from "../simulation/EntityComponentGetter";
 
@@ -17,8 +17,8 @@ export interface CharacterBodySelections {
   nose: string | null
   wrinkles: string | null
 
-  eyes: CompositeAnimation | null
-  hair: CompositeAnimation | null
+  eyes: CompositeAnimationSelection | null
+  hair: CompositeAnimationSelection | null
 }
 
 export type ActionType = "UseToolToDamageEntity" |

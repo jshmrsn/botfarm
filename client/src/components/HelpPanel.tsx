@@ -1,9 +1,9 @@
 import React, {useCallback, useEffect} from "react";
-import {DynamicState} from "./SimulationComponent";
 import {ActionIcon, Text} from "@mantine/core";
 import {IconX} from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 import {attributionsMarkdown, howToPlayMarkdown} from "./HowToPlayMarkdown";
+import {DynamicState} from "./DynamicState";
 
 interface HelpPanelProps {
   windowHeight: number

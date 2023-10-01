@@ -3,11 +3,11 @@ import {ItemComponentData, ItemConfig} from "../game/ItemComponentData";
 import {Switch, Text} from "@mantine/core";
 import {renderSelectedEntityInspection} from "./RenderSelectedEntityInspection";
 import React, {useState} from "react";
-import {DynamicState} from "./SimulationComponent";
 import {Entity} from "../simulation/Entity";
 import {InventoryComponent} from "./InventoryComponent";
 import {IconInfoCircle} from "@tabler/icons-react";
 import {resolveEntityPositionForCurrentTime} from "../common/PositionComponentData";
+import {DynamicState} from "./DynamicState";
 
 
 interface InspectionPanelProps {

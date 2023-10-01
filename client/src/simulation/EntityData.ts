@@ -40,6 +40,26 @@ export interface ClientSimulationData {
   entities: EntityData[]
   configs: Config[]
   simulationTime: number
+  replayData: ReplayData | null
+}
+
+interface ReplaySentMessage {
+  message: any
+  simulationTime: number
 }
 
 
+export interface ScenarioInfo {
+  identifier: string
+  name: string
+}
+
+export interface ReplayData {
+  compatibilityVersion: number
+  simulationStartedAtUnixTime: number
+  replayGeneratedAtSimulationTime: number
+  scenarioInfo: ScenarioInfo
+  configs: Config[]
+  simulationId: SimulationId,
+  sentMessages: ReplaySentMessage[]
+}

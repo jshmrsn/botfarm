@@ -1,6 +1,7 @@
 package botfarm.engine.ktorplugins
 
 import botfarm.engine.simulation.ScenarioRegistration
+import botfarm.engine.simulation.Simulation
 import botfarm.engine.simulation.SimulationContainer
 import botfarm.game.ai.AgentServerIntegration
 import botfarmshared.engine.apidata.SimulationId
@@ -21,6 +22,7 @@ import io.ktor.server.routing.routing
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.serialization.Serializable
 import java.io.File
+import kotlin.io.path.absolutePathString
 import io.ktor.server.resources.post as resourcePost
 import io.ktor.server.routing.post as routingPost
 
@@ -41,6 +43,7 @@ fun Application.configureRouting(
    routing {
       println("Files: " + File("files").absolutePath)
 
+      staticFiles("/replay-data", File(Simulation.replayDirectory.absolutePathString()))
       staticFiles("/", File("public"))
 
       val listSimulationsBody: suspend PipelineContext<Unit, ApplicationCall>.(ListSimulationsRequest) -> Unit =

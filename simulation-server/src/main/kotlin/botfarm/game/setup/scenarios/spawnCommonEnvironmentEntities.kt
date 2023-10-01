@@ -39,7 +39,7 @@ fun spawnCommonEnvironmentEntities(simulation: GameSimulation) {
 
    simulation.spawnItems(
       itemConfigKey = "tree",
-      quantity = RandomItemQuantity.stacks(200),
+      quantity = RandomItemQuantity.stacks(300),
       baseLocation = worldCenter,
       randomLocationScale = worldBounds.x * 0.5,
       randomLocationExponent = 1.0

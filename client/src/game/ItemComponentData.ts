@@ -1,5 +1,5 @@
 import {Config, EntityComponentData} from "../simulation/EntityData";
-import {CompositeAnimation} from "./CompositeAnimation";
+import {CompositeAnimationSelection} from "./CompositeAnimationSelection";
 import {RandomConfig} from "./RandomConfig";
 import {EntityComponentGetter} from "../simulation/EntityComponentGetter";
 
@@ -58,7 +58,7 @@ export class EquipmentSlots {
 
 export interface EquippableConfig {
   equipmentSlot: EquipmentSlot
-  equippedCompositeAnimation?: CompositeAnimation | null;
+  equippedCompositeAnimation?: CompositeAnimationSelection | null;
 }
 
 export interface KillableConfig {

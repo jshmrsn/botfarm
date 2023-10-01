@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {ActionIcon, Button, Text} from "@mantine/core";
+import {ActionIcon, Button, Slider, Text} from "@mantine/core";
 import {
   IconArrowLeft,
   IconGridDots,
@@ -10,9 +10,8 @@ import {
 } from "@tabler/icons-react";
 import Phaser from "phaser";
 import {AutoInteractActionType, SimulationScene, SimulationSceneContext} from "../game/SimulationScene";
-import {ClientSimulationData, EntityId} from "../simulation/EntityData";
+import {ClientSimulationData, ReplayData} from "../simulation/EntityData";
 import useWebSocket from "react-use-websocket";
-import {generateId} from "../misc/utils";
 import {useWindowSize} from "@react-hook/window-size";
 import {GameSimulation} from "../game/GameSimulation";
 import {ChatInputArea} from "./ChatInputArea";
@@ -32,53 +31,12 @@ import {
 } from "../common/PositionComponentData";
 import {Vector2} from "../misc/Vector2";
 import {HelpPanel} from "./HelpPanel";
-import {ClientId, SimulationId, UserId} from "../simulation/Simulation";
-import {InventoryComponentData} from "../game/CharacterComponentData";
+import {SimulationId} from "../simulation/Simulation";
 import {useNavigate, useParams} from "react-router-dom";
+import {getFileRequest} from "../api";
+import {DynamicState} from "./DynamicState";
+import {ReplayControls} from "./ReplayControls";
 
-
-function buildWebSocketMessage(type: string, data: object): string {
-  return JSON.stringify({
-    "type": type,
-    "data": data
-  })
-}
-
-function sendWebSocketMessage(webSocket: WebSocket, type: string, data: object) {
-  console.log("sendWebSocketMessage", type)
-  webSocket.send(buildWebSocketMessage(type, data))
-}
-
-export class DynamicState {
-  forceRenderIndex: number = 0
-  userId: UserId
-  chatTextArea: HTMLTextAreaElement | null = null
-  phaserScene: SimulationScene | null = null
-  webSocket: WebSocket | null = null
-  simulation: GameSimulation | null = null
-  selectedEntityId: EntityId | null = null
-  setForceUpdateCounter: (counter: number) => void
-
-  readonly clientId: ClientId = generateId()
-
-  constructor(userId: UserId, setForceUpdateCounter: (counter: number) => void) {
-    this.userId = userId
-    this.setForceUpdateCounter = setForceUpdateCounter
-  }
-
-  sendWebSocketMessage(type: string, data: object) {
-    if (this.webSocket == null) {
-      throw new Error("sendWebSocketMessage: webSocket is null")
-    }
-
-    sendWebSocketMessage(this.webSocket, type, data)
-  }
-
-  forceUpdate() {
-    ++this.forceRenderIndex
-    this.setForceUpdateCounter(this.forceRenderIndex)
-  }
-}
 
 export enum PanelTypes {
   Activity,
@@ -86,18 +44,23 @@ export enum PanelTypes {
   Crafting
 }
 
-type SimulationComponentParams =  {
-  simulationId: string
+type SimulationComponentParams = {
+  simulationId: SimulationId
 }
 
 interface SimulationProps {
   shouldAllowWebGl: boolean
   shouldForceWebGl: boolean
   userId: string
+  isReplay: boolean
 }
 
 export const SimulationComponent = (props: SimulationProps) => {
-  const { simulationId } = useParams<SimulationComponentParams>()
+  const {simulationId} = useParams<SimulationComponentParams>()
+
+  if (!simulationId) {
+    throw new Error("simulationId is null")
+  }
 
   const [shouldShowDebugPanel, setShouldShowDebugPanel] = useState(false)
   const [shouldShowHelpPanel, setShouldShowHelpPanel] = useState(false)
@@ -110,20 +73,49 @@ export const SimulationComponent = (props: SimulationProps) => {
   const [sceneLoadComplete, setSceneLoadComplete] = useState(false)
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
 
+  const [replayData, setReplayData] = useState<ReplayData | null>(null)
+
   const userId = props.userId
 
   const [dynamicState, _setDynamicState] = useState<DynamicState>(new DynamicState(userId, setForceUpdateCounter))
 
-  const userControlledEntity = dynamicState.simulation?.entities.find(it => {
-    const userControlledComponent = it.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
-    return userControlledComponent != null && userControlledComponent.data?.userId === dynamicState.userId
-  })
+  const isReplay = props.isReplay;
 
-  const userInventoryComponent = userControlledEntity?.getComponent<InventoryComponentData>("InventoryComponentData")
+  const userControlledEntity: Entity | null = !isReplay
+    ? dynamicState.simulation?.entities.find(it => {
+      const userControlledComponent = it.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
+      return userControlledComponent != null && userControlledComponent.data?.userId === dynamicState.userId
+    }) ?? null
+    : null
 
   const [windowWidth, windowHeight] = useWindowSize()
 
   const navigate = useNavigate();
+
+  if (isReplay && !dynamicState.hasSentGetReplayRequest) {
+    dynamicState.hasSentGetReplayRequest = true
+    const loc = window.location
+    let protocol = loc.protocol // "https:", "http:"
+    const host = loc.host
+    const url = protocol + "//" + host + "/replay-data/replay-" + simulationId + ".json"
+    console.log("Sending replay request", url)
+
+    getFileRequest(url, (response) => {
+      console.log("Got replay response", response)
+      const replayData: ReplayData = response
+      setReplayData(replayData)
+
+      const simulationData: ClientSimulationData = {
+        simulationId: simulationId,
+        entities: [],
+        configs: replayData.configs,
+        simulationTime: 0.0,
+        replayData: replayData
+      }
+
+      handleSimulationDataSnapshotReceived(simulationData)
+    })
+  }
 
   const exit = () => {
     navigate("/")
@@ -135,10 +127,6 @@ export const SimulationComponent = (props: SimulationProps) => {
     dynamicState.selectedEntityId = selectedEntityId
   }
 
-  var loc = window.location;
-  let websocketProtocol = loc.protocol === "https:" ? "wss" : "ws"
-  const websocketHost = loc.host.replace(":3005", ":5001") // replace react-dev-server port with default server port
-  let websocketUrl: string = websocketProtocol + "://" + websocketHost + "/ws";
 
   const maxSceneContainerWidth = windowWidth
   const maxSceneContainerHeight = windowHeight
@@ -163,15 +151,11 @@ export const SimulationComponent = (props: SimulationProps) => {
       setForceUpdateCounter(dynamicState.forceRenderIndex + 1)
       dynamicState.simulation = new GameSimulation(
         initialSimulationData,
-        (newSimulationData) => {
+        () => {
           dynamicState.forceUpdate()
         },
         (type: string, data: any) => {
-          if (dynamicState.webSocket != null) {
-            sendWebSocketMessage(dynamicState.webSocket, type, data)
-          } else {
-            console.error("sendMessageImplementation can't send message because no web socket is available")
-          }
+          dynamicState.sendWebSocketMessage(type, data)
         }
       )
     } else {
@@ -179,35 +163,43 @@ export const SimulationComponent = (props: SimulationProps) => {
     }
   }
 
-  useWebSocket(websocketUrl, {
-    onOpen: (event) => {
-      console.log('WebSocket connection established.', event, "userId", dynamicState.userId, "clientId", dynamicState.clientId)
-      dynamicState.webSocket = event.target as WebSocket
+  if (!isReplay) {
+    const loc = window.location
+    let websocketProtocol = loc.protocol === "https:" ? "wss" : "ws"
+    const websocketHost = loc.host.replace(":3005", ":5001") // replace react-dev-server port with default simulation server port
+    let websocketUrl: string = websocketProtocol + "://" + websocketHost + "/ws";
 
-      dynamicState.sendWebSocketMessage("ConnectionRequest", {
-        userId: dynamicState.userId,
-        clientId: dynamicState.clientId,
-        simulationId: simulationId
-      })
-    },
-    onMessage: (event) => {
-      const data: string = event.data
-      handleWebSocketMessage(data, handleSimulationDataSnapshotReceived, dynamicState.simulation);
-    },
-    onClose: (event) => {
-      console.log("WebSocket onClose event", event)
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useWebSocket(websocketUrl, {
+      onOpen: (event) => {
+        console.log('WebSocket connection established.', event, "userId", dynamicState.userId, "clientId", dynamicState.clientId)
+        dynamicState.webSocket = event.target as WebSocket
 
-      if (dynamicState.webSocket != null) {
-        dynamicState.webSocket = null
-        alert("Disconnected")
-        exit()
+        dynamicState.sendWebSocketMessage("ConnectionRequest", {
+          userId: dynamicState.userId,
+          clientId: dynamicState.clientId,
+          simulationId: simulationId
+        })
+      },
+      onMessage: (event) => {
+        const data: string = event.data
+        handleWebSocketMessage(data, handleSimulationDataSnapshotReceived, dynamicState.simulation)
+      },
+      onClose: (event) => {
+        console.log("WebSocket onClose event", event)
+
+        if (dynamicState.webSocket != null) {
+          dynamicState.webSocket = null
+          alert("Disconnected")
+          exit()
+        }
       }
-    }
-  })
-
+    })
+  }
 
   const hasSimulationData = dynamicState.simulation != null
   const hasWebSocket = dynamicState.webSocket != null
+  const hasReplayData = replayData != null
 
   useEffect(() => {
     const webSocket = dynamicState.webSocket
@@ -215,7 +207,7 @@ export const SimulationComponent = (props: SimulationProps) => {
     if (dynamicState.simulation != null &&
       phaserContainerDiv != null &&
       dynamicState.phaserScene == null &&
-      webSocket != null) {
+      (webSocket != null || (isReplay && replayData != null))) {
       console.log("CREATE PHASER")
       setSceneLoadComplete(false)
 
@@ -243,7 +235,7 @@ export const SimulationComponent = (props: SimulationProps) => {
       const sceneContext: SimulationSceneContext = {
         dynamicState: dynamicState,
         sendWebSocketMessage: (type: string, data) => {
-          sendWebSocketMessage(webSocket, type, data)
+          dynamicState.sendWebSocketMessage(type, data)
         },
         setSelectedEntityId: (entityId) => {
           setSelectedEntityId(entityId)
@@ -270,8 +262,7 @@ export const SimulationComponent = (props: SimulationProps) => {
         dynamicState.phaserScene = null
       }
     }
-  }, [phaserContainerDiv, hasSimulationData, hasWebSocket]);
-
+  }, [phaserContainerDiv, hasSimulationData, hasWebSocket, hasReplayData]);
 
   let totalCost = 0.0
   if (dynamicState.simulation != null) {
@@ -455,7 +446,7 @@ export const SimulationComponent = (props: SimulationProps) => {
   const autoInteraction = dynamicState.phaserScene?.calculatedAutoInteraction
   let actionButtonRef: HTMLButtonElement | null = null
   let actionButton: JSX.Element | null = null
-  if (autoInteraction != null) {
+  if (autoInteraction != null && !isReplay) {
     let actionTitle = autoInteraction.actionTitle
 
     actionButton = <Button
@@ -475,6 +466,13 @@ export const SimulationComponent = (props: SimulationProps) => {
       {actionTitle}
     </Button>
   }
+
+  const replayControlsDiv = replayData != null && simulation != null ?
+    <ReplayControls
+      simulation={simulation}
+      replayData={replayData}
+    />
+    : null
 
   var helpButtonRef: HTMLButtonElement | null = null
 
@@ -588,6 +586,8 @@ export const SimulationComponent = (props: SimulationProps) => {
         {useMobileLayout ? renderCraftingPanel() : null}
         {useMobileLayout ? renderInspectionPanel() : null}
 
+        {replayControlsDiv}
+
         <div
           key={"button-row"}
           style={{
@@ -602,7 +602,7 @@ export const SimulationComponent = (props: SimulationProps) => {
           }}
         >
           {renderPanelButton(PanelTypes.Activity, <IconMessages size={24}/>)}
-          {renderPanelButton(PanelTypes.Inventory, <IconGridDots size={24}/>)}
+          {userControlledEntity != null ? renderPanelButton(PanelTypes.Inventory, <IconGridDots size={24}/>) : null}
           {renderPanelButton(PanelTypes.Crafting, <IconHammer size={24}/>)}
           {renderInspectButton()}
           <div style={{
@@ -619,6 +619,34 @@ export const SimulationComponent = (props: SimulationProps) => {
       </div>
     </React.Fragment>
   }
+
+  const initialLoadingDiv = dynamicState.simulation == null ? <div
+    style={{
+      width: "100%",
+      height: "100%",
+      position: "absolute",
+      display: "flex",
+      alignContent: "center",
+      alignItems: "center",
+      justifyContent: "center"
+    }}
+  >
+    <div
+      style={{
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        borderRadius: 10,
+        padding: 10
+      }}
+    >
+      <Text
+        style={{
+          color: "white"
+        }}
+      >
+        {props.isReplay ? "Loading replay..." : "Loading..."}
+      </Text>
+    </div>
+  </div> : null
 
   return <div
     style={{
@@ -646,6 +674,8 @@ export const SimulationComponent = (props: SimulationProps) => {
           position: "relative"
         }}
       >
+        {initialLoadingDiv}
+
         <div
           ref={setPhaserContainerDiv}
           style={{

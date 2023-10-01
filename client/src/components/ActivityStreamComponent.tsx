@@ -1,5 +1,4 @@
 import {ActivityStreamEntry} from "../game/ActivityStreamEntry";
-import {DynamicState} from "./SimulationComponent";
 import {ActionIcon, Button, Text} from "@mantine/core";
 import React, {useState} from "react";
 import {apiRequest} from "../api";
@@ -7,16 +6,76 @@ import {IconArrowDown, IconArrowLeft, IconTrashFilled} from "@tabler/icons-react
 import ReactMarkdown from "react-markdown";
 import {EntityId} from "../simulation/EntityData";
 import {CharacterBodySelections, CharacterComponent, CharacterComponentData} from "../game/CharacterComponentData";
+import {Simulation} from "../simulation/Simulation";
+import {SimulationScene} from "../game/SimulationScene";
+import {DynamicState} from "./DynamicState";
 
 interface Props {
   activityStream: ActivityStreamEntry[]
   dynamicState: DynamicState
 }
 
+
+function buildDivForProfileIconLayers(
+  entityId: EntityId | null,
+  simulation: Simulation,
+  phaserScene: SimulationScene
+): JSX.Element | null {
+  const entity = entityId != null ? simulation.getEntityOrNull(entityId) : null
+
+  const bodySelections = entity != null
+    ? CharacterComponent.getDataOrNull(entity)?.bodySelections
+    : null
+
+  if (bodySelections == null) {
+    return null
+  }
+
+  const layers = phaserScene.getProfileIconLayerUrlsForBodySelections(bodySelections)
+
+  if (layers.length === 0) {
+    return null
+  }
+
+  const profileIconSize = 50;
+
+  return <div
+    key={"profile-icon-layers"}
+    style={{
+      flexBasis: profileIconSize,
+      height: profileIconSize,
+      width: profileIconSize
+    }}
+  >
+    <div
+      key={"relative-container"}
+      style={{
+        width: 0,
+        height: 0,
+        position: "relative"
+      }}
+    >
+      {layers.map((layerUrl, layerIndex) => {
+        return <img
+          key={"layer:" + layerIndex}
+          src={layerUrl}
+          alt={"Source profile icon layer"}
+          style={{
+            height: profileIconSize,
+            width: profileIconSize,
+            position: "absolute"
+          }}
+        />
+      })}
+    </div>
+  </div>
+}
+
+
 export function ActivityStreamComponent(props: Props): JSX.Element {
   const activityStream = props.activityStream
   const dynamicState = props.dynamicState
-  const simulation = dynamicState.simulation!;
+  const simulation = dynamicState.simulation!
 
   let lastEntryRef: HTMLElement | null = null
 
@@ -44,67 +103,18 @@ export function ActivityStreamComponent(props: Props): JSX.Element {
     }
 
 
-    function buildDivForProfileIconLayers(
-      entityId: EntityId | null
-    ): JSX.Element | null {
-      const entity =entityId != null ? simulation.getEntityOrNull(entityId) : null
-
-      const bodySelections = entity != null
-        ? CharacterComponent.getDataOrNull(entity)?.bodySelections
-        : null
-
-      if (bodySelections == null) {
-        return null
-      }
-
-      const layers = phaserScene.getProfileIconLayerUrlsForBodySelections(bodySelections)
-
-      if (layers.length === 0) {
-        return null
-      }
-
-      const profileIconSize = 50;
-
-      return <div
-        key={"profile-icon-layers"}
-        style={{
-          flexBasis: profileIconSize,
-          height: profileIconSize,
-          width: profileIconSize
-        }}
-      >
-        <div
-          key={"relative-container"}
-          style={{
-            width: 0,
-            height: 0,
-            position: "relative"
-          }}
-        >
-          {layers.map((layerUrl, layerIndex) => {
-            return <img
-              key={"layer:" + layerIndex}
-              src={layerUrl}
-              alt={"Source profile icon layer"}
-              style={{
-                height: profileIconSize,
-                width: profileIconSize,
-                position: "absolute"
-              }}
-            />
-          })}
-        </div>
-      </div>
-    }
-
     const phaserScene = props.dynamicState.phaserScene!
 
     const sourceProfileIconDiv = buildDivForProfileIconLayers(
-      activityStreamEntry.sourceEntityId
+      activityStreamEntry.sourceEntityId,
+      simulation,
+      phaserScene
     )
 
     const targetProfileIconDiv = buildDivForProfileIconLayers(
-      activityStreamEntry.targetEntityId
+      activityStreamEntry.targetEntityId,
+      simulation,
+      phaserScene
     )
 
     return <div

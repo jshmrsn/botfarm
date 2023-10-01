@@ -6,18 +6,15 @@ import {apiRequest} from "../api";
 import {SimulationId} from "../simulation/Simulation";
 import {useNavigate} from "react-router-dom";
 import styled from "styled-components";
+import {ScenarioInfo} from "../simulation/EntityData";
 
-interface SimulationInfo {
+export interface SimulationInfo {
   simulationId: SimulationId
   scenarioInfo: ScenarioInfo
 }
 
-interface ScenarioInfo {
-  identifier: string
-  name: string
-}
 
-interface ListSimulationsResult {
+export interface ListSimulationsResult {
   scenarios: ScenarioInfo[]
   simulations: SimulationInfo[]
 }

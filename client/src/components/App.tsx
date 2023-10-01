@@ -42,7 +42,17 @@ export default function App() {
         shouldAllowWebGl={shouldAllowWebGl}
         shouldForceWebGl={shouldForceWebGl}
         userId={userId}
+        isReplay={false}
         />
+    },
+    {
+      path: "/replay/:simulationId",
+      element: <SimulationComponent
+        shouldAllowWebGl={shouldAllowWebGl}
+        shouldForceWebGl={shouldForceWebGl}
+        userId={userId}
+        isReplay={true}
+      />
     },
   ]);
 

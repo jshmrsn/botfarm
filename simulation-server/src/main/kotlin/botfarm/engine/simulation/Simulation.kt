@@ -1,6 +1,7 @@
 package botfarm.engine.simulation
 
 import botfarmshared.engine.apidata.EntityId
+import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.DynamicSerialization
 import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
@@ -10,8 +11,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import java.nio.file.Files
+import java.nio.file.Paths
+import kotlin.io.path.Path
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.writeText
 
 @JvmInline
 @Serializable
@@ -27,15 +34,46 @@ class Client(
    val userId: UserId
 )
 
+@Serializable
+class ReplaySentMessage(
+   val message: JsonElement,
+   val simulationTime: Double
+)
+
+@Serializable
+class ReplayData(
+   val compatibilityVersion: Int = 1,
+   val simulationStartedAtUnixTime: Double,
+   val replayGeneratedAtSimulationTime: Double,
+   val scenarioInfo: ScenarioInfo,
+   val configs: List<JsonElement>,
+   val simulationId: SimulationId,
+   val sentMessages: List<ReplaySentMessage>
+)
+
+class PendingReplayData {
+   val sentMessages = mutableListOf<ReplaySentMessage>()
+}
+
 
 open class Simulation(
    data: SimulationData,
    val simulationContainer: SimulationContainer,
    val systems: Systems = Systems.default
 ) {
+   companion object {
+      val replayUploadBucket = System.getenv()["BOTFARM_REPLAY_BUCKET"]
+
+      val replayDirectory = if (this.replayUploadBucket != null) {
+         Path("/tmp/botfarm-simulation-replays")
+      } else {
+         Paths.get("replays")
+      }
+   }
+
    var shouldPauseAi = false
 
-   val startUnixTime = getCurrentUnixTimeSeconds()
+   val simulationStartedAtUnixTime = data.simulationStartedAtUnixTime
 
    var lastTickUnixTime = getCurrentUnixTimeSeconds()
 
@@ -55,6 +93,8 @@ open class Simulation(
    val destroyedEntitiesById: Map<EntityId, Entity> = this.mutableDestroyedEntitiesById
 
    val queuedCallbacks = QueuedCallbacks()
+
+   val pendingReplayData = PendingReplayData()
 
    fun queueCallbackAfterSimulationTimeDelay(
       simulationTimeDelay: Double,
@@ -255,7 +295,15 @@ open class Simulation(
    }
 
    private fun broadcastMessage(message: WebSocketMessage) {
-      val messageString = Json.encodeToString(DynamicSerialization.serialize(message))
+      val serializedMessage = DynamicSerialization.serialize(message)
+      val messageString = Json.encodeToString(serializedMessage)
+
+      this.pendingReplayData.sentMessages.add(
+         ReplaySentMessage(
+            simulationTime = this.getCurrentSimulationTime(),
+            message = serializedMessage
+         )
+      )
 
       this.clients.forEach { client ->
 //         println("Broadcasting message to client (${message::class}): " + client.clientId)
@@ -297,7 +345,7 @@ open class Simulation(
    }
 
    fun getCurrentSimulationTime(): Double {
-      return getCurrentUnixTimeSeconds() - this.startUnixTime
+      return getCurrentUnixTimeSeconds() - this.simulationStartedAtUnixTime
    }
 
    fun handleNewWebSocketClient(
@@ -334,8 +382,53 @@ open class Simulation(
       }
    }
 
+   fun buildReplayData(): ReplayData {
+      return ReplayData(
+         simulationStartedAtUnixTime = this.simulationStartedAtUnixTime,
+         replayGeneratedAtSimulationTime = this.getCurrentSimulationTime(),
+         scenarioInfo = this.scenarioInfo,
+         configs = this.configs.map {
+            DynamicSerialization.serialize(it)
+         },
+         simulationId = this.simulationId,
+         sentMessages = this.pendingReplayData.sentMessages
+      )
+   }
+
+   fun saveReplay() {
+      val replayUploadBucket = Companion.replayUploadBucket
+
+      val replayData = this.buildReplayData()
+      val replayDataJson = try {
+         Json.encodeToString(replayData)
+      } catch (exception: Exception) {
+         println("Failed to serialize replay data as JSON: " + exception.stackTraceToString())
+         null
+      }
+
+      if (replayDataJson == null) {
+         return
+      }
+
+      println(Paths.get("replays").absolutePathString())
+
+      val replayDirectory = Companion.replayDirectory
+
+      Files.createDirectories(replayDirectory)
+
+      val replayFileName = "replay-" + this.simulationId.value + ".json"
+      val replayFilePath = replayDirectory.resolve(replayFileName)
+      println("Writing replay: " + replayFilePath.absolutePathString())
+
+      replayFilePath.writeText(replayDataJson)
+//      if (replayUploadBucket != null) {
+//
+//      }
+   }
 
    fun tick(): TickResult {
+     this.saveReplay()
+
       val currentUnixTimeSeconds = getCurrentUnixTimeSeconds()
       val deltaTime = Math.max(currentUnixTimeSeconds - this.lastTickUnixTime, 0.00001)
       this.lastTickUnixTime = currentUnixTimeSeconds

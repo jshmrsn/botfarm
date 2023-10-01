@@ -1229,7 +1229,7 @@ class GameSimulation(
          body = characterBodySelectionsConfig.bodies.random(),
          nose = characterBodySelectionsConfig.noses.random(),
          eyes = characterBodySelectionsConfig.eyes.random().let {
-            CompositeAnimation(
+            CompositeAnimationSelection(
                key = it.key,
                variant = it.includedVariants.random()
             )
@@ -1238,7 +1238,7 @@ class GameSimulation(
          hair = characterBodySelectionsConfig.hairs
             .filter { hairColor == null || it.includedVariants.contains(hairColor) }
             .randomWithNullChance(nullChance = noHairChance ?: 0.05)?.let {
-               CompositeAnimation(
+               CompositeAnimationSelection(
                   key = it.key,
                   variant = hairColor ?: it.includedVariants.random()
                )
