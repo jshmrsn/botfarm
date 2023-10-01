@@ -19,6 +19,10 @@ import java.nio.file.Paths
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.writeText
+import aws.sdk.kotlin.services.s3.*
+import aws.smithy.kotlin.runtime.content.ByteStream
+import kotlinx.coroutines.runBlocking
+import java.util.UUID
 
 @JvmInline
 @Serializable
@@ -62,9 +66,10 @@ open class Simulation(
    val systems: Systems = Systems.default
 ) {
    companion object {
-      val replayUploadBucket = System.getenv()["BOTFARM_REPLAY_BUCKET"]
+      val replayS3UploadBucket = System.getenv()["BOTFARM_S3_REPLAY_BUCKET"]
+      val replayS3UploadRegion = System.getenv()["BOTFARM_S3_REPLAY_REGION"] ?: "us-west-2"
 
-      val replayDirectory = if (this.replayUploadBucket != null) {
+      val replayDirectory = if (this.replayS3UploadBucket != null) {
          Path("/tmp/botfarm-simulation-replays")
       } else {
          Paths.get("replays")
@@ -396,7 +401,7 @@ open class Simulation(
    }
 
    fun saveReplay() {
-      val replayUploadBucket = Companion.replayUploadBucket
+      val replayUploadBucket = Companion.replayS3UploadBucket
 
       val replayData = this.buildReplayData()
       val replayDataJson = try {
@@ -410,25 +415,35 @@ open class Simulation(
          return
       }
 
-      println(Paths.get("replays").absolutePathString())
-
-      val replayDirectory = Companion.replayDirectory
-
-      Files.createDirectories(replayDirectory)
-
       val replayFileName = "replay-" + this.simulationId.value + ".json"
-      val replayFilePath = replayDirectory.resolve(replayFileName)
-      println("Writing replay: " + replayFilePath.absolutePathString())
 
-      replayFilePath.writeText(replayDataJson)
-//      if (replayUploadBucket != null) {
-//
-//      }
+      if (replayUploadBucket != null) {
+         runBlocking {
+            S3Client
+               .fromEnvironment { region = Companion.replayS3UploadRegion }
+               .use { s3 ->
+                  s3.putObject {
+                     bucket = replayUploadBucket
+                     key = "replays/$replayFileName"
+                     body = ByteStream.fromString(replayDataJson)
+                  }
+               }
+         }
+      } else {
+         println(Paths.get("replays").absolutePathString())
+
+         val replayDirectory = Companion.replayDirectory
+
+         Files.createDirectories(replayDirectory)
+
+         val replayFilePath = replayDirectory.resolve(replayFileName)
+         println("Writing replay: " + replayFilePath.absolutePathString())
+
+         replayFilePath.writeText(replayDataJson)
+      }
    }
 
    fun tick(): TickResult {
-     this.saveReplay()
-
       val currentUnixTimeSeconds = getCurrentUnixTimeSeconds()
       val deltaTime = Math.max(currentUnixTimeSeconds - this.lastTickUnixTime, 0.00001)
       this.lastTickUnixTime = currentUnixTimeSeconds

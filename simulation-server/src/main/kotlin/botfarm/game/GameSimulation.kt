@@ -1523,6 +1523,10 @@ class GameSimulation(
             }
          }
 
+         "save-replay" -> {
+            this.saveReplay()
+         }
+
          "spawn-agent" -> {
             val type = components.getOrNull(1) ?: "1"
             val agentType = components.getOrNull(2) ?: AgentComponentData.defaultAgentType
