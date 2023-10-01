@@ -240,6 +240,7 @@ open class Simulation(
 
       if (!webSocketSession.isActive) {
          println("sendWebSocketMessage: Web socket session is already closed")
+         this.handleWebSocketClose(client.webSocketSession)
          return
       }
 
