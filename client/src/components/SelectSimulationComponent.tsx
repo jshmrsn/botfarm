@@ -1,7 +1,7 @@
 import React, {Fragment, useEffect, useState} from "react";
 
 import {ActionIcon, PasswordInput, Text, Textarea} from "@mantine/core";
-import {IconTrashFilled} from "@tabler/icons-react";
+import {IconSend, IconSettings, IconTrashFilled} from "@tabler/icons-react";
 import {apiRequest} from "../api";
 import {SimulationId, UserId, UserSecret} from "../simulation/Simulation";
 import {useNavigate} from "react-router-dom";
@@ -64,6 +64,8 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
   const navigate = useNavigate()
   const userId = props.userId
   const userSecret = props.userSecret
+
+  const [shouldShowAdminPassword, setShouldShowAdminPassword] = useState(false)
 
   const refreshList = () => {
     setListResult(null)
@@ -258,10 +260,11 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
         flexDirection: "row",
         width: "100%",
         padding: 10,
-        justifyContent: "right"
+        justifyContent: "right",
+        alignItems: "end"
       }}
     >
-      <PasswordInput
+      {shouldShowAdminPassword ? <PasswordInput
         value={props.adminSecret}
         style={{
           flexBasis: 200
@@ -269,7 +272,18 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
         onChange={(event) => props.setAdminSecret(event.target.value)}
         description={"Admin password"}
         placeholder="(optional)"
-      />
+      /> : null}
+
+      <ActionIcon
+        size={35}
+        variant={"subtle"}
+        color={"gray"}
+        onClick={() => {
+          setShouldShowAdminPassword(!shouldShowAdminPassword)
+        }}
+      >
+        <IconSettings size="1.05rem"/>
+      </ActionIcon>
     </div>
   </div>
 }
