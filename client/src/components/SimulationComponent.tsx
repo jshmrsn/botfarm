@@ -33,6 +33,7 @@ import {SimulationInfo} from "./SelectSimulationComponent";
 import {MenuPanel} from "./MenuPanel";
 import {Options} from "react-use-websocket/src/lib/types";
 import {AdminRequest} from "./AdminRequest";
+import {QuickInventory} from "./QuickInventory";
 
 
 export enum PanelTypes {
@@ -366,8 +367,6 @@ export const SimulationComponent = (props: SimulationProps) => {
   function renderInventoryPanel() {
     return isShowingPanel(PanelTypes.Inventory)
       ? <MyInventoryPanel dynamicState={dynamicState}
-                          windowHeight={windowHeight}
-                          windowWidth={windowWidth}
                           userControlledEntity={userControlledEntity}
                           useMobileLayout={useMobileLayout}
       /> : null
@@ -678,6 +677,15 @@ export const SimulationComponent = (props: SimulationProps) => {
 
         {replayControlsDiv}
 
+
+        {!isViewingReplay ? <QuickInventory
+          dynamicState={dynamicState}
+          windowHeight={windowHeight}
+          windowWidth={windowWidth}
+          userControlledEntity={userControlledEntity}
+          useMobileLayout={useMobileLayout}
+        /> : null}
+
         <div
           key={"button-row"}
           style={{
@@ -721,7 +729,8 @@ export const SimulationComponent = (props: SimulationProps) => {
       display: "flex",
       alignContent: "center",
       alignItems: "center",
-      justifyContent: "center"
+      justifyContent: "center",
+      backgroundColor: "#D7EAC0"
     }}
   >
     <div
@@ -779,7 +788,7 @@ export const SimulationComponent = (props: SimulationProps) => {
 
   return <div
     style={{
-      backgroundColor: "white",
+      backgroundColor: "#D7EAC0",
       display: "flex",
       flexDirection: "column",
       gap: 0,

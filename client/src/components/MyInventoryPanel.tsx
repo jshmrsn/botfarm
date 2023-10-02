@@ -1,25 +1,23 @@
 import {Text} from "@mantine/core";
 import {IconGridDots} from "@tabler/icons-react";
 import React from "react";
-import {InventoryComponent} from "./InventoryComponent";
+import {InventoryListComponent} from "./InventoryListComponent";
 import {Entity} from "../simulation/Entity";
 import {ActivityStreamComponentData} from "../game/activityStreamComponentData";
 import {DynamicState} from "./DynamicState";
+import {useWindowSize} from "@react-hook/window-size";
 
 interface MyInventoryPanelProps {
-  windowHeight: number
-  windowWidth: number
   dynamicState: DynamicState
   userControlledEntity: Entity | null
   useMobileLayout: boolean
 }
 
 export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | null {
-  const windowHeight = props.windowHeight
-  const windowWidth = props.windowWidth
   const dynamicState = props.dynamicState
   const sideBarWidth = 250
   const simulation = props.dynamicState.simulation
+  const [windowWidth, windowHeight] = useWindowSize()
 
   if (simulation == null) {
     return null
@@ -31,13 +29,6 @@ export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | nu
     return null
   }
 
-  const simulationId = simulation.simulationId
-
-  const activityStreamEntity = simulation.getEntity("activity-stream")
-  const activityStreamComponent = activityStreamEntity.getComponent<ActivityStreamComponentData>("ActivityStreamComponentData")
-  const activityStream = activityStreamComponent.data.activityStream
-
-  const scrollAreaHeight = windowHeight - 100 - 60 - 20 - 40;
 
   return <div
     style={{
@@ -50,7 +41,7 @@ export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | nu
       right: 10,
       display: "flex",
       flexDirection: "column",
-      height: props.useMobileLayout ? props.windowHeight * 0.25 : 0,
+      height: props.useMobileLayout ? windowHeight * 0.25 : 0,
       flexGrow: 1
     }}
   >
@@ -75,7 +66,8 @@ export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | nu
         overflowY: "auto"
       }}
     >
-      {<InventoryComponent dynamicState={dynamicState} entity={userControlledEntity} viewOnly={false}/>}
+      {<InventoryListComponent dynamicState={dynamicState} entity={userControlledEntity} viewOnly={false}/>}
     </div>
   </div>
 }
+

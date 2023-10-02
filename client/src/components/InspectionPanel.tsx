@@ -4,7 +4,7 @@ import {Switch, Text} from "@mantine/core";
 import {renderSelectedEntityInspection} from "./RenderSelectedEntityInspection";
 import React, {useState} from "react";
 import {Entity} from "../simulation/Entity";
-import {InventoryComponent} from "./InventoryComponent";
+import {InventoryListComponent} from "./InventoryListComponent";
 import {IconInfoCircle} from "@tabler/icons-react";
 import {resolveEntityPositionForCurrentTime} from "../common/PositionComponentData";
 import {DynamicState} from "./DynamicState";
@@ -102,7 +102,7 @@ export function InspectionPanel(props: InspectionPanelProps) {
       <Text><b>Position</b> x{position.x.toFixed(0)}, y{position.y.toFixed(0)}</Text>
 
       <Text weight={"bold"}>Inventory</Text>
-      {inventoryComponent != null ? <InventoryComponent entity={entity} dynamicState={props.dynamicState} viewOnly={true}/> : null}
+      {inventoryComponent != null ? <InventoryListComponent entity={entity} dynamicState={props.dynamicState} viewOnly={true}/> : null}
 
       <Switch checked={debugMode}
               onChange={(event) => setDebugMode(event.currentTarget.checked)}

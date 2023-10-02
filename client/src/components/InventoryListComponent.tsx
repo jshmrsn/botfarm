@@ -6,13 +6,13 @@ import React from "react";
 import {IconArrowDown, IconHandGrab, IconHandOff} from "@tabler/icons-react";
 import {DynamicState} from "./DynamicState";
 
-interface InventoryComponentProps {
+interface InventoryListComponentProps {
   entity: Entity
   dynamicState: DynamicState
   viewOnly: boolean
 }
 
-export function InventoryComponent(props: InventoryComponentProps): JSX.Element | null {
+export function InventoryListComponent(props: InventoryListComponentProps): JSX.Element | null {
   const dynamicState = props.dynamicState
   const entity = props.entity
   const simulation = dynamicState.simulation!
