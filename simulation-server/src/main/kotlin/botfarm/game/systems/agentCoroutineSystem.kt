@@ -1,51 +1,28 @@
 package botfarm.game.systems
 
-import botfarmshared.engine.apidata.EntityId
 import botfarm.common.PositionComponentData
-import botfarm.engine.simulation.CoroutineSystemContext
-import botfarm.engine.simulation.Entity
-import botfarm.engine.simulation.EntityComponent
-import botfarm.engine.simulation.Simulation
-import botfarmshared.misc.buildShortRandomString
-import botfarm.game.*
-import botfarmshared.game.apidata.*
-import botfarm.game.ai.buildEntityInfoForAgent
-import botfarm.game.ai.handleAgentStepResult
+import botfarm.engine.simulation.*
+import botfarm.game.GameSimulation
+import botfarm.game.ai.*
 import botfarm.game.components.AgentComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.InventoryComponentData
 import botfarm.game.config.ItemConfig
+import botfarmshared.game.apidata.*
+import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.delay
-import kotlinx.serialization.Serializable
-
-@Serializable
-class MutableObservations {
-   val spokenMessages: MutableList<ObservedSpokenMessage> = mutableListOf()
-   val selfSpokenMessages: MutableList<SelfSpokenMessage> = mutableListOf()
-   val entitiesById: MutableMap<EntityId, EntityInfo> = mutableMapOf()
-   val movementRecords: MutableList<MovementRecord> = mutableListOf()
-   val actionOnEntityRecords: MutableList<ActionOnEntityRecord> = mutableListOf()
-   val actionOnInventoryItemActionRecords: MutableList<ActionOnInventoryItemRecord> = mutableListOf()
-   val craftItemActionRecords: MutableList<CraftItemActionRecord> = mutableListOf()
-   val activityStreamEntries: MutableList<ActivityStreamEntryRecord> = mutableListOf()
-
-   fun toObservations(): Observations = Observations(
-      spokenMessages = this.spokenMessages,
-      selfSpokenMessages = this.selfSpokenMessages,
-      entitiesById = this.entitiesById,
-      movementRecords = this.movementRecords,
-      actionOnEntityRecords = this.actionOnEntityRecords,
-      actionOnInventoryItemActionRecords = this.actionOnInventoryItemActionRecords,
-      craftItemActionRecords = this.craftItemActionRecords,
-      activityStreamEntries = this.activityStreamEntries
-   )
-}
+import org.graalvm.polyglot.Context
+import org.graalvm.polyglot.Source
+import kotlin.concurrent.thread
 
 class AgentState(
-   val simulation: Simulation
+   val simulation: GameSimulation
 ) {
    var previousNewEventCheckTime = -1000.0
    var newObservations = MutableObservations()
+   var runningJavaScriptThread: Thread? = null
+   var lastNewThreadUnixTimeSeconds = 0.0
 }
 
 object AgentConstants {
@@ -58,6 +35,9 @@ suspend fun agentCoroutineSystem(
 ) {
    val entity = agentComponent.entity
 
+   val agentId = agentComponent.data.agentId
+   val agentType = agentComponent.data.agentType
+
    val simulation = context.simulation as GameSimulation
 
    val state = AgentState(simulation)
@@ -65,14 +45,44 @@ suspend fun agentCoroutineSystem(
    // Prevent AI from seeing into the past
    state.previousNewEventCheckTime = simulation.getCurrentSimulationTime()
 
+   val javaScriptContext: Context =
+      Context.newBuilder("js")
+         .option("js.strict", "true")
+         .build()
+
+
    while (true) {
       try {
-         step(
+         val syncId = buildShortRandomString()
+         val debugInfo = "$agentType, syncId = $syncId"
+
+         val agentApi = AgentApi(
+            entity = entity,
+            state = state,
+            simulation = simulation,
+            debugInfo = debugInfo
+         )
+
+         syncPrototype(
             context = context,
             simulation = simulation,
             entity = entity,
             agentComponent = agentComponent,
-            state = state
+            state = state,
+            javaScriptContext = javaScriptContext,
+            agentId = agentId,
+            agentApi = agentApi
+         )
+
+         sync(
+            context = context,
+            simulation = simulation,
+            entity = entity,
+            agentComponent = agentComponent,
+            state = state,
+            agentApi = agentApi,
+            agentId = agentId,
+            syncId = syncId
          )
       } catch (exception: Exception) {
          val errorId = buildShortRandomString()
@@ -94,15 +104,67 @@ suspend fun agentCoroutineSystem(
    }
 }
 
-private suspend fun step(
+private suspend fun syncPrototype(
    context: CoroutineSystemContext,
    simulation: GameSimulation,
    entity: Entity,
    agentComponent: EntityComponent<AgentComponentData>,
-   state: AgentState
+   state: AgentState,
+   agentId: AgentId,
+   agentApi: AgentApi,
+   javaScriptContext: Context
+) {
+   if (getCurrentUnixTimeSeconds() - state.lastNewThreadUnixTimeSeconds > 45.0) {
+      synchronized(simulation) {
+         state.runningJavaScriptThread?.interrupt()
+      }
+
+      state.lastNewThreadUnixTimeSeconds = getCurrentUnixTimeSeconds()
+
+      val programId = buildShortRandomString()
+
+      val javaScriptBindings = javaScriptContext.getBindings("js")
+
+      val agentApiJavaScriptBindings = AgentApiJavaScriptBindings(agentApi)
+      javaScriptBindings.putMember("api", agentApiJavaScriptBindings)
+
+      val javaScriptSourceString = """
+         api.speak("New program: $programId")
+         
+         while (true) {
+            api.speak("Walking to new place: $programId")
+            api.walk([100, 10], {x: 3, y: 2})
+         }
+   """.trimIndent()
+
+      val sourceName = "agent"
+      val javaScriptSource = Source.newBuilder("js", javaScriptSourceString, sourceName).build()
+
+      val thread = thread {
+         try {
+            javaScriptContext.eval(javaScriptSource)
+         } catch (end: EndCoroutineThrowable) {
+            println("JavaScript thread has ended via stack unwind: ${agentId}}")
+         } catch (exception: Exception) {
+            println("Exception from JavaScript eval logic: ${entity.entityId}\nException was : ${exception.stackTraceToString()}")
+         }
+      }
+
+      state.runningJavaScriptThread = thread
+   }
+}
+
+private suspend fun sync(
+   context: CoroutineSystemContext,
+   simulation: GameSimulation,
+   entity: Entity,
+   agentComponent: EntityComponent<AgentComponentData>,
+   state: AgentState,
+   agentApi: AgentApi,
+   agentId: AgentId,
+   syncId: String
 ) {
    val remoteAgentIntegration = simulation.agentServerIntegration
-
 
    val characterComponent = entity.getComponentOrNull<CharacterComponentData>()
 
@@ -205,7 +267,7 @@ private suspend fun step(
       return
    }
 
-   val stepId = buildShortRandomString()
+
 
    val itemConfigs = simulation.configs
       .mapNotNull { it as? ItemConfig }
@@ -247,7 +309,6 @@ private suspend fun step(
       }
    )
 
-   val agentId = agentComponent.data.agentId
    val selfInfo = SelfInfo(
       agentId = agentId,
       entityInfo = selfEntityInfo,
@@ -259,7 +320,7 @@ private suspend fun step(
 
    val newObservationsForInput = state.newObservations
    val agentSyncInputs = AgentSyncInputs(
-      stepId = stepId,
+      syncId = syncId,
       agentType = agentComponent.data.agentType,
       simulationId = simulation.simulationId,
       simulationTime = simulationTimeForStep,
@@ -304,11 +365,12 @@ private suspend fun step(
                characterComponent = characterComponent,
                state = state,
                entity = entity,
-               stepId = stepId
+               syncId = syncId,
+               agentApi = agentApi
             )
          } catch (exception: Exception) {
             val errorId = buildShortRandomString()
-            println("Exception while handling agent step result (errorId = $errorId, agentId = $agentId, stepId = $stepId): ${exception.stackTraceToString()}")
+            println("Exception while handling agent step result (errorId = $errorId, agentId = $agentId, stepId = $syncId): ${exception.stackTraceToString()}")
 
             context.synchronize {
                agentComponent.modifyData {

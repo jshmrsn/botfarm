@@ -197,7 +197,7 @@ class DefaultAgent(
       }
 
       val simulationId = inputs.simulationId
-      val stepId = inputs.stepId
+      val syncId = inputs.syncId
 
       var wasRateLimited = false
       val errors = mutableListOf<String>()
@@ -519,7 +519,7 @@ class DefaultAgent(
          functionName = constants.functionName,
          functionSchema = constants.functionSchema,
          functionDescription = null,
-         debugInfo = "${inputs.agentType} (step) (simulationId = $simulationId agentId = $agentId, stepId = $stepId, promptId = $promptId)",
+         debugInfo = "${inputs.agentType} (step) (simulationId = $simulationId agentId = $agentId, syncId = $syncId, promptId = $promptId)",
          completionPrefix = completionPrefix,
          completionMaxTokens = completionMaxTokens,
          useFunctionCalling = this.useFunctionCalling
@@ -572,7 +572,7 @@ class DefaultAgent(
       } catch (exception: Exception) {
          val prettyJson = Json { prettyPrint = true }
          throw Exception(
-            "Exception while decoding agent response JSON (promptId = $promptId, stepId = $stepId, agentId = $agentId):\n${
+            "Exception while decoding agent response JSON (promptId = $promptId, syncId = $syncId, agentId = $agentId):\n${
                prettyJson.encodeToString(
                   responseData
                )
@@ -639,7 +639,7 @@ class DefaultAgent(
       promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
 
       val newDebugInfoLines = mutableListOf<String>()
-      newDebugInfoLines.add("### Step ID: $stepId")
+      newDebugInfoLines.add("### Sync ID: $syncId")
       newDebugInfoLines.add("")
 
 

@@ -182,7 +182,7 @@ class CraftingRecipe(
 @Serializable
 class AgentSyncInputs(
    val agentType: String,
-   val stepId: String,
+   val syncId: String,
    val simulationId: SimulationId,
    val simulationTime: Double,
    val craftingRecipes: List<CraftingRecipe>,

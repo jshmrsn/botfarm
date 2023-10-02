@@ -2,7 +2,6 @@ package botfarm.game.ai
 
 import botfarmshared.misc.Vector2
 import botfarm.common.PositionComponentData
-import botfarm.common.resolvePosition
 import botfarm.game.components.AgentComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.GameSimulation
@@ -21,7 +20,8 @@ fun handleAgentStepResult(
    characterComponent: EntityComponent<CharacterComponentData>,
    state: AgentState,
    entity: Entity,
-   stepId: String
+   syncId: String,
+   agentApi: AgentApi
 ) {
    val interactions = agentStepResult.interactions
 
@@ -29,7 +29,7 @@ fun handleAgentStepResult(
 
    val agentType = agentComponent.data.agentType
 
-   val debugInfo = "$agentType, stepId = $stepId"
+   val debugInfo = "$agentType, syncId = $syncId"
 
    agentComponent.modifyData {
       it.copy(
@@ -57,6 +57,7 @@ fun handleAgentStepResult(
       return
    }
 
+
    if (interactions != null) {
       val whatToSay = interactions.iWantToSay
 
@@ -80,19 +81,7 @@ fun handleAgentStepResult(
       }
 
       if (whatToSay != null) {
-         state.newObservations.selfSpokenMessages.add(
-            SelfSpokenMessage(
-               message = whatToSay,
-               reason = "",
-               location = currentLocation,
-               time = simulationTimeForStep
-            )
-         )
-
-         simulation.addCharacterMessage(
-            entity = entity,
-            message = whatToSay
-         )
+         agentApi.speak(whatToSay)
       }
 
       if (locationToWalkToAndReason != null) {
@@ -264,16 +253,7 @@ fun handleAgentStepResult(
             actionIdKey == "harvestItem" ||
             actionIdKey == "plantItem"
          ) {
-            simulation.moveEntityToPoint(
-               entity = entity,
-               endPoint = targetEntity.resolvePosition()
-            )
-
-            characterComponent.modifyData {
-               it.copy(
-                  pendingInteractionTargetEntityId = targetEntityId
-               )
-            }
+            agentApi.interactWithEntity(targetEntity)
          } else {
             simulation.broadcastAlertAsGameMessage("Unhandled action id from AI ($debugInfo): $actionIdKey")
          }

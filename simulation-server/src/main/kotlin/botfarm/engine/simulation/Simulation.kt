@@ -570,17 +570,6 @@ open class Simulation(
    }
 
    fun start(startContext: StartContext) {
-      this.entities.forEach { entity ->
-         entity.start(
-            startContext = startContext,
-            simulation = this
-         )
-      }
-
-      this.entities.forEach { entity ->
-         this.activateSystemsForEntity(entity)
-      }
-
       this.onStart()
    }
 

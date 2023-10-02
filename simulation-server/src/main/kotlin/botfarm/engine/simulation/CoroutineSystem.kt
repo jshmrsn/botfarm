@@ -72,7 +72,9 @@ class CoroutineSystem(
 
    fun deactivateForEntity(entity: Entity) {
       this.entries.forEach {
-         it.context.cancel()
+         if (it.entity == entity) {
+            it.context.cancel()
+         }
       }
    }
 }

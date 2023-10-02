@@ -221,7 +221,7 @@ suspend fun updateMemory(
    val promptId = buildShortRandomString()
    val agentId = inputs.selfInfo.agentId
    val simulationId = inputs.simulationId
-   val stepId = inputs.stepId
+   val syncId = inputs.syncId
 
    builder.getRecursiveReservedOrAllocatedTokens()
 
@@ -239,7 +239,7 @@ suspend fun updateMemory(
       modelInfo = modelInfo,
       openAI = openAI,
       promptBuilder = builder,
-      debugInfo = "${inputs.agentType} (Update Memory) (simulationId = $simulationId agentId = $agentId, stepId = $stepId, promptId = $promptId)"
+      debugInfo = "${inputs.agentType} (Update Memory) (simulationId = $simulationId agentId = $agentId, syncId = $syncId, promptId = $promptId)"
    )
 
    when (promptResult) {

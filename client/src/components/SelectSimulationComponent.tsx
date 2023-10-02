@@ -1,7 +1,7 @@
 import React, {Fragment, useEffect, useState} from "react";
 
-import {ActionIcon, PasswordInput, Text, Textarea} from "@mantine/core";
-import {IconSend, IconSettings, IconTrashFilled} from "@tabler/icons-react";
+import {ActionIcon, PasswordInput, Switch, Text} from "@mantine/core";
+import {IconSettings, IconTrashFilled} from "@tabler/icons-react";
 import {apiRequest} from "../api";
 import {SimulationId, UserId, UserSecret} from "../simulation/Simulation";
 import {useNavigate} from "react-router-dom";
@@ -65,7 +65,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
   const userId = props.userId
   const userSecret = props.userSecret
 
-  const [shouldShowAdminPassword, setShouldShowAdminPassword] = useState(false)
+  const [shouldShowSettings, setShouldShowSettings] = useState(false)
 
   const refreshList = () => {
     setListResult(null)
@@ -130,7 +130,9 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
 
   function renderContent(listResult: ListSimulationsResult) {
     return <Fragment>
-      {listResult.serverHasAdminSecret ? <Text weight={"bold"}>NOTE: This server will not enable agent AI for non-admins to avoid API costs</Text> : null}
+      {listResult.serverHasAdminSecret ?
+        <Text weight={"bold"}>NOTE: This server will not enable agent AI for non-admins to avoid API
+          costs</Text> : null}
       <Text size={20} weight={"bold"}>Scenarios</Text>
       <div
         style={{
@@ -261,10 +263,21 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
         width: "100%",
         padding: 10,
         justifyContent: "right",
-        alignItems: "end"
+        alignItems: "end",
+        gap: 20
       }}
     >
-      {shouldShowAdminPassword ? <PasswordInput
+      {shouldShowSettings ? <Switch checked={props.shouldAllowWebGl}
+                                    onChange={(event) => props.setShouldAllowWebGl(event.currentTarget.checked)}
+                                    label={"Allow WebGL"}
+      /> : null}
+
+      {shouldShowSettings ? <Switch checked={props.shouldForceWebGl}
+                                    onChange={(event) => props.setShouldForceWebGl(event.currentTarget.checked)}
+                                    label={"Force WebGL"}
+      /> : null}
+
+      {shouldShowSettings ? <PasswordInput
         value={props.adminSecret}
         style={{
           flexBasis: 200
@@ -279,7 +292,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
         variant={"subtle"}
         color={"gray"}
         onClick={() => {
-          setShouldShowAdminPassword(!shouldShowAdminPassword)
+          setShouldShowSettings(!shouldShowSettings)
         }}
       >
         <IconSettings size="1.05rem"/>

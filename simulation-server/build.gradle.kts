@@ -35,7 +35,8 @@ repositories {
 
 dependencies {
    implementation("aws.sdk.kotlin:s3:0.25.0-beta")
-
+   implementation("org.classdump.luna:luna-all-shaded:0.2")
+   implementation("org.graalvm.js:js:20.2.0")
    implementation("com.knuddels:jtokkit:0.6.1")
    implementation("com.aallam.openai:openai-client:3.4.1")
    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.5")

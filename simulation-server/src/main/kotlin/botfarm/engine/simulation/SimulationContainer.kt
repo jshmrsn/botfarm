@@ -121,7 +121,7 @@ class Systems {
          val component1 = entity.getComponentOrNull(component1Type)
 
          if (component1 != null) {
-            { tickContext -> coroutineLogic(tickContext, component1) }
+            { context -> coroutineLogic(context, component1) }
          } else null
       })
    }
