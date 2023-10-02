@@ -4,13 +4,12 @@ import botfarm.agentserver.*
 import botfarm.agentserver.ModelInfo
 import botfarm.agentserver.PromptBuilder
 import botfarmagent.game.Agent
-import botfarmagent.game.AgentContainer
+import botfarmagent.game.AgentContext
 import botfarmagent.game.agents.common.*
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
-import com.aallam.openai.client.OpenAI
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import kotlin.math.roundToInt
@@ -18,11 +17,10 @@ import kotlin.math.roundToInt
 private val constants = AgentResponseSchema_v1
 
 class DefaultAgent(
-   override val agentContainer: AgentContainer,
-   override val initialInputs: AgentSyncInputs,
+   agentContext: AgentContext,
    val useGpt4: Boolean,
    val useFunctionCalling: Boolean
-) : Agent() {
+) : Agent(agentContext) {
    var previousPromptSendSimulationTime = -1000.0
    var previousPromptDoneUnixTime = -1000.0
 
@@ -53,29 +51,6 @@ class DefaultAgent(
       }
 
       this.memoryState.longTermMemories.addAll(initialLongTermMemories)
-   }
-
-   companion object {
-      fun getSortedObservedEntities(
-         inputs: AgentSyncInputs,
-         selfInfo: SelfInfo
-      ) = inputs.newObservations.entitiesById
-         .values
-         .sortedWith { a, b ->
-            val isCharacterA = a.characterEntityInfo != null
-            val isCharacterB = b.characterEntityInfo != null
-            if (isCharacterA != isCharacterB) {
-               if (isCharacterA) {
-                  -1
-               } else {
-                  1
-               }
-            } else {
-               val distanceA = a.location.distance(selfInfo.entityInfo.location)
-               val distanceB = b.location.distance(selfInfo.entityInfo.location)
-               distanceA.compareTo(distanceB)
-            }
-         }
    }
 
    override fun consumeInputs(inputs: AgentSyncInputs) {
@@ -180,10 +155,9 @@ class DefaultAgent(
    }
 
    override suspend fun step(
-      inputs: AgentSyncInputs,
-      openAI: OpenAI,
-      provideResult: (AgentStepResult) -> Unit
+      inputs: AgentSyncInputs
    ) {
+      val openAI = this.context.openAI
       val simulationTimeForStep = inputs.simulationTime
 
       val modelInfo = if (this.useGpt4) {
@@ -212,7 +186,9 @@ class DefaultAgent(
             modelInfo = modelInfo,
             simulationTime = inputs.simulationTime,
             selfInfo = inputs.selfInfo,
-            provideResult = provideResult
+            provideResult = {
+               this.addPendingResult(it)
+            }
          )
 
          when (updateMemoryResult) {
@@ -254,7 +230,7 @@ class DefaultAgent(
          return
       }
 
-      provideResult(
+      this.addPendingResult(
          AgentStepResult(
             agentStatus = "running-prompt",
             statusStartUnixTime = getCurrentUnixTimeSeconds(),
@@ -528,7 +504,7 @@ class DefaultAgent(
       when (promptResult) {
          is RunJsonPromptResult.Success -> {}
          is RunJsonPromptResult.RateLimitError -> {
-            return provideResult(
+            return this.addPendingResult(
                AgentStepResult(
                   error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
                   wasRateLimited = true
@@ -537,7 +513,7 @@ class DefaultAgent(
          }
 
          is RunJsonPromptResult.JsonParseFailed -> {
-            return provideResult(
+            return this.addPendingResult(
                AgentStepResult(
                   error = "Failed to parse json of prompt output (errorId = ${promptResult.errorId})",
                   wasRateLimited = true
@@ -546,7 +522,7 @@ class DefaultAgent(
          }
 
          is RunJsonPromptResult.UnknownApiError -> {
-            return provideResult(
+            return this.addPendingResult(
                AgentStepResult(
                   error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName
                )
@@ -554,7 +530,7 @@ class DefaultAgent(
          }
 
          is RunJsonPromptResult.LengthLimit -> {
-            return provideResult(
+            return this.addPendingResult(
                AgentStepResult(
                   error = "Prompt exceeded max length (errorId = ${promptResult.errorId})"
                )
@@ -630,7 +606,7 @@ class DefaultAgent(
          locationToWalkToAndReason = locationToWalkToAndReason,
          actionOnEntity = actionOnEntity,
          actionOnInventoryItem = actionOnInventoryItem,
-         iWantToSay = iWantToSay,
+         speak = iWantToSay,
          facialExpressionEmoji = facialExpressionEmoji,
          craftItemAction = craftItemAction,
          useEquippedToolItem = useEquippedToolItem
@@ -660,7 +636,7 @@ class DefaultAgent(
          newDebugInfoLines.add(it.summary)
       }
 
-      provideResult(
+      this.addPendingResult(
          AgentStepResult(
             interactions = interactions,
             newDebugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273

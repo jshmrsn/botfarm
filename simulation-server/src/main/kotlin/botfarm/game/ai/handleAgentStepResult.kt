@@ -66,7 +66,7 @@ fun handleAgentStepResult(
 
 
    if (interactions != null) {
-      val whatToSay = interactions.iWantToSay
+      val speak = interactions.speak
 
       val facialExpressionEmoji = interactions.facialExpressionEmoji
 
@@ -87,8 +87,8 @@ fun handleAgentStepResult(
          }
       }
 
-      if (whatToSay != null) {
-         agentApi.speak(whatToSay)
+      if (speak != null) {
+         agentApi.speak(speak)
       }
 
       if (locationToWalkToAndReason != null) {

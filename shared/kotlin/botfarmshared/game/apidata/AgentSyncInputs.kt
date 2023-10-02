@@ -82,7 +82,9 @@ class CharacterEntityInfo(
 class ItemEntityInfo(
    val itemConfigKey: String,
    val itemName: String,
-   val description: String
+   val description: String,
+   val canBeDamagedByToolItemConfigKey: String?,
+   val canBePickedUp: Boolean
 )
 
 @Serializable

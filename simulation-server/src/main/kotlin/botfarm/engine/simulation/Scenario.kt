@@ -40,7 +40,14 @@ object ScenarioRegistration {
    val registeredScenarios: List<Scenario> = mutableRegisteredScenarios
 
    fun registerScenario(scenario: Scenario) {
-      mutableRegisteredScenarios.add(scenario)
+      this.mutableRegisteredScenarios.forEach {
+         if (it.identifier == scenario.identifier &&
+            it.gameIdentifier == scenario.gameIdentifier) {
+            throw Exception("Scenario identifier already registered: ${scenario.identifier}")
+         }
+      }
+
+      this.mutableRegisteredScenarios.add(scenario)
    }
 }
 

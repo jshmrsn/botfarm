@@ -3,6 +3,7 @@ package botfarmagent.game.agents.default
 import botfarm.agentserver.*
 import botfarmagent.game.agents.common.AutomaticShortTermMemory
 import botfarmagent.game.agents.common.MemoryState
+import botfarmagent.game.agents.common.getSortedObservedEntities
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.AgentSyncInputs
 import botfarmshared.game.apidata.AgentStepResult
@@ -189,7 +190,7 @@ suspend fun updateMemory(
    builder.addSection("observedEntities") {
       it.addLine("## OBSERVED ENTITIES AROUND YOU (include in short memory if it seems useful)")
       it.addJsonLine(buildJsonArray {
-         val sortedEntities = DefaultAgent.getSortedObservedEntities(inputs, selfInfo)
+         val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
 
          sortedEntities.forEach { entityInfo ->
             add(

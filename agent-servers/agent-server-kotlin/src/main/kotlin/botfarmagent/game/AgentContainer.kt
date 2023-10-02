@@ -39,11 +39,17 @@ class AgentContainer {
             agentType = agentType
          )
 
+         val agentContext = AgentContext(
+            agentType = agentType,
+            agentContainer = this,
+            agentId = inputs.selfInfo.agentId,
+            openAI = this.openAI,
+            initialInputs = inputs
+         )
+
          val agentRunner = this.agentRunnersByKey.getOrPut(agentKey) {
             val agent = buildAgentForType(
-               agentType = agentType,
-               agentContainer = this,
-               initialInputs = inputs
+               agentContext = agentContext
             )
 
             AgentRunner(

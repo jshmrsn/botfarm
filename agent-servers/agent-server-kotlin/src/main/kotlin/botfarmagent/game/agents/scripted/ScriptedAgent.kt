@@ -1,39 +1,59 @@
 package botfarmagent.game.agents.scripted
 
-import botfarm.agentserver.*
+import botfarm.agentserver.ModelInfo
+import botfarm.agentserver.PromptBuilder
+import botfarm.agentserver.RunPromptResult
+import botfarm.agentserver.runPrompt
 import botfarmagent.game.Agent
-import botfarmagent.game.AgentContainer
+import botfarmagent.game.AgentContext
 import botfarmagent.game.agents.common.*
 import botfarmagent.game.agents.default.UpdateMemoryResult
 import botfarmagent.game.agents.default.updateMemory
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.AgentStepResult
 import botfarmshared.game.apidata.AgentSyncInputs
-import botfarmshared.game.apidata.Interactions
-import botfarmshared.game.apidata.SelfInfo
 import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
-import com.aallam.openai.client.OpenAI
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
-import kotlinx.serialization.json.Json.Default.decodeFromJsonElement
+import org.graalvm.polyglot.Context
 import kotlin.math.roundToInt
+import org.graalvm.polyglot.*
+
 
 class ScriptedAgent(
-   override val agentContainer: AgentContainer,
-   override val initialInputs: AgentSyncInputs,
+   context: AgentContext,
    val useGpt4: Boolean,
    val useFunctionCalling: Boolean
-) : Agent() {
+) : Agent(context) {
    var previousPromptSendSimulationTime = -1000.0
    var previousPromptDoneUnixTime = -1000.0
 
    val memoryState = MemoryState()
 
+   val javaScriptContext: Context =
+      Context.newBuilder("js")
+         .option("js.strict", "true")
+         .build()
+
    init {
       val initialInputs = this.initialInputs
       val simulationTime = initialInputs.simulationTime
       val selfInfo = initialInputs.selfInfo
+
+      val javaScriptBindings = this.javaScriptContext.getBindings("js")
+      val agentJavaScriptBindings = AgentJavaScriptApi(this)
+      javaScriptBindings.putMember("api", agentJavaScriptBindings)
+
+      val sourceName = "helpers"
+
+      run {
+         val helpersSource =
+            ScriptedAgent::class.java.getResource("/scripted-agent-runtime.js")?.readText()
+               ?: throw Exception("Scripted agent runtime JavaScript resource not found")
+
+         val javaScriptSource = Source.newBuilder("js", helpersSource, sourceName).build()
+         this.javaScriptContext.eval(javaScriptSource)
+      }
 
       val initialLongTermMemories = selfInfo.initialMemories.mapIndexed { initialMemoryIndex, initialMemory ->
          LongTermMemory(
@@ -55,29 +75,6 @@ class ScriptedAgent(
       }
 
       this.memoryState.longTermMemories.addAll(initialLongTermMemories)
-   }
-
-   companion object {
-      fun getSortedObservedEntities(
-         inputs: AgentSyncInputs,
-         selfInfo: SelfInfo
-      ) = inputs.newObservations.entitiesById
-         .values
-         .sortedWith { a, b ->
-            val isCharacterA = a.characterEntityInfo != null
-            val isCharacterB = b.characterEntityInfo != null
-            if (isCharacterA != isCharacterB) {
-               if (isCharacterA) {
-                  -1
-               } else {
-                  1
-               }
-            } else {
-               val distanceA = a.location.distance(selfInfo.entityInfo.location)
-               val distanceB = b.location.distance(selfInfo.entityInfo.location)
-               distanceA.compareTo(distanceB)
-            }
-         }
    }
 
    override fun consumeInputs(inputs: AgentSyncInputs) {
@@ -182,10 +179,31 @@ class ScriptedAgent(
    }
 
    override suspend fun step(
-      inputs: AgentSyncInputs,
-      openAI: OpenAI,
-      provideResult: (AgentStepResult) -> Unit
+      inputs: AgentSyncInputs
    ) {
+      run {
+         val sourceName = "agent"
+         val responseScript = """
+            (function() {
+            const result = getCurrentNearbyEntities()
+            console.log("result", result)
+            console.log("result first", result[0])
+            for (const x of result) {
+              console.log("x", JSON.stringify(x))
+            }
+            })()
+         """.trimIndent()
+         val javaScriptSource = Source.newBuilder("js", responseScript, sourceName).build()
+         try {
+            this.javaScriptContext.eval(javaScriptSource)
+         } catch (exception: Exception) {
+            println("Exception evaluating agent JavaScript: " + exception.stackTraceToString())
+         }
+      }
+
+
+      return
+
       val simulationTimeForStep = inputs.simulationTime
 
       val modelInfo = if (this.useGpt4) {
@@ -209,12 +227,14 @@ class ScriptedAgent(
       while (true) {
          val updateMemoryResult = updateMemory(
             inputs = inputs,
-            openAI = openAI,
+            openAI = this.context.openAI,
             memoryState = this.memoryState,
             modelInfo = modelInfo,
             simulationTime = inputs.simulationTime,
             selfInfo = inputs.selfInfo,
-            provideResult = provideResult
+            provideResult = {
+               this.addPendingResult(it)
+            }
          )
 
          when (updateMemoryResult) {
@@ -256,7 +276,7 @@ class ScriptedAgent(
          return
       }
 
-      provideResult(
+      this.addPendingResult(
          AgentStepResult(
             agentStatus = "running-prompt",
             statusStartUnixTime = getCurrentUnixTimeSeconds(),
@@ -287,8 +307,15 @@ class ScriptedAgent(
          it.addLine("## CORE INFO")
          it.addLine(
             """
-            You are a human.
-            You should try your best to behave like human.
+            You are an AI agent in control of a character in a virtual world.
+            Your role is to be a smart problem solver and make progress in the game.
+            You will be given a representation of the world as a block of TypeScript code.
+            You will respond with a block of JavaScript code that uses the interfaces and objects provided by the Typescript representation of world, in order to interact with the world, carry out your intentions, and express yourself. 
+            
+            As you take actions, the simulation will automatically change values dynamically. Your code should not try to directly modify the values of entities or items.
+            
+            Do not write any comments in your javascript code. Only respond with the block of JavaScript code, don't explain it. Write your code as top-level statements. Surround your code block with markdown tags.
+
             Other people you meet in this world may or may not be acting your interest. Act in accordance to your own values and experiences.
             Limit your knowledge to things that you've learned while living in this world, don't talk about the outside world that you've been trained on.
             Do not make things up to seem more believable. If someone asks you something you don't know, then just say you don't know.
@@ -298,21 +325,15 @@ class ScriptedAgent(
          it.addLine("")
       }
 
-//      Note: If people ask you about the date or time, format it as normal human readable text using the CST time zone
-
       val worldWidth = 3500
       val worldHeight = 3500
-
-//      it.addLine("Check the activity stream to check if you've recently covered a topic to avoid repeating yourself.")
-//      it.addLine("If you've recently asked someone a question and they haven't yet responded, don't ask them another question immediately. Give them ample time to respond. Don't say anything if there's nothing appropriate to say yet.")
-//      it.addLine("If other people have said something since the last time you spoke, or if you meet someone new, you will often want to say something using the ${AgentResponseSchema_v1.iWantToSayKey} key.")
 
       builder.addSection("tips") {
          it.addLine("## TIPS")
          it.addText(
             """
             All time units will be in seconds, all locations will be [x,y] values in ${inputs.distanceUnit}.
-            If other people have said something since the last time you spoke, or if you meet someone new, you will often want to say something using the iWantToSay key.
+            If other people have said something since the last time you spoke, or if you meet someone new, you will often want to say something.
             If you've recently asked someone a question and they haven't yet responded, don't ask them another question immediately. Give them ample time to respond. Don't say anything if there's nothing appropriate to say yet.
             Avoid repeating yourself. You don't need to say something every prompt. If you've spoken recently, you can wait awhile. Especially if no one has said anything to you since the last time you talked. 
             People occupy about ${inputs.peopleSize} ${inputs.distanceUnit} of space, try to avoid walking to the exact same location of other people, instead walk to their side to politely chat.
@@ -323,27 +344,6 @@ class ScriptedAgent(
          """.trimIndent()
          )
          it.addLine("")
-         it.addLine("")
-      }
-
-
-      builder.addSection("outputSchema") {
-         it.addLine(
-            """
-            ## OUTPUT_SCHEMA
-            Respond with a JSON object with the following top-level keys.
-            Use the optional ${AgentResponseSchema_v1.locationToWalkToAndReasonKey} top-level key to walk to different locations (expects a JSON object with the keys location, reason)
-            Use the optional ${AgentResponseSchema_v1.newThoughtsKey} top-level key to store important thoughts so you can remember them later (expects a JSON array of strings)
-            Use the optional ${AgentResponseSchema_v1.iWantToSayKey} top-level key if you want to say something (expects a string value)
-            Use the optional ${AgentResponseSchema_v1.actionOnEntityKey} top-level key when you want to use an action listed in availableActionIds of an OBSERVED_ENTITY (expects a JSON object with the keys targetEntityId, actionId, reason)
-            Use the optional ${AgentResponseSchema_v1.actionOnInventoryItemKey} top-level key when you use an action listed in availableActionIds of an item in YOUR_ITEM_INVENTORY (expects a JSON object with the keys actionId, itemConfigKey, reason)
-            Use the optional ${AgentResponseSchema_v1.craftItemKey} top-level key when you want to craft a new item (only if you have the needed cost items in your inventory) (expects a JSON object with the keys itemConfigKey, reason)
-            Use the optional ${AgentResponseSchema_v1.useEquippedToolItemKey} top-level key if you want to use your currently equipped tool item (expects a JSON object with the key reason. This JSON object doesn't need an actionId or anything because it just assumes your equipped item)
-            Use the required ${AgentResponseSchema_v1.facialExpressionEmojiKey} top-level key to show your current emotions (expects a string containing a single emoji)
-            You can use multiple top-level key keys at once, for example if you want to talk and also move somewhere at the same time.
-            Do not try to make up or guess an actionId, itemConfigKey, or targetEntityId. Only use the values that you see in this prompt. This is very important.
-         """.trimIndent()
-         )
          it.addLine("")
       }
 
@@ -427,7 +427,11 @@ class ScriptedAgent(
             ).didFit
 
             if (!result) {
-               println("Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(selfInfo.entityInfo.location))
+               println(
+                  "Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
+                     selfInfo.entityInfo.location
+                  )
+               )
                break
             }
 
@@ -445,35 +449,23 @@ class ScriptedAgent(
       // jshmrsn: Add sections in order first, so we can add critical tokens before adding less critical tokens if they fit
       val recentActivitySection = builder.addSection("recentActivity")
       val newActivitySection = builder.addSection("newActivity")
-      val instructionsSection = builder.addSection("instructions")
 
-      val completionPrefix = "" // "{\n  "
+      val codeBlockStartSection = builder.addSection("codeBlockStartSection")
+      codeBlockStartSection.addLine("```ts")
+      val typesSection = builder.addSection("types")
+      val entityListSection = builder.addSection("entityListSection")
+      val inventoryListSection = builder.addSection("inventoryListSection")
+      val selfSection = builder.addSection("selfSection")
+      val generalActionsSection = builder.addSection("generalActionsSection")
 
-      instructionsSection.also {
-         it.addLine("## PROMPT")
+      val codeBlockEndSection = builder.addSection("codeBlockEndSection")
+      codeBlockEndSection.addLine("```")
 
-         it.addLine(
-            """
-            First think through what you think about the activity you observed above and write down your thoughts and goals in plain English (not as part of the JSON). If these thoughts are important, you should include them in the ${AgentResponseSchema_v1.newThoughtsKey} top-level key.
-            Think about what you could say with iWantToSay, what availableActionIds you could use on OBSERVED_ENTITIES, and what availableActionIds you could take on items in YOUR_ITEM_INVENTORY, etc. so you could do to make progress towards your goals.
-            After that, you must write exactly one JSON object conforming to the OUTPUT_SCHEMA to express those goal-serving actions.
-         """.trimIndent()
-         )
-
-         if (modelInfo.isCompletionModel) {
-            it.addLine(
-               """
-            Your response:
-            
-"""
-            )
-         }
-
-         it.addText(completionPrefix)
-      }
+      val completionPrefix = ""
 
       newActivitySection.also {
-         val headerDidFit = it.addLine("## NEW_OBSERVED_ACTIVITY (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
+         val headerDidFit =
+            it.addLine("## NEW_OBSERVED_ACTIVITY (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
 
          if (headerDidFit) {
             if (newActivity.isEmpty()) {
@@ -496,7 +488,10 @@ class ScriptedAgent(
 
       if (previousActivity.isNotEmpty()) {
          recentActivitySection.also {
-            val headerDidFit = it.addLine("## PREVIOUS_OBSERVED_ACTIVITY (YOU MAY HAVE ALREADY REACTED TO THESE)", optional = true).didFit
+            val headerDidFit = it.addLine(
+               "## PREVIOUS_OBSERVED_ACTIVITY (YOU MAY HAVE ALREADY REACTED TO THESE)",
+               optional = true
+            ).didFit
 
             if (headerDidFit) {
                for (entry in previousActivity) {
@@ -509,13 +504,45 @@ class ScriptedAgent(
          }
       }
 
+      val interfacesSource = ScriptedAgent::class.java.getResource("/scripted-agent-interfaces.ts")?.readText()
+         ?: throw Exception("got null from scripted-agent-interfaces.ts")
+
+      // Content in prompt can affect high-level reasoning
+
+      typesSection.addLine(interfacesSource)
+
+      selfSection.addLine(
+         """
+         // Your own state
+         const self: Self = {
+             location: {x: 2000, y: 2000}
+         }
+      """.trimIndent()
+      )
+
+      entityListSection.addLine(
+         """
+         // Entities around you
+         const tree_1: Tree = {
+             location: {x: 2000, y: 2300}
+         }
+
+         const tree_2: Tree = {
+             location: {x: 1900, y: 2300}
+         }
+
+         const boulder_1: Boulder = {
+             location: {x: 1900, y: 1900}
+         }
+      """.trimIndent()
+      )
 
       val promptId = buildShortRandomString()
 
       val promptSendTime = getCurrentUnixTimeSeconds()
 
-      val promptResult = runPromptWithJsonOutput(
-         openAI = openAI,
+      val promptResult = runPrompt(
+         openAI = this.context.openAI,
          modelInfo = modelInfo,
          promptBuilder = builder,
          functionName = AgentResponseSchema_v1.functionName,
@@ -528,9 +555,9 @@ class ScriptedAgent(
       )
 
       when (promptResult) {
-         is RunJsonPromptResult.Success -> {}
-         is RunJsonPromptResult.RateLimitError -> {
-            return provideResult(
+         is RunPromptResult.Success -> {}
+         is RunPromptResult.RateLimitError -> {
+            return this.addPendingResult(
                AgentStepResult(
                   error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
                   wasRateLimited = true
@@ -538,25 +565,16 @@ class ScriptedAgent(
             )
          }
 
-         is RunJsonPromptResult.JsonParseFailed -> {
-            return provideResult(
-               AgentStepResult(
-                  error = "Failed to parse json of prompt output (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true
-               )
-            )
-         }
-
-         is RunJsonPromptResult.UnknownApiError -> {
-            return provideResult(
+         is RunPromptResult.UnknownApiError -> {
+            return this.addPendingResult(
                AgentStepResult(
                   error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName
                )
             )
          }
 
-         is RunJsonPromptResult.LengthLimit -> {
-            return provideResult(
+         is RunPromptResult.LengthLimit -> {
+            return this.addPendingResult(
                AgentStepResult(
                   error = "Prompt exceeded max length (errorId = ${promptResult.errorId})"
                )
@@ -566,97 +584,30 @@ class ScriptedAgent(
 
       this.previousPromptDoneUnixTime = getCurrentUnixTimeSeconds()
 
-      val responseData = promptResult.responseData
-      val textBeforeJson = promptResult.textBeforeJson
-
-      val response = try {
-         Json.decodeFromJsonElement<AgentResponseSchema_v1.AgentResponseFunctionInputs>(responseData)
-      } catch (exception: Exception) {
-         val prettyJson = Json { prettyPrint = true }
-         throw Exception(
-            "Exception while decoding agent response JSON (promptId = $promptId, syncId = $syncId, agentId = $agentId):\n${
-               prettyJson.encodeToString(
-                  responseData
-               )
-            }", exception
-         )
-      }
+      val responseText: String = promptResult.responseText
 
       this.previousPromptSendSimulationTime = simulationTimeForStep
 
-      val iWantToSay = response.iWantToSay
+      val codeBlockStartIndex = responseText.indexOf("```")
+      val responseScript = if (codeBlockStartIndex >= 0) {
+         val newlineIndex = responseText.indexOf("\n")
+         val textAfterBlockStart = responseText.substring(newlineIndex + 1)
+         val blockEndIndex = textAfterBlockStart.indexOf("```")
 
-      val facialExpressionEmoji = response.facialExpressionEmoji
-
-      val locationToWalkToAndReason = response.locationToWalkToAndReason
-
-      val actionOnEntity = response.actionOnEntity
-
-      val actionOnInventoryItem = response.actionOnInventoryItem
-      val craftItemAction = response.craftItem
-      val useEquippedToolItem = response.useEquippedToolItem
-
-      val newThoughts = response.newThoughts ?: listOf()
-
-      val newLongTermMemories = newThoughts.map { newLongTermMemory ->
-         LongTermMemory(
-            createdTime = simulationTimeForStep,
-            content = newLongTermMemory,
-            id = this.memoryState.longTermMemories.size + 1,
-            createdAtLocation = currentLocation,
-            importance = 0
-         )
+         if (blockEndIndex < 0) {
+            throw Exception("Script block end not found:\n$textAfterBlockStart")
+         } else {
+            textAfterBlockStart.substring(0, blockEndIndex)
+         }
+      } else {
+         responseText
       }
 
-      this.memoryState.longTermMemories.addAll(newLongTermMemories)
-
-      newLongTermMemories.forEach { memory ->
-         this.memoryState.automaticShortTermMemories.add(
-            AutomaticShortTermMemory(
-               time = simulationTimeForStep,
-               summary = "I had the thought: " + memory.content,
-            )
-         )
-      }
-
-      val interactions = Interactions(
-         locationToWalkToAndReason = locationToWalkToAndReason,
-         actionOnEntity = actionOnEntity,
-         actionOnInventoryItem = actionOnInventoryItem,
-         iWantToSay = iWantToSay,
-         facialExpressionEmoji = facialExpressionEmoji,
-         craftItemAction = craftItemAction,
-         useEquippedToolItem = useEquippedToolItem
-      )
-
-      promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
-
-      val newDebugInfoLines = mutableListOf<String>()
-      newDebugInfoLines.add("### Sync ID: $syncId")
-      newDebugInfoLines.add("")
-
-
-      newDebugInfoLines.add("### Short-Term Memory")
-      newDebugInfoLines.add("")
-
-      newDebugInfoLines.add(this.memoryState.shortTermMemory)
-
-      newDebugInfoLines.add("")
-
-      newDebugInfoLines.add("### Previous Activity")
-      previousActivity.forEach {
-         newDebugInfoLines.add(it.summary)
-      }
-
-      newDebugInfoLines.add("### New Activity")
-      newActivity.forEach {
-         newDebugInfoLines.add(it.summary)
-      }
-
-      provideResult(
+      this.addPendingResult(
          AgentStepResult(
-            interactions = interactions,
-            newDebugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
+            interactions = null,
+            newDebugInfo = responseScript.lines()
+               .joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",
             promptUsages = promptUsages,
@@ -668,5 +619,15 @@ class ScriptedAgent(
             }
          )
       )
+
+      println("responseScript: $responseScript")
+
+      val sourceName = "agent"
+      val javaScriptSource = Source.newBuilder("js", responseScript, sourceName).build()
+      try {
+         this.javaScriptContext.eval(javaScriptSource)
+      } catch (exception: Exception) {
+         println("Exception evaluating agent JavaScript: " + exception.stackTraceToString())
+      }
    }
 }

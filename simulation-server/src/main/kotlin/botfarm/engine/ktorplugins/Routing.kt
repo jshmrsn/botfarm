@@ -93,7 +93,10 @@ fun Application.configureRouting(
          val request = call.receive<CreateSimulationRequest>()
          val isAdmin = AdminRequest.shouldGiveRequestAdminCapabilities(request.adminRequest)
 
-         val scenario = ScenarioRegistration.registeredScenarios.find { it.identifier == request.scenarioIdentifier }
+         val scenario = ScenarioRegistration.registeredScenarios.find {
+            it.identifier == request.scenarioIdentifier &&
+            it.gameIdentifier == request.scenarioGameIdentifier
+         }
 
          if (scenario == null) {
             throw Exception("Scenario not found for identifier: " + request.scenarioIdentifier)
@@ -154,6 +157,7 @@ class TerminateSerializationRequest(
 @Serializable
 class CreateSimulationRequest(
    val scenarioIdentifier: String,
+   val scenarioGameIdentifier: String,
    val userSecret: UserSecret,
    val adminRequest: AdminRequest? = null
 )

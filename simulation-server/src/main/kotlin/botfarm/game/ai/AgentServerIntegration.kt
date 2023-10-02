@@ -38,7 +38,7 @@ class AgentServerIntegration {
             })
          }
       }.use {
-         it.post(agentServerEndpoint + "/api/step") {
+         it.post(agentServerEndpoint + "/api/sync") {
             contentType(ContentType.Application.Json)
             val bodyString = Json.encodeToString(request)
             setBody(bodyString)

@@ -151,6 +151,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
             onClick={() => {
               apiRequest("create-simulation", {
                 scenarioIdentifier: scenario.identifier,
+                scenarioGameIdentifier: scenario.gameIdentifier,
                 userSecret: props.userSecret
               }, (response: CreateSimulationResponse) => {
                 simulationSelected(response.simulationInfo)

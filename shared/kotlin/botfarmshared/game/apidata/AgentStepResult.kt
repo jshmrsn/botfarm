@@ -34,7 +34,7 @@ class Interactions(
    val useEquippedToolItem: UseEquippedToolItem? = null,
    val actionOnInventoryItem: ActionOnInventoryItem? = null,
    val craftItemAction: CraftItemAction? = null,
-   val iWantToSay: String? = null,
+   val speak: String? = null,
    val facialExpressionEmoji: String? = null
 )
 

@@ -20,11 +20,11 @@ import io.ktor.server.routing.post as routingPost
 
 
 fun Application.configureRouting(remoteAgentContainer: AgentContainer) {
-   install(StatusPages) {
-      exception<Throwable> { call, cause ->
-         call.respondText(text = "500: $cause", status = HttpStatusCode.InternalServerError)
-      }
-   }
+//   install(StatusPages) {
+//      exception<Throwable> { call, cause ->
+//         call.respondText(text = "500: $cause", status = HttpStatusCode.InternalServerError)
+//      }
+//   }
 
    install(Resources)
    val apiPrefix = "/api/"
@@ -36,7 +36,7 @@ fun Application.configureRouting(remoteAgentContainer: AgentContainer) {
          call.respondText("Botfarm Agent Server")
       }
 
-      routingPost("${apiPrefix}step") {
+      routingPost("${apiPrefix}sync") {
          val requestJsonString = call.receiveText()
 
          val request = Json.decodeFromString<AgentSyncRequest>(requestJsonString)

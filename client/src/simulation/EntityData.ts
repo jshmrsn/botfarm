@@ -29,7 +29,6 @@ export class EntityData {
   }
 }
 
-
 export interface Config {
   type: string
   key: string
@@ -51,7 +50,9 @@ interface ReplaySentMessage {
 
 export interface ScenarioInfo {
   identifier: string
+  gameIdentifier: string
   name: string
+  description: string | null
 }
 
 export interface ReplayData {

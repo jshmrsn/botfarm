@@ -14,9 +14,6 @@ class AgentRunner(
    val simulationId = this.agent.initialInputs
    val agentId = this.agent.agentId
 
-   private val pendingInputsList = mutableListOf<AgentSyncInputs>()
-   private val pendingResultsList = mutableListOf<AgentStepResult>()
-
    private var job: Job? = null
    private var shouldTerminate = false
    private var lastSyncUnixTimeSeconds = getCurrentUnixTimeSeconds()
@@ -27,8 +24,8 @@ class AgentRunner(
 
    fun addPendingInput(inputs: AgentSyncInputs) {
       synchronized(this) {
-         this.pendingInputsList.add(inputs)
          this.lastSyncUnixTimeSeconds = getCurrentUnixTimeSeconds()
+         this.agent.addPendingInput(inputs)
       }
    }
 
@@ -66,16 +63,15 @@ class AgentRunner(
                   break
                }
 
-               val inputsList = synchronized(self) {
-                  val copy = self.pendingInputsList.toList()
-                  self.pendingInputsList.clear()
-                  copy
-               }
+               val inputsList = agent.consumePendingInputs()
 
                inputsList.forEach { inputs ->
-                  agent.consumeInputs(
-                     inputs = inputs
-                  )
+                  synchronized(agent) {
+                     agent.notifyWillConsumeInputs(inputs)
+                     agent.consumeInputs(
+                        inputs = inputs
+                     )
+                  }
                }
 
                val lastInput = inputsList.lastOrNull()
@@ -83,26 +79,18 @@ class AgentRunner(
                if (lastInput != null) {
                   try {
                      agent.step(
-                        inputs = lastInput,
-                        openAI = self.agentContainer.openAI,
-                        provideResult = {
-                           synchronized(this) {
-                              self.pendingResultsList.add(it)
-                           }
-                        }
+                        inputs = lastInput
                      )
                   } catch (exception: Exception) {
                      val syncId = lastInput.syncId
                      val errorId = buildShortRandomString()
                      println("RemoteAgentServer: Exception while running agent step (simulationId = $simulationId agentId = $agentId, syncId = $syncId, errorId = $errorId):\n${exception.stackTraceToString()}")
 
-                     synchronized(this) {
-                        self.pendingResultsList.add(
-                           AgentStepResult(
-                              error = "Error on agent server: $errorId"
-                           )
+                     agent.addPendingResult(
+                        AgentStepResult(
+                           error = "Error on agent server: $errorId"
                         )
-                     }
+                     )
                   }
                }
 
@@ -117,10 +105,6 @@ class AgentRunner(
    }
 
    fun consumePendingResults(): List<AgentStepResult> {
-      return synchronized(this) {
-         val copy = this.pendingResultsList.toList()
-         this.pendingResultsList.clear()
-         copy
-      }
+      return this.agent.consumePendingResults()
    }
 }
