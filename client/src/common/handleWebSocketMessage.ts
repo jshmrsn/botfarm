@@ -9,7 +9,7 @@ export function handleWebSocketMessage(
 ) {
   try {
     const messageData = JSON.parse(data)
-    console.log("WebSocket messageData:", messageData)
+    // console.log("WebSocket messageData:", messageData)
 
     const messageType: string | null = messageData["type"]
 

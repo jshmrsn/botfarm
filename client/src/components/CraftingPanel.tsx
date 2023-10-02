@@ -160,6 +160,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
                 const hasAmount = inventoryAmountByItemConfigKey[costEntry.itemConfigKey] || 0
 
                 return <div
+                  key={"cost-entry:" + costEntryIndex}
                   style={{
                     display: "flex",
                     flexDirection: "row",

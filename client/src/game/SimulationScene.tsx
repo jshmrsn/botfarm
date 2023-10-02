@@ -775,7 +775,7 @@ export class SimulationScene extends Phaser.Scene {
       if (clickValid) {
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
 
-        console.log("Clicked worldPoint", worldPoint)
+        // console.log("Clicked worldPoint", worldPoint)
         const simulationTime = this.getCurrentSimulationTime()
 
         let nearestDistance = 10000.0

@@ -1,6 +1,6 @@
 import React, {useState} from "react";
 import {ActionIcon, Textarea} from "@mantine/core";
-import {IconChartBubble, IconGridDots, IconMessageCircle, IconMessages, IconSend} from "@tabler/icons-react";
+import {IconSend} from "@tabler/icons-react";
 import {PanelTypes} from "./SimulationComponent";
 import {DynamicState} from "./DynamicState";
 

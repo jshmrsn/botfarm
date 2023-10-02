@@ -58,6 +58,8 @@ export interface GetSimulationInfoResponse {
   simulationInfo: SimulationInfo | null
 }
 
+
+
 export const SimulationComponent = (props: SimulationProps) => {
   const {simulationId} = useParams<SimulationComponentParams>()
 
@@ -167,6 +169,7 @@ export const SimulationComponent = (props: SimulationProps) => {
     }
 
     if (dynamicState.phaserScene != null) {
+      console.log("Destroy phaser for view replay")
       dynamicState.phaserScene.game.destroy(true)
       dynamicState.phaserScene = null
     }
@@ -208,6 +211,7 @@ export const SimulationComponent = (props: SimulationProps) => {
     }
 
     if (dynamicState.phaserScene != null) {
+      console.log("Destroy phaser for handleSimulationDataSnapshotReceived")
       dynamicState.phaserScene.game.destroy(true)
       dynamicState.phaserScene = null
     }
@@ -269,14 +273,12 @@ export const SimulationComponent = (props: SimulationProps) => {
   const hasSimulationData = dynamicState.simulation != null
   const hasWebSocket = dynamicState.webSocket != null
   const hasReplayData = replayData != null
+  const hasPhaserScene = dynamicState.phaserScene != null
 
   useEffect(() => {
-    const webSocket = dynamicState.webSocket
-
     if (dynamicState.simulation != null &&
       phaserContainerDiv != null &&
-      dynamicState.phaserScene == null &&
-      (webSocket != null || (isViewingReplay && replayData != null))) {
+      dynamicState.phaserScene == null) {
       console.log("CREATE PHASER")
       setSceneLoadComplete(false)
 
@@ -326,11 +328,12 @@ export const SimulationComponent = (props: SimulationProps) => {
       phaserGame.scene.add("main", newPhaserScene, true)
       dynamicState.phaserScene = newPhaserScene
     }
-  }, [phaserContainerDiv, hasSimulationData, hasWebSocket, hasReplayData]);
+  }, [phaserContainerDiv, hasSimulationData, hasWebSocket, hasReplayData, hasPhaserScene]);
 
   useEffect(() => {
     return () => {
       if (dynamicState.phaserScene != null) {
+        console.log("Destroy phaser for cleanup")
         dynamicState.phaserScene.game.destroy(true)
         dynamicState.phaserScene = null
       }
@@ -488,45 +491,11 @@ export const SimulationComponent = (props: SimulationProps) => {
     </div>
   }
 
-  function renderPanelButton(
+  function renderPanelButtonHelper(
     panelType: PanelTypes,
     icon: JSX.Element
   ) {
-    var button: HTMLButtonElement | null = null
-
-    return <div
-      key={"panel-button:" + panelType}
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        padding: 0,
-        alignItems: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.5)",
-        height: 44,
-        backdropFilter: "blur(5px)",
-        WebkitBackdropFilter: "blur(5px)",
-        borderRadius: 5,
-        gap: 10
-      }}
-    >
-      <ActionIcon
-        ref={actionIcon => button = actionIcon}
-        color={isShowingPanel(panelType) ? "blue" : "gray"}
-        size={44}
-        variant={isShowingPanel(panelType) ? "filled" : "subtle"}
-        onClick={() => {
-          if (isShowingPanel(panelType)) {
-            setShowingPanels(showingPanels.filter(it => it !== panelType))
-          } else {
-            setShowingPanels([...showingPanels, panelType])
-          }
-
-          button?.blur()
-        }}
-      >
-        {icon}
-      </ActionIcon>
-    </div>
+    return renderPanelButton(panelType, icon, showingPanels, setShowingPanels)
   }
 
   const chatAreaWidth = Math.min(windowWidth - 20, 500)
@@ -678,14 +647,6 @@ export const SimulationComponent = (props: SimulationProps) => {
         {replayControlsDiv}
 
 
-        {!isViewingReplay ? <QuickInventory
-          dynamicState={dynamicState}
-          windowHeight={windowHeight}
-          windowWidth={windowWidth}
-          userControlledEntity={userControlledEntity}
-          useMobileLayout={useMobileLayout}
-        /> : null}
-
         <div
           key={"button-row"}
           style={{
@@ -699,9 +660,8 @@ export const SimulationComponent = (props: SimulationProps) => {
             gap: 10
           }}
         >
-          {renderPanelButton(PanelTypes.Activity, <IconMessages size={24}/>)}
-          {userControlledEntity != null ? renderPanelButton(PanelTypes.Inventory, <IconGridDots size={24}/>) : null}
-          {renderPanelButton(PanelTypes.Crafting, <IconHammer size={24}/>)}
+          {renderPanelButtonHelper(PanelTypes.Activity, <IconMessages size={24}/>)}
+          {renderPanelButtonHelper(PanelTypes.Crafting, <IconHammer size={24}/>)}
           {renderInspectButton()}
           <div style={{
             flexBasis: 30
@@ -709,6 +669,16 @@ export const SimulationComponent = (props: SimulationProps) => {
 
           {actionButton}
         </div>
+
+        {!isViewingReplay ? <QuickInventory
+          dynamicState={dynamicState}
+          windowHeight={windowHeight}
+          windowWidth={windowWidth}
+          userControlledEntity={userControlledEntity}
+          useMobileLayout={useMobileLayout}
+          showingPanels={showingPanels}
+          setShowingPanels={setShowingPanels}
+        /> : null}
 
         {!isViewingReplay ? <ChatInputArea
           windowWidth={windowWidth}
@@ -894,3 +864,49 @@ export const SimulationComponent = (props: SimulationProps) => {
   </div>
 }
 
+export function renderPanelButton(
+  panelType: PanelTypes,
+  icon: JSX.Element,
+  showingPanels: PanelTypes[],
+  setShowingPanels: (panelTypes: PanelTypes[]) => void
+) {
+  function isShowingPanel(panel: PanelTypes): boolean {
+    return showingPanels.includes(panel)
+  }
+
+  var button: HTMLButtonElement | null = null
+
+  return <div
+    key={"panel-button:" + panelType}
+    style={{
+      display: "flex",
+      flexDirection: "row",
+      padding: 0,
+      alignItems: "center",
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      height: 44,
+      backdropFilter: "blur(5px)",
+      WebkitBackdropFilter: "blur(5px)",
+      borderRadius: 5,
+      gap: 10
+    }}
+  >
+    <ActionIcon
+      ref={actionIcon => button = actionIcon}
+      color={isShowingPanel(panelType) ? "blue" : "gray"}
+      size={44}
+      variant={isShowingPanel(panelType) ? "filled" : "subtle"}
+      onClick={() => {
+        if (isShowingPanel(panelType)) {
+          setShowingPanels(showingPanels.filter(it => it !== panelType))
+        } else {
+          setShowingPanels([...showingPanels, panelType])
+        }
+
+        button?.blur()
+      }}
+    >
+      {icon}
+    </ActionIcon>
+  </div>
+}

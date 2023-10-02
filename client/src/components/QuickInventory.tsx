@@ -1,12 +1,11 @@
-import {ActivityStreamComponentData} from "../game/activityStreamComponentData";
-import {IconArrowDown, IconGridDots, IconHandGrab, IconHandOff} from "@tabler/icons-react";
-import {ActionIcon, Text} from "@mantine/core";
-import {InventoryListComponent} from "./InventoryListComponent";
+import {ActionIcon} from "@mantine/core";
 import React from "react";
 import {DynamicState} from "./DynamicState";
 import {Entity} from "../simulation/Entity";
 import {InventoryComponentData} from "../game/CharacterComponentData";
 import {ItemConfig} from "../game/ItemComponentData";
+import {PanelTypes, renderPanelButton} from "./SimulationComponent";
+import {IconGridDots} from "@tabler/icons-react";
 
 interface QuickInventoryProps {
   windowHeight: number
@@ -14,6 +13,8 @@ interface QuickInventoryProps {
   dynamicState: DynamicState
   userControlledEntity: Entity | null
   useMobileLayout: boolean
+  showingPanels: PanelTypes[]
+  setShowingPanels: (panels: PanelTypes[]) => void
 }
 
 interface QuickInventoryEntry {
@@ -21,13 +22,10 @@ interface QuickInventoryEntry {
   itemConfig: ItemConfig
   isEquipped: boolean
   totalAmount: number
+  equippedStackIndex: number | null
 }
 
 export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
-  const windowHeight = props.windowHeight
-  const windowWidth = props.windowWidth
-  const dynamicState = props.dynamicState
-  const sideBarWidth = 250
   const simulation = props.dynamicState.simulation
 
   if (simulation == null) {
@@ -67,17 +65,20 @@ export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
     }
 
     let totalAmount = 0
-    let isEquipped = false
+    let equippedStackIndex: number | null = null
 
-    for (let checkItemStack of itemStacks) {
+    itemStacks.forEach((checkItemStack, checkItemStackIndex) => {
       if (checkItemStack.itemConfigKey === itemConfigKey) {
         totalAmount += checkItemStack.amount
-        isEquipped = isEquipped || checkItemStack.isEquipped
+        if (checkItemStack.isEquipped) {
+          equippedStackIndex = checkItemStackIndex
+        }
       }
-    }
+    })
 
     entries.push({
-      isEquipped: isEquipped,
+      isEquipped: equippedStackIndex != null,
+      equippedStackIndex: equippedStackIndex,
       totalAmount: totalAmount,
       firstStackIndex: stackIndex,
       itemConfig: itemConfig
@@ -85,13 +86,7 @@ export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
   })
 
   entries.sort((a, b) => {
-    if (a.isEquipped !== b.isEquipped) {
-      if (a.isEquipped) {
-        return -1
-      } else {
-        return 1
-      }
-    } else if (a.itemConfig.key < b.itemConfig.key) {
+    if (a.itemConfig.key < b.itemConfig.key) {
       return -1
     } else {
       return 1
@@ -101,6 +96,7 @@ export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
   const content = entries.map((entry, entryIndex) => {
     const itemConfig = entry.itemConfig
     const isEquipped = entry.isEquipped
+    const equippedStackIndex = entry.equippedStackIndex
 
     let buttonRef: HTMLButtonElement | null = null
 
@@ -112,7 +108,8 @@ export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
         padding: 0,
         alignItems: "center",
         backgroundColor: "rgba(255, 255, 255, 0.5)",
-        height: 44,
+        height: 50,
+        flexBasis: 50,
         backdropFilter: "blur(5px)",
         WebkitBackdropFilter: "blur(5px)",
         borderRadius: 5,
@@ -122,10 +119,22 @@ export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
       <ActionIcon
         ref={actionIcon => buttonRef = actionIcon}
         color={isEquipped ? "blue" : "gray"}
-        size={44}
+        size={50}
         variant={isEquipped ? "filled" : "subtle"}
         onClick={() => {
+          buttonRef?.blur()
 
+          if (equippedStackIndex == null) {
+            simulation.sendMessage("EquipItemRequest", {
+              expectedItemConfigKey: itemConfig.key,
+              stackIndex: entry.firstStackIndex
+            })
+          } else {
+            simulation.sendMessage("UnequipItemRequest", {
+              expectedItemConfigKey: itemConfig.key,
+              stackIndex: equippedStackIndex
+            })
+          }
         }}
       >
         <img
@@ -138,68 +147,38 @@ export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
         />
       </ActionIcon>
     </div>
-
-    // return <div
-    //   key={itemConfig.key + ":" + entryIndex}
-    //   style={{
-    //     display: "flex",
-    //     flexDirection: "row",
-    //     gap: 5,
-    //     backgroundColor: "rgba(0, 0, 0, 0.1)",
-    //     borderRadius: 6,
-    //     padding: 5
-    //   }}
-    // >
-    //   <Text><b>{itemConfig.name}</b></Text>
-    //
-    //   {/*<Text><b>x{itemStack.amount}</b></Text>*/}
-    //   {/*{!props.viewOnly && itemConfig.equippableConfig && !isEquipped ?*/}
-    //   {/*  <ActionIcon size={35} variant={"filled"} onClick={() => {*/}
-    //   {/*    simulation.sendMessage("EquipItemRequest", {*/}
-    //   {/*      expectedItemConfigKey: itemConfigKey,*/}
-    //   {/*      stackIndex: stackIndex*/}
-    //   {/*    })*/}
-    //   {/*  }}>*/}
-    //   {/*    <IconHandGrab size={18}/>*/}
-    //   {/*  </ActionIcon> : null}*/}
-    //
-    //   {/*{!props.viewOnly && itemConfig.equippableConfig && isEquipped ?*/}
-    //   {/*  <ActionIcon size={35} variant={"filled"} onClick={() => {*/}
-    //   {/*    simulation.sendMessage("UnequipItemRequest", {*/}
-    //   {/*      expectedItemConfigKey: itemConfigKey,*/}
-    //   {/*      stackIndex: stackIndex*/}
-    //   {/*    })*/}
-    //   {/*  }}>*/}
-    //   {/*    <IconHandOff size={18}/>*/}
-    //   {/*  </ActionIcon> : null}*/}
-    //
-    //   {/*{!props.viewOnly && itemConfig.storableConfig && itemConfig.storableConfig.canBeDropped ?*/}
-    //   {/*  <ActionIcon size={35} variant={"filled"} onClick={() => {*/}
-    //   {/*    simulation.sendMessage("DropItemRequest", {*/}
-    //   {/*      itemConfigKey: itemConfigKey,*/}
-    //   {/*      amountFromStack: null, // TODO*/}
-    //   {/*      stackIndex: stackIndex*/}
-    //   {/*    })*/}
-    //   {/*  }}>*/}
-    //   {/*    <IconArrowDown size={18}/>*/}
-    //   {/*  </ActionIcon> : null}*/}
-    // </div>
   })
 
   return <div
     style={{
       borderRadius: 6,
-      paddingLeft: 4,
-      paddingRight: 15,
+      paddingLeft: 5,
+      paddingRight: 5,
       width: "100%",
-      flexBasis: 48,
+      flexBasis: 50 + 8,
       display: "flex",
       flexDirection: "row",
-      backgroundColor: "rgba(0, 0, 0, 0.4)",
-      gap: 8,
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      backdropFilter: "blur(5px)",
+      WebkitBackdropFilter: "blur(5px)",
+      gap: 4,
       alignItems: "center"
     }}
   >
-    {content}
+    <div
+      key={"scroll"}
+      style={{
+        overflowX: "auto",
+        overflowY: "hidden",
+        display: "flex",
+        flexGrow: 1.0,
+        flexBasis: 0,
+        gap: 4
+      }}
+    >
+      {content}
+    </div>
+
+    {renderPanelButton(PanelTypes.Inventory, <IconGridDots size={24}/>, props.showingPanels, props.setShowingPanels)}
   </div>
 }
