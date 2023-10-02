@@ -10,11 +10,7 @@ import botfarm.game.components.InventoryComponentData
 import botfarm.game.config.ItemConfig
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomString
-import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.delay
-import org.graalvm.polyglot.Context
-import org.graalvm.polyglot.Source
-import kotlin.concurrent.thread
 
 class AgentState(
    val simulation: GameSimulation
@@ -45,34 +41,9 @@ suspend fun agentCoroutineSystem(
    // Prevent AI from seeing into the past
    state.previousNewEventCheckTime = simulation.getCurrentSimulationTime()
 
-   val javaScriptContext: Context =
-      Context.newBuilder("js")
-         .option("js.strict", "true")
-         .build()
-
-
    while (true) {
       try {
          val syncId = buildShortRandomString()
-         val debugInfo = "$agentType, syncId = $syncId"
-
-         val agentApi = AgentApi(
-            entity = entity,
-            state = state,
-            simulation = simulation,
-            debugInfo = debugInfo
-         )
-
-         syncPrototype(
-            context = context,
-            simulation = simulation,
-            entity = entity,
-            agentComponent = agentComponent,
-            state = state,
-            javaScriptContext = javaScriptContext,
-            agentId = agentId,
-            agentApi = agentApi
-         )
 
          sync(
             context = context,
@@ -80,7 +51,6 @@ suspend fun agentCoroutineSystem(
             entity = entity,
             agentComponent = agentComponent,
             state = state,
-            agentApi = agentApi,
             agentId = agentId,
             syncId = syncId
          )
@@ -104,55 +74,7 @@ suspend fun agentCoroutineSystem(
    }
 }
 
-private suspend fun syncPrototype(
-   context: CoroutineSystemContext,
-   simulation: GameSimulation,
-   entity: Entity,
-   agentComponent: EntityComponent<AgentComponentData>,
-   state: AgentState,
-   agentId: AgentId,
-   agentApi: AgentApi,
-   javaScriptContext: Context
-) {
-   if (getCurrentUnixTimeSeconds() - state.lastNewThreadUnixTimeSeconds > 45.0) {
-      synchronized(simulation) {
-         state.runningJavaScriptThread?.interrupt()
-      }
 
-      state.lastNewThreadUnixTimeSeconds = getCurrentUnixTimeSeconds()
-
-      val programId = buildShortRandomString()
-
-      val javaScriptBindings = javaScriptContext.getBindings("js")
-
-      val agentApiJavaScriptBindings = AgentApiJavaScriptBindings(agentApi)
-      javaScriptBindings.putMember("api", agentApiJavaScriptBindings)
-
-      val javaScriptSourceString = """
-         api.speak("New program: $programId")
-         
-         while (true) {
-            api.speak("Walking to new place: $programId")
-            api.walk([100, 10], {x: 3, y: 2})
-         }
-   """.trimIndent()
-
-      val sourceName = "agent"
-      val javaScriptSource = Source.newBuilder("js", javaScriptSourceString, sourceName).build()
-
-      val thread = thread {
-         try {
-            javaScriptContext.eval(javaScriptSource)
-         } catch (end: EndCoroutineThrowable) {
-            println("JavaScript thread has ended via stack unwind: ${agentId}}")
-         } catch (exception: Exception) {
-            println("Exception from JavaScript eval logic: ${entity.entityId}\nException was : ${exception.stackTraceToString()}")
-         }
-      }
-
-      state.runningJavaScriptThread = thread
-   }
-}
 
 private suspend fun sync(
    context: CoroutineSystemContext,
@@ -160,7 +82,6 @@ private suspend fun sync(
    entity: Entity,
    agentComponent: EntityComponent<AgentComponentData>,
    state: AgentState,
-   agentApi: AgentApi,
    agentId: AgentId,
    syncId: String
 ) {
@@ -267,8 +188,6 @@ private suspend fun sync(
       return
    }
 
-
-
    val itemConfigs = simulation.configs
       .mapNotNull { it as? ItemConfig }
 
@@ -365,8 +284,7 @@ private suspend fun sync(
                characterComponent = characterComponent,
                state = state,
                entity = entity,
-               syncId = syncId,
-               agentApi = agentApi
+               syncId = syncId
             )
          } catch (exception: Exception) {
             val errorId = buildShortRandomString()

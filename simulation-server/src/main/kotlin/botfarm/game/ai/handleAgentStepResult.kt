@@ -20,16 +20,23 @@ fun handleAgentStepResult(
    characterComponent: EntityComponent<CharacterComponentData>,
    state: AgentState,
    entity: Entity,
-   syncId: String,
-   agentApi: AgentApi
+   syncId: String
 ) {
+   val agentType = agentComponent.data.agentType
+   val debugInfo = "$agentType, syncId = $syncId"
+
+   val agentApi = AgentApi(
+      entity = entity,
+      state = state,
+      simulation = simulation,
+      debugInfo = debugInfo
+   )
+
    val interactions = agentStepResult.interactions
 
    val currentLocation = positionComponent.data.positionAnimation.resolve(simulationTimeForStep)
 
-   val agentType = agentComponent.data.agentType
 
-   val debugInfo = "$agentType, syncId = $syncId"
 
    agentComponent.modifyData {
       it.copy(
