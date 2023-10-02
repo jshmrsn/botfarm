@@ -524,6 +524,10 @@ open class Simulation(
          )
       }
 
+      this.coroutineSystems.forEach { coroutineSystem ->
+         coroutineSystem.cleanUp()
+      }
+
       return TickResult(
          shouldTerminate = false
       )
@@ -638,7 +642,7 @@ open class Simulation(
          return
       }
 
-      println("handleWebSocketMessage: $messageType: From client ${client.clientId}")
+//      println("handleWebSocketMessage: $messageType: From client ${client.clientId}")
 
       try {
          this.handleClientMessage(

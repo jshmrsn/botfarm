@@ -90,6 +90,7 @@ suspend fun agentCoroutineSystem(
       }
 
       delay(500)
+      context.unwindIfNeeded()
    }
 }
 
@@ -117,6 +118,7 @@ private suspend fun step(
 
    val simulationTimeForStep: Double
 
+   context.unwindIfNeeded()
    synchronized(simulation) {
       val observationDistance = agentComponent.data.observationDistance
 
@@ -280,7 +282,9 @@ private suspend fun step(
       }
    }
 
+   context.unwindIfNeeded()
    val remoteAgentStepResults = remoteAgentIntegration.sendSyncRequest(agentSyncInputs)
+   context.unwindIfNeeded()
 
    context.synchronize {
       agentComponent.modifyData {

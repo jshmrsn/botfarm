@@ -4,7 +4,8 @@ import botfarm.engine.ktorplugins.AdminRequest
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.buildShortRandomString
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.serialization.Serializable
 import java.util.concurrent.Executors
 import kotlin.reflect.KClass
@@ -21,7 +22,22 @@ class CoroutineSystemContext(
    val simulation: Simulation,
    val simulationContainer: SimulationContainer
 ) {
+   var coroutineShouldStop = false
+      private set
+
+   fun unwindIfNeeded() {
+      if (this.coroutineShouldStop) {
+         throw EndCoroutineThrowable()
+      }
+   }
+
+   fun cancel() {
+      this.coroutineShouldStop = true
+   }
+
    fun synchronize(logic: () -> Unit) {
+      this.unwindIfNeeded()
+
       synchronized(this.simulation) {
          logic()
       }
@@ -78,69 +94,6 @@ class TickSystem(
             it.callback(tickContext)
          } catch (exception: Exception) {
             println("Exception in tick system: ${exception.stackTraceToString()}")
-         }
-      }
-   }
-}
-
-class CoroutineSystem(
-   val simulation: Simulation,
-   val registeredCoroutineSystem: RegisteredCoroutineSystem
-) {
-   class Entry(
-      val entity: Entity,
-      val job: Job
-   )
-
-   private val entries = mutableListOf<Entry>()
-
-   fun activateForEntity(
-      entity: Entity,
-      simulationContainer: SimulationContainer
-   ) {
-      val callback = this.registeredCoroutineSystem.checkEntity(entity)
-
-      if (callback != null) {
-         val simulation = this.simulation
-
-         val job = CoroutineScope(simulationContainer.coroutineDispatcher).launch {
-            try {
-               callback(
-                  CoroutineSystemContext(
-                     entity = entity,
-                     simulation = simulation,
-                     simulationContainer = simulationContainer
-                  )
-               )
-            } catch (exception: Exception) {
-               println("Exception in coroutine system logic for entity: ${entity.entityId}\nException was : ${exception.stackTraceToString()}")
-            }
-         }
-
-         this.entries.add(
-            Entry(
-               entity = entity,
-               job = job
-            )
-         )
-      }
-   }
-
-   fun handleTermination() {
-      this.entries.forEach {
-         it.job.cancel()
-      }
-
-      this.entries.clear()
-   }
-
-   fun deactivateForEntity(entity: Entity) {
-      this.entries.removeIf {
-         if (it.entity == entity) {
-            it.job.cancel()
-            true
-         } else {
-            false
          }
       }
    }
