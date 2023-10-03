@@ -1,7 +1,7 @@
 import {ActivityStreamComponentData} from "../game/activityStreamComponentData";
 import {Text} from "@mantine/core";
 import {IconMessages} from "@tabler/icons-react";
-import {ActivityStreamComponent} from "./ActivityStreamComponent";
+import {ActivityStreamList} from "./ActivityStreamList";
 import React from "react";
 import {Entity} from "../simulation/Entity";
 import {DynamicState} from "./DynamicState";
@@ -60,7 +60,7 @@ export function ActivityPanel(props: ActivityPanelProps) {
       <Text>Activity</Text>
     </div>
 
-    <ActivityStreamComponent
+    <ActivityStreamList
       activityStream={activityStream}
       dynamicState={dynamicState}
     />

@@ -67,11 +67,15 @@ export const SimulationComponent = (props: SimulationProps) => {
     throw new Error("simulationId is null")
   }
 
+  const [windowWidth, windowHeight] = useWindowSize()
+  const useMobileLayout = windowWidth < 600
+
+
   const [shouldShowDebugPanel, setShouldShowDebugPanel] = useState(false)
   const [shouldShowHelpPanel, setShouldShowHelpPanel] = useState(false)
   const [shouldShowMenuPanel, setShouldShowMenuPanel] = useState(false)
 
-  const [showingPanels, setShowingPanels] = useState<PanelTypes[]>([])
+  const [showingPanels, setShowingPanels] = useState<PanelTypes[]>(useMobileLayout ? [] : [PanelTypes.Activity])
   const [chatInputIsFocused, setChatInputIsFocused] = useState(false)
 
   const [_forceUpdateCounter, setForceUpdateCounter] = useState(0)
@@ -99,7 +103,6 @@ export const SimulationComponent = (props: SimulationProps) => {
   }) ?? null
     : null
 
-  const [windowWidth, windowHeight] = useWindowSize()
 
   const navigate = useNavigate();
 
@@ -178,8 +181,6 @@ export const SimulationComponent = (props: SimulationProps) => {
     setWasDisconnected(false)
     setIsViewingReplay(true)
   }
-
-  const useMobileLayout = windowWidth < 600
 
   if (dynamicState.phaserScene != null) {
     dynamicState.selectedEntityId = selectedEntityId

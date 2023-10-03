@@ -9,12 +9,29 @@ import {CharacterBodySelections, CharacterComponent, CharacterComponentData} fro
 import {Simulation} from "../simulation/Simulation";
 import {SimulationScene} from "../game/SimulationScene";
 import {DynamicState} from "./DynamicState";
+import styled from "styled-components";
+import {resolveEntityPositionForCurrentTime} from "../common/PositionComponentData";
 
 interface Props {
   activityStream: ActivityStreamEntry[]
   dynamicState: DynamicState
 }
 
+const ListButton = styled.div`
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: center;
+  border-radius: 3px;
+  padding: 5px;
+  padding-left: 10px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.75);
+  }
+
+  cursor: pointer;
+`;
 
 function buildDivForProfileIconLayers(
   entityId: EntityId | null,
@@ -72,7 +89,7 @@ function buildDivForProfileIconLayers(
 }
 
 
-export function ActivityStreamComponent(props: Props): JSX.Element {
+export function ActivityStreamList(props: Props): JSX.Element {
   const activityStream = props.activityStream
   const dynamicState = props.dynamicState
   const simulation = dynamicState.simulation!
@@ -94,15 +111,6 @@ export function ActivityStreamComponent(props: Props): JSX.Element {
   }
 
   const content = activityStream.map((activityStreamEntry, activityStreamIndex) => {
-    if (activityStreamEntry.sourceEntityId != null) {
-      const sourceEntity = simulation.getEntityOrNull(activityStreamEntry.sourceEntityId)
-
-      if (sourceEntity != null) {
-        // todo: allowing click to move camera to look at entity
-      }
-    }
-
-
     const phaserScene = props.dynamicState.phaserScene!
 
     const sourceProfileIconDiv = buildDivForProfileIconLayers(
@@ -117,7 +125,7 @@ export function ActivityStreamComponent(props: Props): JSX.Element {
       phaserScene
     )
 
-    return <div
+    return <ListButton
       key={"activity-stream-entry-" + activityStreamIndex}
       ref={activityStreamIndex === (activityStream.length - 1)
         ? (entry => {
@@ -133,6 +141,21 @@ export function ActivityStreamComponent(props: Props): JSX.Element {
           }
         })
         : null}
+      onClick={(event) => {
+        event.stopPropagation()
+
+        if (activityStreamEntry.sourceLocation != null) {
+          props.dynamicState.phaserScene?.centerCameraOnLocation(activityStreamEntry.sourceLocation)
+        } else if (activityStreamEntry.sourceEntityId != null) {
+          const sourceEntity = simulation.getEntityOrNull(activityStreamEntry.sourceEntityId)
+
+          if (sourceEntity != null) {
+            const sourceEntityPosition = resolveEntityPositionForCurrentTime(sourceEntity)
+            props.dynamicState.phaserScene?.centerCameraOnLocation(sourceEntityPosition)
+          }
+        }
+
+      }}
       style={{
         display: "flex",
         flexDirection: "row",
@@ -206,7 +229,7 @@ export function ActivityStreamComponent(props: Props): JSX.Element {
           /> : null}
         </div>
       </div>
-    </div>
+    </ListButton>
   }).reverse()
 
   const scrollForNewMessagesButton = <div

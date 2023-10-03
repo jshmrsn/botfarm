@@ -1062,6 +1062,10 @@ export class SimulationScene extends Phaser.Scene {
     }
   }
 
+  centerCameraOnLocation(location: Vector2) {
+    this.mainCamera.centerOn(location.x, location.y)
+  }
+
   create() {
     this.scale.on('resize', this.resize, this);
 
