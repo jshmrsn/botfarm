@@ -85,7 +85,7 @@ export function ReplayControls(props: ReplayControlsProps): JSX.Element {
   </div>
 }
 
-function formatSeconds(seconds: number): string {
+export function formatSeconds(seconds: number): string {
   let minutes = Math.floor(seconds / 60);
   let extraSeconds = seconds % 60;
   let minutesString = minutes < 10 ? "0" + minutes : minutes;

@@ -146,7 +146,9 @@ class Observations(
    val actionOnEntityRecords: List<ActionOnEntityRecord>,
    val actionOnInventoryItemActionRecords: List<ActionOnInventoryItemRecord>,
    val craftItemActionRecords: List<CraftItemActionRecord>,
-   val activityStreamEntries: List<ActivityStreamEntryRecord>
+   val activityStreamEntries: List<ActivityStreamEntryRecord>,
+   val actionResults: List<ActionResult>,
+   val startedActionUniqueIds: List<String>
 )
 
 @Serializable

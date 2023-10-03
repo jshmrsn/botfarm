@@ -6,7 +6,8 @@ import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponentData
 
 data class PositionComponentData(
-   val positionAnimation: Vector2Animation = Vector2Animation()
+   val positionAnimation: Vector2Animation = Vector2Animation(),
+   val movementId: String = "default"
 ) : EntityComponentData()
 
 fun Entity.resolvePosition(): Vector2 {

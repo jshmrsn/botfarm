@@ -1,4 +1,4 @@
-package botfarmagent.game.agents.default
+package botfarmagent.game.agents.legacy
 
 import botfarm.agentserver.*
 import botfarm.agentserver.ModelInfo
@@ -16,7 +16,7 @@ import kotlin.math.roundToInt
 
 private val constants = AgentResponseSchema_v1
 
-class DefaultAgent(
+class LegacyAgent(
    agentContext: AgentContext,
    val useGpt4: Boolean,
    val useFunctionCalling: Boolean
@@ -633,7 +633,8 @@ class DefaultAgent(
          speak = iWantToSay,
          facialExpressionEmoji = facialExpressionEmoji,
          craftItemAction = craftItemAction,
-         useEquippedToolItem = useEquippedToolItem
+         useEquippedToolItem = useEquippedToolItem,
+         actionUniqueId = buildShortRandomString()
       )
 
       val newDebugInfoLines = mutableListOf<String>()

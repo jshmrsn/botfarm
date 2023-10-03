@@ -29,7 +29,7 @@ interface ActiveGrowth {
 
 interface GrowerComponent {
   readonly activeGrowth: ActiveGrowth | null
-  startGrowingEquippedItem()
+  startGrowingEquippedItem(reason?: string | null)
 }
 
 interface ItemOnGroundComponent {
@@ -38,13 +38,13 @@ interface ItemOnGroundComponent {
   itemTypeId: string
   canBePickedUp: boolean
   amount: number
-  pickup()
+  pickup(reason?: string | null)
 }
 
 interface DamageableComponent {
   hp: number
   canBeDamagedByEquippedItemTypeId: string | null
-  attackWithEquippedItem()
+  attackWithEquippedItem(reason?: string | null)
 }
 
 interface CharacterComponent {
@@ -62,10 +62,10 @@ interface InventoryItemStack {
   readonly spawnItemOnUseItemTypeId: string | null
   readonly canBeUsedWhenEquipped: boolean
 
-  dropAll()
-  dropAmount(amount: number)
-  equip()
-  use() // NOTE: Must be equipped before using, and requires canBeUsedWhenEquipped
+  dropAll(reason?: string | null)
+  dropAmount(amount: number, reason?: string | null)
+  equip(reason?: string | null)
+  use(reason?: string | null) // NOTE: Must be equipped before using, and requires canBeUsedWhenEquipped
 }
 
 interface ItemCostEntry {
@@ -89,6 +89,6 @@ declare function getAllCraftingRecipes(): CraftingRecipe[];
 declare function getTotalInventoryAmountForItemTypeId(itemTypeId: string): number
 
 // General actions you can take
-declare function walkTo(location: Vector2);
+declare function walkTo(location: Vector2, reason?: string | null);
 declare function speak(wordsToSay: string);
 declare function recordThought(thought: string);

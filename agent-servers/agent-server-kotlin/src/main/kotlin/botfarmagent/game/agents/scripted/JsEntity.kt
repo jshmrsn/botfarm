@@ -95,9 +95,10 @@ class JsItemOnGroundComponent(
    @HostAccess.Export @JvmField val amount: Int
 ) {
    @HostAccess.Export
-   fun pickup() {
+   fun pickup(reason: String?) {
       this.api.pickUpItem(
-         entityId = this.entityInfo.entityId.value
+         entityId = this.entityInfo.entityId.value,
+         reason = reason
       )
    }
 }
@@ -109,9 +110,10 @@ class JsDamageableComponent(
    @HostAccess.Export @JvmField val canBeDamagedByEquippedItemTypeId: String?
 ) {
    @HostAccess.Export
-   fun attackWithEquippedItem() {
+   fun attackWithEquippedItem(reason: String?) {
       this.api.interactWithEntity(
-         entityId = this.entityInfo.entityId.value
+         entityId = this.entityInfo.entityId.value,
+         reason = reason
       )
    }
 }
@@ -144,9 +146,10 @@ class JsGrowerComponent(
    @HostAccess.Export @JvmField val activeGrowth: JsActiveGrowth?
 ) {
    @HostAccess.Export
-   fun startGrowingEquippedItem() {
+   fun startGrowingEquippedItem(reason: String?) {
       this.api.interactWithEntity(
-         entityId = this.entityInfo.entityId.value
+         entityId = this.entityInfo.entityId.value,
+         reason = reason
       )
    }
 }

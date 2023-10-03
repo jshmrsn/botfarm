@@ -2,6 +2,7 @@ package botfarm.game.ai
 
 import botfarmshared.misc.Vector2
 import botfarm.common.PositionComponentData
+import botfarm.engine.simulation.AlertMode
 import botfarm.game.components.AgentComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.GameSimulation
@@ -9,6 +10,7 @@ import botfarm.game.components.InventoryComponentData
 import botfarmshared.game.apidata.*
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
+import botfarm.game.components.isDead
 import botfarm.game.systems.AgentState
 
 fun handleAgentStepResult(
@@ -51,7 +53,7 @@ fun handleAgentStepResult(
    }
 
    if (agentStepResult.error != null) {
-      simulation.broadcastAlertAsGameMessage("Error from remote agent: " + agentStepResult.error)
+      simulation.broadcastAlertMessage(AlertMode.ConsoleError, "Error from remote agent: " + agentStepResult.error)
 
       agentComponent.modifyData {
          it.copy(
@@ -62,9 +64,20 @@ fun handleAgentStepResult(
       return
    }
 
-
    if (actions != null) {
+      val actionUniqueId = actions.actionUniqueId
+      println("Action started: $actionUniqueId")
       val speak = actions.speak
+      state.newObservations.startedActionUniqueIds.add(actionUniqueId)
+
+      fun addActionResult() {
+         println("Action completed result: $actionUniqueId")
+         state.newObservations.actionResults.add(
+            ActionResult(
+               actionUniqueId = actionUniqueId
+            )
+         )
+      }
 
       val facialExpressionEmoji = actions.facialExpressionEmoji
 
@@ -76,7 +89,6 @@ fun handleAgentStepResult(
       val actionOnInventoryItem = actions.actionOnInventoryItem
       val craftItemAction = actions.craftItemAction
 
-
       if (facialExpressionEmoji != null) {
          characterComponent.modifyData {
             it.copy(
@@ -87,6 +99,7 @@ fun handleAgentStepResult(
 
       if (speak != null) {
          agentApi.speak(speak)
+         addActionResult()
       }
 
       if (locationToWalkToAndReason != null) {
@@ -106,10 +119,21 @@ fun handleAgentStepResult(
                )
             )
 
-            simulation.moveEntityToPoint(
+            val movementResult = simulation.moveEntityToPoint(
                entity = entity,
                endPoint = endPoint
             )
+
+            if (movementResult is GameSimulation.MoveToResult.Success) {
+               agentApi.waitForMovement(
+                  positionComponent = positionComponent,
+                  movementResult = movementResult
+               ) {
+                  addActionResult()
+               }
+            } else {
+               addActionResult()
+            }
          } else {
             throw Exception("Unexpected location size for locationToWalkToAndReason: ${locationToWalkTo.size}")
          }
@@ -131,6 +155,8 @@ fun handleAgentStepResult(
                itemConfigKey = itemConfigKey
             )
          )
+
+         addActionResult()
       }
 
       if (useEquippedToolItem != null) {
@@ -140,8 +166,11 @@ fun handleAgentStepResult(
          )
 
          if (result !is GameSimulation.UseEquippedItemResult.Success) {
+            addActionResult()
             simulation.broadcastAlertAsGameMessage("Unable to use equipped item for agent ($debugInfo): result ${result::class.simpleName}")
          } else {
+            addActionResult()
+
             state.newObservations.actionOnInventoryItemActionRecords.add(
                ActionOnInventoryItemRecord(
                   startedAtTime = simulationTimeForStep,
@@ -164,6 +193,8 @@ fun handleAgentStepResult(
 
          when (actionId) {
             "equipItem" -> {
+               addActionResult()
+
                val equipResult = simulation.equipItem(
                   entity = entity,
                   expectedItemConfigKey = itemConfigKey,
@@ -201,6 +232,8 @@ fun handleAgentStepResult(
                      .firstOrNull()?.first
 
 
+               addActionResult()
+
                if (stackIndex == null) {
                   simulation.broadcastAlertAsGameMessage("Unable to find available item stack to drop ($debugInfo): actionId = $actionId, itemConfigKey = $itemConfigKey")
                } else {
@@ -218,6 +251,7 @@ fun handleAgentStepResult(
             }
 
             else -> {
+               addActionResult()
                simulation.broadcastAlertAsGameMessage("Unexpected action on inventory item ($debugInfo): actionId = $actionId, itemConfigKey = $itemConfigKey")
             }
          }
@@ -240,15 +274,6 @@ fun handleAgentStepResult(
 
          val reason = actionOnEntity.reason
 
-         state.newObservations.actionOnEntityRecords.add(
-            ActionOnEntityRecord(
-               startedAtTime = simulationTimeForStep,
-               targetEntityId = targetEntityId,
-               actionId = actionIdKey,
-               reason = reason
-            )
-         )
-
          val targetEntity = simulation.getEntityOrNull(targetEntityId)
 
          if (targetEntity == null) {
@@ -265,14 +290,36 @@ fun handleAgentStepResult(
             } else {
                simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
             }
+            addActionResult()
          } else if (actionIdKey == "pickupItem" ||
             actionIdKey == "harvestItem" ||
             actionIdKey == "plantItem" ||
             actionIdKey == "interact"
          ) {
-            agentApi.interactWithEntity(targetEntity)
+            val movementResult = agentApi.interactWithEntity(targetEntity)
+
+            if (movementResult is GameSimulation.MoveToResult.Success) {
+               agentApi.waitForMovement(
+                  positionComponent = positionComponent,
+                  movementResult = movementResult
+               ) {
+                  state.newObservations.actionOnEntityRecords.add(
+                     ActionOnEntityRecord(
+                        startedAtTime = simulationTimeForStep,
+                        targetEntityId = targetEntityId,
+                        actionId = actionIdKey,
+                        reason = reason
+                     )
+                  )
+
+                  addActionResult()
+               }
+            } else {
+               addActionResult()
+            }
          } else {
             simulation.broadcastAlertAsGameMessage("Unhandled action id from AI ($debugInfo): $actionIdKey")
+            addActionResult()
          }
       }
    }

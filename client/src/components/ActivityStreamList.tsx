@@ -11,6 +11,7 @@ import {SimulationScene} from "../game/SimulationScene";
 import {DynamicState} from "./DynamicState";
 import styled from "styled-components";
 import {resolveEntityPositionForCurrentTime} from "../common/PositionComponentData";
+import {formatSeconds} from "./ReplayControls";
 
 interface Props {
   activityStream: ActivityStreamEntry[]
@@ -182,7 +183,10 @@ export function ActivityStreamList(props: Props): JSX.Element {
           flexGrow: 1
         }}
       >
-        <Text><b>{activityStreamEntry.title}</b></Text>
+        <Text><b>{activityStreamEntry.title}</b> <span style={{
+          fontSize: 11,
+          color: "rgba(0, 0, 0, 0.5)",
+        }}>({formatSeconds(activityStreamEntry.time)})</span></Text>
         {/*<Text><b>{activityStreamEntry.time.toFixed()}</b></Text>*/}
 
         <div

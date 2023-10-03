@@ -467,14 +467,14 @@ class GameSimulation(
 
       val characterComponent = entity.getComponent<CharacterComponentData>()
 
-      if (result != MoveToResult.Success) {
+      if (result !is MoveToResult.Success) {
          characterComponent.modifyData {
             it.copy(
                pendingInteractionTargetEntityId = null,
                pendingUseEquippedToolItemRequest = null
             )
          }
-         sendAlertMessage(client, "Move to point failed: " + result.name)
+         sendAlertMessage(client, "Move to point failed: " + result::class.simpleName)
       } else {
          characterComponent.modifyData {
             it.copy(
@@ -1032,10 +1032,10 @@ class GameSimulation(
       return PickUpItemResult.Success
    }
 
-   enum class MoveToResult {
-      Success,
-      PathNotFound,
-      NoPositionComponent
+   sealed class MoveToResult {
+      class Success(val movementId: String) : MoveToResult()
+      data object PathNotFound : MoveToResult()
+      data object NoPositionComponent : MoveToResult()
    }
 
    fun moveEntityToPoint(
@@ -1056,7 +1056,9 @@ class GameSimulation(
          if (previousDestination.value.distance(endPoint) < 0.01) {
             // jshmrsn: Avoid creating buffer delays when entity isn't actually going to change destination
             // This improves responsiveness of e.g. the auto-interaction system
-            return MoveToResult.Success
+            return MoveToResult.Success(
+               movementId = positionComponent.data.movementId
+            )
          }
       }
 
@@ -1134,6 +1136,8 @@ class GameSimulation(
          )
       }
 
+      val movementId = buildShortRandomString()
+
       positionComponent.modifyData {
          it.copy(
             positionAnimation = Vector2Animation(
@@ -1142,7 +1146,9 @@ class GameSimulation(
          )
       }
 
-      return MoveToResult.Success
+      return MoveToResult.Success(
+         movementId = movementId
+      )
    }
 
    fun spawnItems(

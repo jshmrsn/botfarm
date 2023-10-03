@@ -4,7 +4,6 @@ import botfarmshared.game.apidata.ItemStackInfo
 import org.graalvm.polyglot.HostAccess
 
 
-
 class JsInventoryItemStackInfo(
    val api: AgentJavaScriptApi,
    val itemStackInfo: ItemStackInfo,
@@ -44,37 +43,57 @@ class JsInventoryItemStackInfo(
 
    @HostAccess.Export
    fun dropAll() {
+      this.dropAll(reason = null)
+   }
+
+   @HostAccess.Export
+   fun dropAll(reason: String?) {
       this.api.dropItem(
          itemConfigKey = this.itemTypeId,
          stackIndex = this.stackIndex,
          amount = null,
-         reason = null
+         reason = reason
       )
    }
 
    @HostAccess.Export
    fun dropAmount(amount: Int) {
+      this.dropAmount(amount = amount, reason = null)
+   }
+
+   @HostAccess.Export
+   fun dropAmount(amount: Int, reason: String?) {
       this.api.dropItem(
          itemConfigKey = this.itemTypeId,
          stackIndex = this.stackIndex,
          amount = amount,
-         reason = null
+         reason = reason
       )
    }
 
    @HostAccess.Export
    fun equip() {
+      this.equip(reason = null)
+   }
+
+   @HostAccess.Export
+   fun equip(reason: String?) {
       this.api.equipItem(
          itemConfigKey = this.itemTypeId,
          stackIndex = this.stackIndex,
-         reason = null
+         reason = reason
       )
    }
 
    @HostAccess.Export
    fun use() {
+      this.use(reason = null)
+   }
+
+   @HostAccess.Export
+   fun use(reason: String?) {
       this.api.useEquippedItem(
-         reason = null
+         reason = reason
       )
    }
 }

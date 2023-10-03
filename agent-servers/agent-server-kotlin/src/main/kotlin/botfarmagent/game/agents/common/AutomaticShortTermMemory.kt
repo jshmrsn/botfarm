@@ -4,7 +4,8 @@ class AutomaticShortTermMemory(
    val time: Double,
    val summary: String,
    val deDuplicationCategory: String? = null,
-   val forcePreviousActivity: Boolean = false
+   val forcePreviousActivity: Boolean = false,
+   val isHighPriority: Boolean = false
 )
 
 fun deDuplicateOldAutomaticMemories(automaticShortTermMemories: MutableList<AutomaticShortTermMemory>) {

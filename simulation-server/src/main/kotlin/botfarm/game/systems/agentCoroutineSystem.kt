@@ -11,6 +11,7 @@ import botfarm.game.config.ItemConfig
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomString
 import kotlinx.coroutines.delay
+import java.net.ConnectException
 
 class AgentState(
    val simulation: GameSimulation
@@ -54,6 +55,17 @@ suspend fun agentCoroutineSystem(
             agentId = agentId,
             syncId = syncId
          )
+      } catch (connectException: ConnectException) {
+         context.synchronize {
+            agentComponent.modifyData {
+               it.copy(
+                  agentIntegrationStatus = "exception",
+                  agentError = "Agent connection refused"
+               )
+            }
+         }
+
+         delay(3000)
       } catch (exception: Exception) {
          val errorId = buildShortRandomString()
          simulation.broadcastAlertAsGameMessage("Exception in character agent logic (errorId = $errorId)")
@@ -67,9 +79,11 @@ suspend fun agentCoroutineSystem(
                )
             }
          }
+
+         delay(3000)
       }
 
-      delay(500)
+      delay(1000)
       context.unwindIfNeeded()
    }
 }

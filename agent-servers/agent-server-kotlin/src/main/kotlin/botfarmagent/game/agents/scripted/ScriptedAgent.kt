@@ -4,19 +4,21 @@ import botfarm.agentserver.*
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
 import botfarmagent.game.agents.common.*
-import botfarmagent.game.agents.default.UpdateMemoryResult
-import botfarmagent.game.agents.default.updateMemory
+import botfarmagent.game.agents.common.UpdateMemoryResult
+import botfarmagent.game.agents.common.updateMemory
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.PromptUsageInfo
+import botfarmshared.game.apidata.ActionResult
 import botfarmshared.game.apidata.AgentStepResult
 import botfarmshared.game.apidata.AgentSyncInputs
 import botfarmshared.game.apidata.EntityInfo
 import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
+import kotlinx.coroutines.delay
 import org.graalvm.polyglot.Context
-import kotlin.math.roundToInt
-import org.graalvm.polyglot.*
+import org.graalvm.polyglot.Source
 import kotlin.concurrent.thread
+import kotlin.math.roundToInt
 
 
 class ScriptedAgent(
@@ -29,12 +31,17 @@ class ScriptedAgent(
 
    val memoryState = MemoryState()
 
+   val receivedActionStartedIds = mutableSetOf<String>()
+   val receivedActionResultById = mutableMapOf<String, ActionResult>()
+
    val javaScriptContext: Context =
       Context.newBuilder("js")
          .option("js.strict", "true")
          .build()
 
+   private var activeScriptPromptId: String? = null
    private var activeScriptThread: Thread? = null
+   private var mostRecentScript: String? = null
 
    val agentJavaScriptApi: AgentJavaScriptApi
 
@@ -69,24 +76,35 @@ class ScriptedAgent(
          )
       }
 
-      initialLongTermMemories.forEach { memory ->
-         this.memoryState.automaticShortTermMemories.add(
-            AutomaticShortTermMemory(
-               time = simulationTime,
-               summary = "I had the thought: \"" + memory.content + "\"",
-            )
+      val initialAutomaticShortTermMemory = initialLongTermMemories.map { memory ->
+         AutomaticShortTermMemory(
+            time = simulationTime,
+            summary = "I had the thought: \"" + memory.content + "\"",
          )
       }
+
+      this.memoryState.automaticShortTermMemories.addAll(initialAutomaticShortTermMemory)
+      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.addAll(initialAutomaticShortTermMemory)
 
       this.memoryState.longTermMemories.addAll(initialLongTermMemories)
    }
 
    override fun consumeInputs(inputs: AgentSyncInputs) {
-      val pendingEvents = inputs.newObservations
+      val newObservations = inputs.newObservations
+
+      newObservations.startedActionUniqueIds.forEach {
+         println("Got action started: $it")
+         this.receivedActionStartedIds.add(it)
+      }
+
+      newObservations.actionResults.forEach {
+         println("Got action completed result: ${it.actionUniqueId}")
+         this.receivedActionResultById[it.actionUniqueId] = it
+      }
 
       val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
          .also { newAutomaticShortTermMemories ->
-            pendingEvents.activityStreamEntries.forEach { activityStreamEntry ->
+            newObservations.activityStreamEntries.forEach { activityStreamEntry ->
                if (activityStreamEntry.sourceEntityId != inputs.selfInfo.entityInfo.entityId) {
                   newAutomaticShortTermMemories.add(
                      AutomaticShortTermMemory(
@@ -99,7 +117,7 @@ class ScriptedAgent(
                }
             }
 
-            pendingEvents.selfSpokenMessages.forEach { selfSpokenMessage ->
+            newObservations.selfSpokenMessages.forEach { selfSpokenMessage ->
                newAutomaticShortTermMemories.add(
                   AutomaticShortTermMemory(
                      time = selfSpokenMessage.time,
@@ -109,11 +127,12 @@ class ScriptedAgent(
                )
             }
 
-            pendingEvents.spokenMessages.forEach { observedMessage ->
+            newObservations.spokenMessages.forEach { observedMessage ->
                newAutomaticShortTermMemories.add(
                   AutomaticShortTermMemory(
                      time = observedMessage.time,
                      summary = "I heard ${observedMessage.characterName} say \"${observedMessage.message}\" (they were at ${observedMessage.speakerLocation.asJsonArrayRounded})",
+                     isHighPriority = true
                   )
                )
             }
@@ -124,7 +143,7 @@ class ScriptedAgent(
                ""
             }
 
-            pendingEvents.movementRecords.forEach { movement ->
+            newObservations.movementRecords.forEach { movement ->
                val movementSummary =
                   "I started walking from ${movement.startPoint.asJsonArrayRounded} to ${movement.endPoint.asJsonArrayRounded}" + buildReasonSuffix(
                      movement.reason
@@ -140,7 +159,7 @@ class ScriptedAgent(
                )
             }
 
-            pendingEvents.actionOnEntityRecords.forEach { record ->
+            newObservations.actionOnEntityRecords.forEach { record ->
                newAutomaticShortTermMemories.add(
                   AutomaticShortTermMemory(
                      time = record.startedAtTime,
@@ -152,7 +171,7 @@ class ScriptedAgent(
                )
             }
 
-            pendingEvents.actionOnInventoryItemActionRecords.forEach { record ->
+            newObservations.actionOnInventoryItemActionRecords.forEach { record ->
                newAutomaticShortTermMemories.add(
                   AutomaticShortTermMemory(
                      time = record.startedAtTime,
@@ -164,7 +183,7 @@ class ScriptedAgent(
                )
             }
 
-            pendingEvents.craftItemActionRecords.forEach { record ->
+            newObservations.craftItemActionRecords.forEach { record ->
                newAutomaticShortTermMemories.add(
                   AutomaticShortTermMemory(
                      time = record.startedAtTime,
@@ -179,9 +198,13 @@ class ScriptedAgent(
          .sortedBy { it.time }
 
       this.memoryState.automaticShortTermMemories.addAll(newAutomaticShortTermMemories)
+      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.addAll(newAutomaticShortTermMemories)
 
       this.memoryState.automaticShortTermMemories.sortBy { it.time }
+      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.sortBy { it.time }
+
       deDuplicateOldAutomaticMemories(this.memoryState.automaticShortTermMemories)
+      deDuplicateOldAutomaticMemories(this.memoryState.automaticShortTermMemoriesSinceLastPrompt)
    }
 
    override suspend fun step(
@@ -258,10 +281,26 @@ class ScriptedAgent(
          (entry.time > this.previousPromptSendSimulationTime) && !entry.forcePreviousActivity
       }
 
+      val automaticShortTermMemoriesSinceLastPrompt = this.memoryState.automaticShortTermMemoriesSinceLastPrompt
+
+      val hasHighPriorityMemorySinceLastPrompt = automaticShortTermMemoriesSinceLastPrompt.find {
+         it.isHighPriority
+      } != null
+
       val timeSincePrompt = getCurrentUnixTimeSeconds() - this.previousPromptDoneUnixTime
-      val shouldPrompt = timeSincePrompt > 5.0
+
+      val newPromptTimeLimit = if (hasHighPriorityMemorySinceLastPrompt) {
+         8.0
+      } else if (this.activeScriptPromptId == null) {
+         15.0
+      } else {
+         60.0
+      }
+
+      val shouldPrompt = timeSincePrompt > newPromptTimeLimit
 
       if (!shouldPrompt) {
+         println("Not prompting yet (${timeSincePrompt.roundToInt()} / $newPromptTimeLimit seconds) ($agentId)")
          return
       }
 
@@ -305,6 +344,9 @@ class ScriptedAgent(
             
             Do not write any comments in your javascript code. Only respond with the block of JavaScript code, don't explain it. Write your code as top-level statements. Surround your code block with markdown tags.
 
+            If you have a thought, observation, or reflection you'd like to remember for later, use the recordThought function to remember it.
+            If you don't use the recordThought function, you will forget it.
+            
             Other people you meet in this world may or may not be acting your interest. Act in accordance to your own values and experiences.
             Limit your knowledge to things that you've learned while living in this world, don't talk about the outside world that you've been trained on.
             Do not make things up to seem more believable. If someone asks you something you don't know, then just say you don't know.
@@ -358,6 +400,10 @@ class ScriptedAgent(
       }
 
       val interfacesSection = builder.addSection("interfaces")
+      val interfacesSource = ScriptedAgent::class.java.getResource("/scripted-agent-interfaces.ts")?.readText()
+         ?: throw Exception("Scripted agent interfaces resource not found")
+
+      interfacesSection.addLine(interfacesSource)
 
       val craftingRecipesSection = builder.addSection(
          "craftingRecipesSection"
@@ -396,7 +442,7 @@ class ScriptedAgent(
          it.addLine("")
       }
 
-      val inventoryListSection = builder.addSection("inventoryListSection")
+      val inventoryListSection = builder.addSection("inventoryListSection", reserveTokens = 700)
       builder.addSection("after inventoryListSection").also {
          it.addLine("")
          it.addLine("")
@@ -520,10 +566,6 @@ class ScriptedAgent(
          }
       }
 
-      val interfacesSource = ScriptedAgent::class.java.getResource("/scripted-agent-interfaces.ts")?.readText()
-         ?: throw Exception("Scripted agent interfaces resource not found")
-
-      interfacesSection.addLine(interfacesSource)
 
       val selfJsEntity = this.agentJavaScriptApi.buildJsEntity(selfInfo.entityInfo)
 
@@ -597,7 +639,10 @@ class ScriptedAgent(
          val characterEntities = remainingEntities.filter { it.characterInfo != null }
 
          if (characterEntities.isNotEmpty()) {
-            omittedEntitySummarySection.addLine("//     ${characterEntities.size} were other character entities", optional = true)
+            omittedEntitySummarySection.addLine(
+               "//     ${characterEntities.size} were other character entities",
+               optional = true
+            )
          }
 
          val itemInfos = remainingEntities.mapNotNull { it.itemInfo }
@@ -620,84 +665,79 @@ class ScriptedAgent(
       println("prompt: $text")
 
       val promptSendTime = getCurrentUnixTimeSeconds()
-
-//      val responseScript = """
-//         const result = getCurrentNearbyEntities()
-//         const first = result[0]
-//         console.log("first", result[0])
-//         console.log("first location", result[0].location)
-//         console.log("first location.x", result[0].location.x)
-//         console.log("first location mag", result[0].location.getMagnitude())
-//         console.log("first location min", result[0].location.plus(vector2(99999, 0)))
-//         console.log("entity_D0D7FA4F print", entity_D0D7FA4F)
-//
-//         console.log("first json", JSON.stringify(first))
-//      """.trimIndent()
-//
-
       val promptId = buildShortRandomString()
-      val promptResult = runPrompt(
-         openAI = this.context.openAI,
-         modelInfo = modelInfo,
-         promptBuilder = builder,
-         functionName = AgentResponseSchema_v1.functionName,
-         functionSchema = AgentResponseSchema_v1.functionSchema,
-         functionDescription = null,
-         debugInfo = "${inputs.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
-         completionPrefix = completionPrefix,
-         completionMaxTokens = completionMaxTokens,
-         useFunctionCalling = this.useFunctionCalling
-      )
 
-      when (promptResult) {
-         is RunPromptResult.Success -> {
-            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
-         }
-         is RunPromptResult.RateLimitError -> {
-            return this.addPendingResult(
-               AgentStepResult(
-                  error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true,
-                  promptUsages = promptUsages
+
+      val responseText = if (responseOverride != null) {
+         responseOverride
+      } else {
+         val promptResult = runPrompt(
+            openAI = this.context.openAI,
+            modelInfo = modelInfo,
+            promptBuilder = builder,
+            functionName = AgentResponseSchema_v1.functionName,
+            functionSchema = AgentResponseSchema_v1.functionSchema,
+            functionDescription = null,
+            debugInfo = "${inputs.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
+            completionPrefix = completionPrefix,
+            completionMaxTokens = completionMaxTokens,
+            useFunctionCalling = this.useFunctionCalling
+         )
+
+         when (promptResult) {
+            is RunPromptResult.Success -> {
+               promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
+            }
+
+            is RunPromptResult.RateLimitError -> {
+               return this.addPendingResult(
+                  AgentStepResult(
+                     error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
+                     wasRateLimited = true,
+                     promptUsages = promptUsages
+                  )
                )
-            )
-         }
+            }
 
-         is RunPromptResult.ConnectionError -> {
-            return this.addPendingResult(
-               AgentStepResult(
-                  error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true,
-                  promptUsages = promptUsages
+            is RunPromptResult.ConnectionError -> {
+               return this.addPendingResult(
+                  AgentStepResult(
+                     error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
+                     wasRateLimited = true,
+                     promptUsages = promptUsages
+                  )
                )
-            )
-         }
+            }
 
-         is RunPromptResult.UnknownApiError -> {
-            return this.addPendingResult(
-               AgentStepResult(
-                  error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName,
-                  promptUsages = promptUsages
+            is RunPromptResult.UnknownApiError -> {
+               return this.addPendingResult(
+                  AgentStepResult(
+                     error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName,
+                     promptUsages = promptUsages
+                  )
                )
-            )
-         }
+            }
 
-         is RunPromptResult.LengthLimit -> {
-            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
+            is RunPromptResult.LengthLimit -> {
+               promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
 
-            return this.addPendingResult(
-               AgentStepResult(
-                  error = "Prompt exceeded max length (errorId = ${promptResult.errorId})",
-                  promptUsages = promptUsages
+               return this.addPendingResult(
+                  AgentStepResult(
+                     error = "Prompt exceeded max length (errorId = ${promptResult.errorId})",
+                     promptUsages = promptUsages
+                  )
                )
-            )
+            }
          }
+
+         promptResult.responseText
       }
 
-      val responseText: String = promptResult.responseText
 
       this.previousPromptDoneUnixTime = getCurrentUnixTimeSeconds()
       this.previousPromptSendSimulationTime = simulationTimeForStep
+
+      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.clear()
 
       val codeBlockStartIndex = responseText.indexOf("```")
       val responseScript = if (codeBlockStartIndex >= 0) {
@@ -714,11 +754,35 @@ class ScriptedAgent(
          responseText
       }
 
+      val newDebugInfoLines = mutableListOf<String>()
+      newDebugInfoLines.add("### Sync ID: $syncId")
+      newDebugInfoLines.add("")
+
+
+      newDebugInfoLines.add("### Short-Term Memory")
+      newDebugInfoLines.add("")
+
+      newDebugInfoLines.add(this.memoryState.shortTermMemory)
+
+      newDebugInfoLines.add("")
+
+      newDebugInfoLines.add("### Previous Activity")
+      previousActivity.forEach {
+         newDebugInfoLines.add(it.summary)
+      }
+
+      newDebugInfoLines.add("### New Activity")
+      newActivity.forEach {
+         newDebugInfoLines.add(it.summary)
+      }
+
+      newDebugInfoLines.add("### Agent Script")
+      newDebugInfoLines.add("```ts\n$responseScript\n```")
+
       this.addPendingResult(
          AgentStepResult(
             actions = null,
-            newDebugInfo = responseScript.lines()
-               .joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
+            newDebugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",
             promptUsages = promptUsages,
@@ -739,17 +803,41 @@ class ScriptedAgent(
          })()
       """.trimIndent()
 
-      synchronized(this) {
-         val previousThread = this.activeScriptThread
+      val previousThread = this.activeScriptThread
 
-         if (previousThread != null) {
-            if (previousThread.isAlive) {
-               println("Agent script thread exists and is active, so interrupting now ($promptId)")
-               previousThread.interrupt()
-            } else {
-               println("Agent script thread exists, but is not active, so not interrupting ($promptId)")
+      this.agentJavaScriptApi.shouldEndScript = true
+
+      if (previousThread != null) {
+         if (previousThread.isAlive) {
+            println("Agent script thread exists and is active, so attempting to end now ($promptId)")
+
+            val waitStartTime = getCurrentUnixTimeSeconds()
+            val timeout = 5.0
+
+            while (true) {
+               val waitedTime = getCurrentUnixTimeSeconds() - waitStartTime
+               if (!previousThread.isAlive) {
+                  println("Agent script thread has now ended after waiting $waitedTime seconds ($promptId)")
+                  break
+               } else if (waitedTime > timeout) {
+                  println("Agent script thread did not end after $timeout seconds, so interrupting ($promptId)")
+                  previousThread.interrupt()
+                  break
+               } else {
+                  delay(200)
+               }
             }
+
+            delay(200)
+         } else {
+            println("Agent script thread exists, but is not active, so not interrupting ($promptId)")
          }
+      }
+
+      synchronized(this) {
+         this.activeScriptPromptId = promptId
+         this.mostRecentScript = wrappedResponseScript
+         this.agentJavaScriptApi.shouldEndScript = false
 
          this.activeScriptThread = thread {
             val bindings = this.javaScriptContext.getBindings("js")
@@ -763,16 +851,115 @@ class ScriptedAgent(
             try {
                this.javaScriptContext.eval(javaScriptSource)
                println("Agent script thread complete: $promptId")
+               synchronized(this) {
+                  if (this.activeScriptPromptId == promptId) {
+                     this.activeScriptPromptId = null
+                  }
+               }
             } catch (unwindScriptThreadThrowable: UnwindScriptThreadThrowable) {
                println("Got unwind agent script thread throwable ($promptId): ${unwindScriptThreadThrowable.reason}")
+               synchronized(this) {
+                  if (this.activeScriptPromptId == promptId) {
+                     this.activeScriptPromptId = null
+                  }
+               }
             } catch (exception: Exception) {
                println("Exception evaluating agent JavaScript ($promptId): " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
+               synchronized(this) {
+                  this.addPendingResult(
+                     AgentStepResult(
+                        error = "Exception evaluating JavaScript ($promptId)",
+                        agentStatus = "script-exception"
+                     )
+                  )
+               }
             }
          }
       }
    }
+
+   fun recordThought(thought: String) {
+      val newLongTermMemory = LongTermMemory(
+         createdTime = this.mostRecentInputs.simulationTime,
+         content = thought,
+         id = this.memoryState.longTermMemories.size + 1,
+         createdAtLocation = this.mostRecentInputs.selfInfo.entityInfo.location,
+         importance = 0
+      )
+
+      this.memoryState.longTermMemories.add(newLongTermMemory)
+
+      this.memoryState.automaticShortTermMemories.add(
+         AutomaticShortTermMemory(
+            time = this.mostRecentInputs.simulationTime,
+            summary = "I had the thought: " + thought
+         )
+      )
+
+   }
 }
 
-class UnwindScriptThreadThrowable(
-   val reason: String = "default"
-) : Throwable()
+val responseOverride: String? = null
+//   """
+//   const nearbyEntities = getCurrentNearbyEntities();
+//   const nearbyTrees = nearbyEntities.filter(entity => entity.itemOnGround && entity.itemOnGround.itemTypeId === 'tree');
+//
+//   if (nearbyTrees.length > 0) {
+//     // If there are trees nearby, walk to the closest one to chop it down
+//     const closestTree = nearbyTrees.reduce((prev, curr) =>
+//       self.location.distanceTo(prev.location) < self.location.distanceTo(curr.location) ? prev : curr
+//     );
+//     walkTo(closestTree.location, "foo");
+//   } else {
+//     // If there are no trees nearby, walk to a random location
+//     const randomX = Math.random() * 3500;
+//     const randomY = Math.random() * 3500;
+//     walkTo(vector2(randomX, randomY), "foo");
+//   }
+//""".trimIndent()
+//"""
+//   recordThought("Player wants to build a house. I should check if I have enough resources for that.");
+//   const houseRecipe = crafting_recipe_house;
+//   const canAffordHouse = houseRecipe.canCurrentlyAfford;
+//
+//   if (canAffordHouse) {
+//     houseRecipe.craft("Building a house as suggested by Player.");
+//   } else {
+//     speak("I'm sorry, Player. I don't have enough resources to build a house right now. I'll continue gathering more.");
+//   }
+//""".trimIndent()
+//"""
+//         // Check if I can afford to craft a house
+//         const craftingRecipes = getAllCraftingRecipes();
+//         const houseRecipe = craftingRecipes.find(recipe => recipe.itemTypeId === "house");
+//
+//         if (houseRecipe && houseRecipe.canCurrentlyAfford) {
+//           // Craft a house
+//           houseRecipe.craft("I have enough resources to build a house.");
+//         } else {
+//           // If I can't afford a house, I'll continue gathering resources
+//           const nearbyEntities = getCurrentNearbyEntities();
+//           const boulder = nearbyEntities.find(entity => entity.itemOnGround && entity.itemOnGround.itemTypeId === "boulder");
+//           const tree = nearbyEntities.find(entity => entity.itemOnGround && entity.itemOnGround.itemTypeId === "tree");
+//
+//           // Check if I have a pickaxe and an axe in my inventory
+//           const inventoryItems = getCurrentInventoryItemStacks();
+//           const pickaxe = inventoryItems.find(item => item.itemTypeId === "pickaxe");
+//           const axe = inventoryItems.find(item => item.itemTypeId === "axe");
+//
+//           if (boulder && pickaxe) {
+//             // Equip the pickaxe and interact with the boulder
+//             pickaxe.equip("I need to equip this pickaxe to break the boulder.");
+//             boulder.damageable.attackWithEquippedItem("I'm breaking this boulder with my pickaxe.");
+//           } else if (tree && axe) {
+//             // Equip the axe and interact with the tree
+//             axe.equip("I need to equip this axe to cut down the tree.");
+//             tree.damageable.attackWithEquippedItem("I'm cutting down this tree with my axe.");
+//           } else {
+//             // If there are no boulders or trees nearby, I'll walk to a random location
+//             const randomX = Math.floor(Math.random() * 3500);
+//             const randomY = Math.floor(Math.random() * 3500);
+//             walkTo(vector2(randomX, randomY), "I'm walking to a new location to find more resources.");
+//           }
+//         }
+//      """.trimIndent()

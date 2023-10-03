@@ -2,6 +2,7 @@ package botfarmshared.game.apidata
 
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.PromptUsageInfo
+import botfarmshared.misc.buildShortRandomString
 import kotlinx.serialization.Serializable
 
 
@@ -29,6 +30,7 @@ class AgentStepResult(
 
 @Serializable
 class Actions(
+   val actionUniqueId: String = buildShortRandomString(),
    val walk: WalkAction? = null,
    val actionOnEntity: ActionOnEntity? = null,
    val useEquippedToolItem: UseEquippedToolItem? = null,
@@ -36,6 +38,11 @@ class Actions(
    val craftItemAction: CraftItemAction? = null,
    val speak: String? = null,
    val facialExpressionEmoji: String? = null
+)
+
+@Serializable
+class ActionResult(
+   val actionUniqueId: String
 )
 
 @Serializable

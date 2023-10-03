@@ -15,14 +15,19 @@ class MutableObservations {
    val craftItemActionRecords: MutableList<CraftItemActionRecord> = mutableListOf()
    val activityStreamEntries: MutableList<ActivityStreamEntryRecord> = mutableListOf()
 
+   val actionResults: MutableList<ActionResult> = mutableListOf()
+   val startedActionUniqueIds: MutableList<String> = mutableListOf()
+
    fun toObservations(): Observations = Observations(
-      spokenMessages = this.spokenMessages,
-      selfSpokenMessages = this.selfSpokenMessages,
-      entitiesById = this.entitiesById,
-      movementRecords = this.movementRecords,
-      actionOnEntityRecords = this.actionOnEntityRecords,
-      actionOnInventoryItemActionRecords = this.actionOnInventoryItemActionRecords,
-      craftItemActionRecords = this.craftItemActionRecords,
-      activityStreamEntries = this.activityStreamEntries
+      spokenMessages = this.spokenMessages.toList(),
+      selfSpokenMessages = this.selfSpokenMessages.toList(),
+      entitiesById = this.entitiesById.toMap(),
+      movementRecords = this.movementRecords.toList(),
+      actionOnEntityRecords = this.actionOnEntityRecords.toList(),
+      actionOnInventoryItemActionRecords = this.actionOnInventoryItemActionRecords.toList(),
+      craftItemActionRecords = this.craftItemActionRecords.toList(),
+      activityStreamEntries = this.activityStreamEntries.toList(),
+      actionResults = this.actionResults.toList(),
+      startedActionUniqueIds = this.startedActionUniqueIds.toList()
    )
 }

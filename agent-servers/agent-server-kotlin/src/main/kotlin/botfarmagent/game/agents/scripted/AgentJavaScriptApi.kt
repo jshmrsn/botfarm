@@ -1,16 +1,28 @@
 package botfarmagent.game.agents.scripted
 
+import botfarmagent.game.agents.common.LongTermMemory
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.*
 import org.graalvm.polyglot.HostAccess
 
 class AgentJavaScriptApi(
    val agent: ScriptedAgent
 ) {
+   var shouldEndScript = false
+
+   fun endIfRequested() {
+      if (this.shouldEndScript) {
+         throw UnwindScriptThreadThrowable()
+      }
+   }
+
    @HostAccess.Export
    fun speak(message: String) {
-      this.addActions(
+      this.endIfRequested()
+      this.performActionAndWaitForResult(
          Actions(
             speak = message
          )
@@ -20,6 +32,7 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun makeVector2(x: Double, y: Double): JsVector2 {
+      this.endIfRequested()
       return JsVector2(Vector2(x, y))
    }
 
@@ -27,6 +40,7 @@ class AgentJavaScriptApi(
       itemStackInfo: ItemStackInfo,
       stackIndex: Int
    ): JsInventoryItemStackInfo {
+      this.endIfRequested()
       return JsInventoryItemStackInfo(
          api = this,
          stackIndex = stackIndex,
@@ -36,6 +50,7 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun getTotalInventoryAmountForItemTypeId(itemTypeId: String): Int {
+      this.endIfRequested()
       val inventory = this.agent.mostRecentInputs.selfInfo.inventoryInfo
       var total = 0
       inventory.itemStacks.forEach {
@@ -53,7 +68,7 @@ class AgentJavaScriptApi(
 
       craftingRecipe.cost.entries.forEach {
          val currentAmount = this.getTotalInventoryAmountForItemTypeId(itemTypeId = it.itemConfigKey)
-         if (it.amount < currentAmount) {
+         if (currentAmount < it.amount) {
             canCurrentlyAfford = false
          }
       }
@@ -67,6 +82,8 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun getAllCraftingRecipes(): JsArray<JsCraftingRecipe> {
+      this.endIfRequested()
+
       return this.agent.mostRecentInputs.craftingRecipes.map {
          this.buildJsCraftingRecipe(it)
       }.toJs()
@@ -81,6 +98,7 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun getCurrentInventoryItemStacks(): JsArray<JsInventoryItemStackInfo> {
+      this.endIfRequested()
       val inventory = this.agent.mostRecentInputs.selfInfo.inventoryInfo
 
       return inventory.itemStacks.mapIndexed { stackIndex, itemStackInfo ->
@@ -94,6 +112,7 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun getCurrentNearbyEntities(): JsArray<JsEntity> {
+      this.endIfRequested()
       return this.agent.mostRecentInputs.newObservations.entitiesById.values.map { entityInfo ->
          this.buildJsEntity(entityInfo)
       }.toList().toJs()
@@ -101,95 +120,181 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun sleep(millis: Long) {
-      println("Sleeping $millis")
+      this.endIfRequested()
       Thread.sleep(millis)
-      println("Done sleeping $millis")
+      this.endIfRequested()
    }
 
-   fun addActions(actions: Actions) {
+   fun performActionAndWaitForResult(actions: Actions): ActionResult {
+      this.endIfRequested()
+
+      val actionUniqueId = actions.actionUniqueId
+
+      val json = Json {
+         prettyPrint = true
+      }
+
+      val actionJsonString = json.encodeToString(actions)
+
+      println("Added action: ($actionUniqueId)\n${actionJsonString}")
+
       this.agent.addPendingResult(
          AgentStepResult(
             actions = actions
          )
       )
+
+      run {
+         var waitingCounter = 0
+         while (true) {
+            ++waitingCounter
+            this.sleep(250)
+
+            val actionHasStarted = this.agent.receivedActionStartedIds.contains(actionUniqueId)
+
+            if (!actionHasStarted) {
+               println("Action has not yet started, waiting... $actionUniqueId ($waitingCounter)")
+               continue
+            }
+
+            val actionResult = this.agent.receivedActionResultById[actionUniqueId]
+
+            if (actionResult != null) {
+               return actionResult
+            } else {
+               println("Action has not yet completed, waiting... $actionUniqueId ($waitingCounter)")
+            }
+         }
+      }
    }
 
    @HostAccess.Export
    fun pickUpItem(entityId: String) {
-      this.addActions(
+      this.pickUpItem(
+         entityId = entityId,
+         reason = null
+      )
+   }
+
+   @HostAccess.Export
+   fun pickUpItem(entityId: String, reason: String?) {
+      this.performActionAndWaitForResult(
          Actions(
             actionOnEntity = ActionOnEntity(
                actionId = "pickupItem",
-               reason = "JavaScript",
+               reason = reason,
                targetEntityId = EntityId(entityId)
             )
          )
       )
-      this.sleep(1000)
    }
 
 
    @HostAccess.Export
    fun interactWithEntity(entityId: String) {
-      this.addActions(
+      this.interactWithEntity(
+         entityId = entityId,
+         reason = null
+      )
+   }
+
+   @HostAccess.Export
+   fun interactWithEntity(entityId: String, reason: String?) {
+      this.performActionAndWaitForResult(
          Actions(
             actionOnEntity = ActionOnEntity(
                actionId = "interact",
-               reason = "JavaScript",
+               reason = reason,
                targetEntityId = EntityId(entityId)
             )
          )
       )
-      this.sleep(1000)
+   }
+
+   @HostAccess.Export
+   fun craftItem(
+      itemConfigKey: String
+   ) {
+      this.craftItem(itemConfigKey, null)
    }
 
    @HostAccess.Export
    fun craftItem(
       itemConfigKey: String,
-      reason: String? = null
+      reason: String?
    ) {
-      this.addActions(
+      this.performActionAndWaitForResult(
          Actions(
             craftItemAction = CraftItemAction(
-               reason = reason ?: "JavaScript",
+               reason = reason,
                itemConfigKey = itemConfigKey
             )
          )
       )
-      this.sleep(1000)
+   }
+
+   @HostAccess.Export
+   fun equipItem(
+      itemConfigKey: String,
+      stackIndex: Int?
+   ) {
+      this.equipItem(
+         itemConfigKey = itemConfigKey,
+         stackIndex = stackIndex,
+         reason = null
+      )
    }
 
    @HostAccess.Export
    fun equipItem(
       itemConfigKey: String,
       stackIndex: Int?,
-      reason: String? = null
+      reason: String?
    ) {
-      this.addActions(
+      this.performActionAndWaitForResult(
          Actions(
             actionOnInventoryItem = ActionOnInventoryItem(
                actionId = "equipItem",
-               reason = reason ?: "JavaScript",
+               reason = reason,
                itemConfigKey = itemConfigKey,
                stackIndex = stackIndex
             )
          )
       )
-      this.sleep(1000)
+   }
+
+   @HostAccess.Export
+   fun useEquippedItem() {
+      this.useEquippedItem(
+         reason = null
+      )
    }
 
    @HostAccess.Export
    fun useEquippedItem(
       reason: String?
    ) {
-      this.addActions(
+      this.performActionAndWaitForResult(
          Actions(
             useEquippedToolItem = UseEquippedToolItem(
-               reason = reason ?: "JavaScript"
+               reason = reason
             )
          )
       )
-      this.sleep(1000)
+   }
+
+   @HostAccess.Export
+   fun dropItem(
+      itemConfigKey: String,
+      stackIndex: Int?,
+      amount: Int?
+   ) {
+      this.dropItem(
+         itemConfigKey = itemConfigKey,
+         stackIndex = stackIndex,
+         amount = amount,
+         reason = null
+      )
    }
 
    @HostAccess.Export
@@ -197,69 +302,48 @@ class AgentJavaScriptApi(
       itemConfigKey: String,
       stackIndex: Int?,
       amount: Int?,
-      reason: String? = null
+      reason: String?
    ) {
-      this.addActions(
+      this.performActionAndWaitForResult(
          Actions(
             actionOnInventoryItem = ActionOnInventoryItem(
                actionId = "dropItem",
-               reason = reason ?: "JavaScript",
+               reason = reason,
                itemConfigKey = itemConfigKey,
                stackIndex = stackIndex,
                amount = amount
             )
          )
       )
-      this.sleep(1000)
+   }
+
+   @HostAccess.Export
+   fun recordThought(
+      thought: String
+   ) {
+      this.agent.recordThought(thought)
    }
 
    @HostAccess.Export
    fun walkTo(
       destination: JsVector2
    ) {
-      this.addActions(
+      this.walkTo(destination, null)
+   }
+
+   @HostAccess.Export
+   fun walkTo(
+      destination: JsVector2,
+      reason: String?
+   ) {
+      this.performActionAndWaitForResult(
          Actions(
             walk = WalkAction(
-               reason = "JavaScript",
+               reason = reason,
                location = listOf(destination.value.x, destination.value.y)
             )
          )
       )
-      this.sleep(1000)
-//      val state = this.agentAPI.state
-//      val simulation = this.agentAPI.simulation
-//      val entity = this.agentAPI.entity
-//      val endPoint = Vector2(2000.0, 2000.0) + Vector2.randomSignedXY(1000.0)
-//
-//
-//      println("a: " + valueA)
-//      println("b: " + valueB)
-//      this.agentAPI.walk(
-//         endPoint = endPoint,
-//         reason = "AI"
-//      )
-//
-//      while (true) {
-//         val shouldBreak = synchronized(simulation) {
-//            val positionComponent = entity.getComponent<PositionComponentData>()
-//            val keyFrames = positionComponent.data.positionAnimation.keyFrames
-//
-//            val isDoneMoving = keyFrames.isEmpty() ||
-//                    simulation.getCurrentSimulationTime() > keyFrames.last().time
-//
-//            if (isDoneMoving) {
-//               true
-//            } else {
-//               false
-//            }
-//         }
-//
-//         if (shouldBreak) {
-//            break
-//         } else {
-//            Thread.sleep(100)
-//         }
-//      }
    }
 }
 

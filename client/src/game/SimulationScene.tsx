@@ -1338,6 +1338,10 @@ export class SimulationScene extends Phaser.Scene {
           statusSuffix += "💭"
         } else if (agentComponentData.agentStatus === "prompt-finished") {
           // statusSuffix += "✅"
+        } else if (agentComponentData.agentStatus === "exception") {
+          statusSuffix += "🚫🤖"
+        } else if (agentComponentData.agentStatus === "script-exception") {
+          statusSuffix += "🚫📜"
         } else if (agentComponentData.agentStatus.includes("updating-memory")) {
           statusSuffix += "📝️"
         } else if (agentComponentData.agentStatus === "update-memory-success") {

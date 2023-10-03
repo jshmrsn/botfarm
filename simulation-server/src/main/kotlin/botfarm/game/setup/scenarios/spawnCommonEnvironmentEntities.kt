@@ -16,12 +16,12 @@ fun spawnCommonEnvironmentEntities(simulation: GameSimulation) {
       randomLocationScale = 400.0
    )
 
-   simulation.spawnItems(
-      itemConfigKey = "hoe",
-      quantity = RandomItemQuantity.stacks(3),
-      baseLocation = worldCenter,
-      randomLocationScale = 400.0
-   )
+//   simulation.spawnItems(
+//      itemConfigKey = "hoe",
+//      quantity = RandomItemQuantity.stacks(3),
+//      baseLocation = worldCenter,
+//      randomLocationScale = 400.0
+//   )
 
    simulation.spawnItems(
       itemConfigKey = "axe",
@@ -30,12 +30,12 @@ fun spawnCommonEnvironmentEntities(simulation: GameSimulation) {
       randomLocationScale = 400.0
    )
 
-   simulation.spawnItems(
-      itemConfigKey = "pickaxe",
-      quantity = RandomItemQuantity.stacks(3),
-      baseLocation = worldCenter,
-      randomLocationScale = 400.0
-   )
+//   simulation.spawnItems(
+//      itemConfigKey = "pickaxe",
+//      quantity = RandomItemQuantity.stacks(3),
+//      baseLocation = worldCenter,
+//      randomLocationScale = 400.0
+//   )
 
    simulation.spawnItems(
       itemConfigKey = "tree",

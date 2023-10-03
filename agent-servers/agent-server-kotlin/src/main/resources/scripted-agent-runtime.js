@@ -42,7 +42,9 @@ function getAllCraftingRecipes() {
             itemTypeId: it.itemTypeId,
             description: it.description,
             costEntries: convertJsArray(it.costEntries),
-            craft: it.craft
+            craft: (reason) => {
+                it.craft(reason);
+            }
         };
     });
 }

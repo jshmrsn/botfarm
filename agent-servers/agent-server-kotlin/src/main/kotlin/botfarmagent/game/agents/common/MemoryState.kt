@@ -14,5 +14,6 @@ class MemoryState {
    var shortTermMemory = ""
    val longTermMemories = mutableListOf<LongTermMemory>()
    val automaticShortTermMemories: MutableList<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
+   val automaticShortTermMemoriesSinceLastPrompt: MutableList<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
 }
 

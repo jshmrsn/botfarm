@@ -32,6 +32,7 @@ class JsCraftingRecipe(
       )
    }.toJs()
 
+   @HostAccess.Export
    fun craft(reason: String?) {
       this.api.craftItem(
          itemConfigKey = this.craftingRecipe.itemConfigKey,

@@ -1,9 +1,7 @@
-package botfarmagent.game.agents.default
+package botfarmagent.game.agents.common
 
 import botfarm.agentserver.*
-import botfarmagent.game.agents.common.AutomaticShortTermMemory
-import botfarmagent.game.agents.common.MemoryState
-import botfarmagent.game.agents.common.getSortedObservedEntities
+import botfarmagent.game.agents.legacy.buildStateForEntity
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.AgentSyncInputs
 import botfarmshared.game.apidata.AgentStepResult
@@ -97,7 +95,7 @@ suspend fun updateMemory(
    }
 
    if (!shouldCompress) {
-      println("Skipping memory update: keptTokenCount = $keptTokenCount")
+      //println("Skipping memory update: keptTokenCount = $keptTokenCount")
       return UpdateMemoryResult.Skip()
    }
 

@@ -1,9 +1,12 @@
 package botfarm.game.ai
 
+import botfarm.common.PositionComponentData
 import botfarm.common.resolvePosition
 import botfarm.engine.simulation.Entity
+import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
 import botfarm.game.components.CharacterComponentData
+import botfarm.game.components.isDead
 import botfarm.game.systems.AgentState
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.MovementRecord
@@ -40,16 +43,37 @@ class AgentApi(
       }
    }
 
+   fun waitForMovement(
+      positionComponent: EntityComponent<PositionComponentData>,
+      movementResult: GameSimulation.MoveToResult.Success,
+      callback: () -> Unit
+   ) {
+      val simulation = this.simulation
+
+      simulation.queueCallback(
+         condition = {
+            val keyFrames = positionComponent.data.positionAnimation.keyFrames
+
+            positionComponent.entity.isDead ||
+                    positionComponent.data.movementId != movementResult.movementId ||
+                    keyFrames.isEmpty() ||
+                    simulation.getCurrentSimulationTime() > keyFrames.last().time
+         }
+      ) {
+         callback()
+      }
+   }
+
    fun interactWithEntity(
       targetEntity: Entity
-   ) {
+   ): GameSimulation.MoveToResult {
       val simulation = this.simulation
       val entity = this.entity
 
       synchronized(simulation) {
          val characterComponent = entity.getComponent<CharacterComponentData>()
 
-         simulation.moveEntityToPoint(
+         val movementResult = simulation.moveEntityToPoint(
             entity = entity,
             endPoint = targetEntity.resolvePosition()
          )
@@ -59,6 +83,8 @@ class AgentApi(
                pendingInteractionTargetEntityId = targetEntity.entityId
             )
          }
+
+         return movementResult
       }
    }
 
