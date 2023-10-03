@@ -152,7 +152,8 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
               apiRequest("create-simulation", {
                 scenarioIdentifier: scenario.identifier,
                 scenarioGameIdentifier: scenario.gameIdentifier,
-                userSecret: props.userSecret
+                userSecret: props.userSecret,
+                adminRequest: props.buildAdminRequest()
               }, (response: CreateSimulationResponse) => {
                 simulationSelected(response.simulationInfo)
               })
