@@ -27,10 +27,12 @@ class AgentActionUtils(
          condition = {
             val keyFrames = positionComponent.data.positionAnimation.keyFrames
 
-            positionComponent.entity.isDead ||
+            val result = positionComponent.entity.isDead ||
                     positionComponent.data.movementId != movementResult.movementId ||
                     keyFrames.isEmpty() ||
                     simulation.getCurrentSimulationTime() > keyFrames.last().time
+
+            result
          }
       ) {
          callback()

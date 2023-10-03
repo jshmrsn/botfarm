@@ -2,6 +2,7 @@ package botfarmshared.game.apidata
 
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.PromptUsageInfo
+import botfarmshared.misc.Vector2
 import botfarmshared.misc.buildShortRandomString
 import kotlinx.serialization.Serializable
 
@@ -47,7 +48,7 @@ class ActionResult(
 
 @Serializable
 class WalkAction(
-   val location: List<Double>,
+   val location: Vector2,
    val reason: String? = null
 )
 

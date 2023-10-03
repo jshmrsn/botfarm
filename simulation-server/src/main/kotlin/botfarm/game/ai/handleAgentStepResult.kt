@@ -1,6 +1,5 @@
 package botfarm.game.ai
 
-import botfarmshared.misc.Vector2
 import botfarm.common.PositionComponentData
 import botfarm.engine.simulation.AlertMode
 import botfarm.game.components.AgentComponentData
@@ -11,6 +10,8 @@ import botfarmshared.game.apidata.*
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.systems.AgentState
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 fun handleAgentStepResult(
    agentStepResult: AgentStepResult,
@@ -65,7 +66,9 @@ fun handleAgentStepResult(
 
    if (actions != null) {
       val actionUniqueId = actions.actionUniqueId
-      println("Action started: $actionUniqueId")
+      val prettyPrint = Json { prettyPrint = true }
+
+      println("Action started: $actionUniqueId\n${prettyPrint.encodeToString(actions)}")
       val speak = actions.speak
       state.newObservations.startedActionUniqueIds.add(actionUniqueId)
 
@@ -102,39 +105,35 @@ fun handleAgentStepResult(
       }
 
       if (locationToWalkToAndReason != null) {
-         val locationToWalkTo = locationToWalkToAndReason.location
-
          val reason = locationToWalkToAndReason.reason
+         val endPoint = locationToWalkToAndReason.location
 
-         if (locationToWalkTo.size == 2) {
-            val endPoint = Vector2(locationToWalkTo.first(), locationToWalkTo.last())
-
-            state.newObservations.movementRecords.add(
-               MovementRecord(
-                  startedAtTime = simulationTimeForStep,
-                  startPoint = currentLocation,
-                  endPoint = endPoint,
-                  reason = reason
-               )
+         state.newObservations.movementRecords.add(
+            MovementRecord(
+               startedAtTime = simulationTimeForStep,
+               startPoint = currentLocation,
+               endPoint = endPoint,
+               reason = reason
             )
+         )
 
-            val movementResult = simulation.moveEntityToPoint(
-               entity = entity,
-               endPoint = endPoint
-            )
+         println("starting move: " + endPoint)
+         val movementResult = simulation.moveEntityToPoint(
+            entity = entity,
+            endPoint = endPoint
+         )
 
-            if (movementResult is GameSimulation.MoveToResult.Success) {
-               agentActionUtils.waitForMovement(
-                  positionComponent = positionComponent,
-                  movementResult = movementResult
-               ) {
-                  addActionResult()
-               }
-            } else {
+         println("movementResult: " + movementResult)
+
+         if (movementResult is GameSimulation.MoveToResult.Success) {
+            agentActionUtils.waitForMovement(
+               positionComponent = positionComponent,
+               movementResult = movementResult
+            ) {
                addActionResult()
             }
          } else {
-            throw Exception("Unexpected location size for locationToWalkToAndReason: ${locationToWalkTo.size}")
+            addActionResult()
          }
       }
 
@@ -278,14 +277,7 @@ fun handleAgentStepResult(
          if (targetEntity == null) {
             val destroyedTargetEntity = simulation.getDestroyedEntityOrNull(targetEntityId)
             if (destroyedTargetEntity != null) {
-//               val destroyedAtTime = destroyedTargetEntity.destroyedAtTime ?: 0.0
                println("Can't find entity for action from AI (but was destroyed AFTER prompt was generated) ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
-               // jshmrsn: This check would require more careful tracking of simulation time of most recent received observed entities at the time the prompt was generated
-//               if (destroyedAtTime > simulationTimeForStep) {
-//
-//               } else {
-//                  simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI (but was destroyed BEFORE prompt was generated) ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
-//               }
             } else {
                simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
             }

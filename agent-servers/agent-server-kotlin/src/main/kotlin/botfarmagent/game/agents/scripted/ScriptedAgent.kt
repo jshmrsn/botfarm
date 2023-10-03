@@ -931,3 +931,9 @@ class ScriptedAgent(
 }
 
 val responseOverride: String? = null
+//"""
+//       walkTo(vector2(1000, 3500), "I'm going to pick up that axe.");
+//       walkTo(vector2(-1000, 3500), "I'm going to pick up that axe.");
+//       walkTo(vector2(-1000, -3500), "I'm going to pick up that axe.");
+//       walkTo(vector2(-1000, 3500), "I'm going to pick up that axe.");
+//""".trimIndent()

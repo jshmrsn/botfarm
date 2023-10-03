@@ -8,6 +8,7 @@ import botfarmagent.game.AgentContext
 import botfarmagent.game.agents.common.*
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.*
+import botfarmshared.misc.Vector2
 import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.serialization.encodeToString
@@ -116,7 +117,7 @@ class LegacyAgent(
                newAutomaticShortTermMemories.add(
                   AutomaticShortTermMemory(
                      time = record.startedAtTime,
-                     summary = "I took the action '${record.actionId}' on entity '${record.targetEntityId}'" + buildReasonSuffix(
+                     summary = "I took the action '${record.actionId}' on entity '${record.targetEntityId.value}'" + buildReasonSuffix(
                         record.reason
                      ),
                      forcePreviousActivity = true
@@ -608,15 +609,6 @@ class LegacyAgent(
 
       this.memoryState.longTermMemories.addAll(newLongTermMemories)
 
-//      if (textBeforeJson.length > 5) {
-//         this.memoryState.automaticShortTermMemories.add(
-//            AutomaticShortTermMemory(
-//               time = simulationTimeForStep,
-//               summary = "I reasoned: " + textBeforeJson,
-//            )
-//         )
-//      }
-
       newLongTermMemories.forEach { memory ->
          this.memoryState.automaticShortTermMemories.add(
             AutomaticShortTermMemory(
@@ -626,8 +618,26 @@ class LegacyAgent(
          )
       }
 
+      val walk = if (locationToWalkToAndReason != null) {
+         val locationToWalkTo = locationToWalkToAndReason.location
+         val reason = locationToWalkToAndReason.reason
+
+         if (locationToWalkTo.size == 2) {
+            val endPoint = Vector2(locationToWalkTo.first(), locationToWalkTo.last())
+
+            WalkAction(
+               reason = reason,
+               location = endPoint
+            )
+         } else {
+            throw Exception("Unexpected location size for locationToWalkToAndReason: ${locationToWalkTo.size}")
+         }
+      } else {
+         null
+      }
+
       val actions = Actions(
-         walk = locationToWalkToAndReason,
+         walk = walk,
          actionOnEntity = actionOnEntity,
          actionOnInventoryItem = actionOnInventoryItem,
          speak = iWantToSay,

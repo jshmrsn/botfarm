@@ -31,8 +31,14 @@ object AgentResponseSchema_v1 {
    val craftItemKey = "craftItem"
 
    @Serializable
+   class WalkToLocationAndReason(
+      val location: List<Double>,
+      val reason: String? = null
+   )
+
+   @Serializable
    class AgentResponseFunctionInputs(
-      val locationToWalkToAndReason: WalkAction? = null,
+      val locationToWalkToAndReason: WalkToLocationAndReason? = null,
       val actionOnEntity: ActionOnEntity? = null,
       val actionOnInventoryItem: ActionOnInventoryItem? = null,
       val craftItem: CraftItemAction? = null,

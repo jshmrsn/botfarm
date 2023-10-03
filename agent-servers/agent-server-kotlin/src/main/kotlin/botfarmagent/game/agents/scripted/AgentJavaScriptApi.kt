@@ -360,7 +360,7 @@ class AgentJavaScriptApi(
          Actions(
             walk = WalkAction(
                reason = reason,
-               location = listOf(destination.value.x, destination.value.y)
+               location = destination.asVector2
             )
          )
       )

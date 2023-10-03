@@ -39,6 +39,9 @@ class JsVector2(
    }
 }
 
+val JsVector2.asVector2: Vector2
+   get() = this.value
+
 fun Vector2.toJs(): JsVector2 {
    return JsVector2(this)
 }

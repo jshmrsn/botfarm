@@ -1038,12 +1038,15 @@ class GameSimulation(
       data object NoPositionComponent : MoveToResult()
    }
 
+
    fun moveEntityToPoint(
       entity: Entity,
       endPoint: Vector2,
       retryCount: Int = 0,
       maxRetryCount: Int = 5
    ): MoveToResult {
+      val clampedEndPoint = this.clampPoint(endPoint)
+
       val positionComponent = entity.getComponentOrNull<PositionComponentData>()
 
       if (positionComponent == null) {
@@ -1053,7 +1056,7 @@ class GameSimulation(
       val previousDestination = positionComponent.data.positionAnimation.keyFrames.lastOrNull()
 
       if (previousDestination != null) {
-         if (previousDestination.value.distance(endPoint) < 0.01) {
+         if (previousDestination.value.distance(clampedEndPoint) < 0.01) {
             // jshmrsn: Avoid creating buffer delays when entity isn't actually going to change destination
             // This improves responsiveness of e.g. the auto-interaction system
             return MoveToResult.Success(
@@ -1067,9 +1070,9 @@ class GameSimulation(
 
       val moveFromTime = currentSimulationTime + bufferTime
 
-      val startPoint = positionComponent.data.positionAnimation.resolve(moveFromTime)
+      val startPoint = this.clampPoint(positionComponent.data.positionAnimation.resolve(moveFromTime))
 
-      val adjustedEndPoint = endPoint.lerp(
+      val adjustedEndPoint = clampedEndPoint.lerp(
          target = startPoint,
          percent = retryCount / maxRetryCount.toDouble()
       )
@@ -1082,7 +1085,7 @@ class GameSimulation(
          } else {
             return this.moveEntityToPoint(
                entity = entity,
-               endPoint = endPoint,
+               endPoint = clampedEndPoint,
                retryCount = retryCount + 1,
                maxRetryCount = maxRetryCount
             )
@@ -1092,7 +1095,7 @@ class GameSimulation(
       // jshmrsn: endPoint will be inside the destination cell, so we can safely move the entity directly
       // to the end point at the end of the path. This allows for e.g. walking to precise item pickup locations.
       val pathPoints = pathIndexPairs.map { this.indexPairToPoint(it) }.subList(0, pathIndexPairs.size - 1) +
-              endPoint
+              clampedEndPoint
 
       val bufferKeyFrames = mutableListOf<Vector2KeyFrame>()
 
@@ -1142,7 +1145,8 @@ class GameSimulation(
          it.copy(
             positionAnimation = Vector2Animation(
                keyFrames = bufferKeyFrames + keyFrames
-            )
+            ),
+            movementId = movementId
          )
       }
 
@@ -1629,9 +1633,24 @@ class GameSimulation(
       return this.findPath(startPoint, endPoint).map(this::indexPairToPoint)
    }
 
+   fun clampPoint(point: Vector2): Vector2 {
+      return Vector2(
+         x = Math.min(Math.max(point.x, 0.0), this.collisionWorldWidth),
+         y = Math.min(Math.max(point.y, 0.0), this.collisionWorldWidth),
+      )
+   }
+
+
+   fun clampIndexPair(indexPair: IndexPair): IndexPair {
+      return IndexPair(
+         row = Math.min(Math.max(indexPair.row, 0), this.collisionMapRowCount - 1),
+         col = Math.min(Math.max(indexPair.col, 0), this.collisionMapColumnCount - 1),
+      )
+   }
+
    fun findPath(startPoint: Vector2, endPoint: Vector2): List<IndexPair> {
-      val startIndexPair = this.pointToIndexPair(startPoint)
-      val endIndexPair = this.pointToIndexPair(endPoint)
+      val startIndexPair = this.clampIndexPair(this.pointToIndexPair(startPoint))
+      val endIndexPair = this.clampIndexPair(this.pointToIndexPair(endPoint))
 
       if (endIndexPair.row == startIndexPair.row &&
          endIndexPair.col == startIndexPair.col
