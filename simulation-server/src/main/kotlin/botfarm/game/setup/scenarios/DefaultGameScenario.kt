@@ -7,19 +7,19 @@ import botfarmshared.misc.Vector2
 
 class DefaultGameScenario : GameScenario(
    identifier = "default",
-   name = "Single Agent (Script-Enhanced GPT-4)"
+   name = "Single Agent (Code Execution Agent)"
 ) {
    override fun configureGameSimulation(simulation: GameSimulation) {
       spawnCommonEnvironmentEntities(simulation)
 
       simulation.spawnAgent(
-         name = "Agent Joe",
-         corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
+         name = "Joe",
+         corePersonality = "Friendly and talkative. Enjoys conversation. Happy to take suggestions.",
          initialMemories = listOf(
-            "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
+            "I want to build a new house.",
             "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
          ),
-         agentType = "scripted-gpt4",
+         agentType = "code",
          bodySelections = simulation.buildRandomCharacterBodySelections(
             bodyType = "male",
             hairColor = "black",
@@ -33,7 +33,7 @@ class DefaultGameScenario : GameScenario(
 
 class SpectateAgentsGameScenario : GameScenario(
    identifier = "spectate-agents",
-   name = "Spectate Two Agents (Script-Enhanced GPT-4)",
+   name = "Spectate Two Agents (Code Execution Agent)",
    spawnPlayersMode = SpawnPlayersMode.None
 ) {
    override fun configureGameSimulation(simulation: GameSimulation) {
@@ -46,7 +46,7 @@ class SpectateAgentsGameScenario : GameScenario(
             "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
             "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
          ),
-         agentType = "scripted-gpt4",
+         agentType = "code",
          bodySelections = simulation.buildRandomCharacterBodySelections(
             bodyType = "male",
             hairColor = "black",
@@ -63,7 +63,7 @@ class SpectateAgentsGameScenario : GameScenario(
             "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
             "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
          ),
-         agentType = "scripted-gpt4",
+         agentType = "code",
          bodySelections = simulation.buildRandomCharacterBodySelections(
             bodyType = "female",
             hairColor = "black",
@@ -76,20 +76,20 @@ class SpectateAgentsGameScenario : GameScenario(
 }
 
 class LegacyAgentGameScenario : GameScenario(
-   identifier = "legacy",
-   name = "Legacy Agent (GPT-4)"
+   identifier = "json",
+   name = "Single Agent (JSON Action)"
 ) {
    override fun configureGameSimulation(simulation: GameSimulation) {
       spawnCommonEnvironmentEntities(simulation)
 
       simulation.spawnAgent(
-         name = "Agent Joe",
+         name = "Joe",
          corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
          initialMemories = listOf(
             "I want to build a new house, but I shouldn't bother people about it unless it seems relevant.",
             "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
          ),
-         agentType = "scripted-gpt4",
+         agentType = "json",
          bodySelections = simulation.buildRandomCharacterBodySelections(
             bodyType = "male",
             hairColor = "black",

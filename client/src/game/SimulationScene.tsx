@@ -671,13 +671,17 @@ export class SimulationScene extends Phaser.Scene {
       spriteDefinitionKey: string,
       variant: string
     ) {
-      const layers = sheetDefinitionsByKey[spriteDefinitionKey].layers
-      const layer = layers[layers.length - 1]
+      const sheetDefinition = sheetDefinitionsByKey[spriteDefinitionKey]
 
-      const partialPathsByCategory = layer.texturePartialPathsByCategoryByVariant[variant]
-      const partialPath = partialPathsByCategory[category] ?? partialPathsByCategory["male"]
-      const profileIconLayerPath = "/assets/liberated-pixel-cup-characters/profile-icons/" + partialPath + variant + ".png"
-      result.push(profileIconLayerPath)
+      if (sheetDefinition) {
+        const layers = sheetDefinition.layers
+        const layer = layers[layers.length - 1]
+
+        const partialPathsByCategory = layer.texturePartialPathsByCategoryByVariant[variant]
+        const partialPath = partialPathsByCategory[category] ?? partialPathsByCategory["male"]
+        const profileIconLayerPath = "/assets/liberated-pixel-cup-characters/profile-icons/" + partialPath + variant + ".png"
+        result.push(profileIconLayerPath)
+      }
     }
 
     addForCompositeAnimation(head, skinColor)
@@ -778,32 +782,50 @@ export class SimulationScene extends Phaser.Scene {
         // console.log("Clicked worldPoint", worldPoint)
         const simulationTime = this.getCurrentSimulationTime()
 
-        let nearestDistance = 10000.0
-        let nearestEntity: Entity | null = null
-
         const simulation = this.simulation
-        for (const entity of simulation.entities) {
-          const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
+        const entitiesNearCenter = simulation.entities
+          .filter(entity => PositionComponent.getOrNull(entity) != null)
+          .map(entity => {
+            const positionComponent = PositionComponent.get(entity)
 
-          if (positionComponent != null) {
             const position = resolvePositionForTime(positionComponent, simulationTime)
             const distance = Vector2.distance(worldPoint, position)
 
-            if (distance < nearestDistance) {
-              nearestDistance = distance
-              nearestEntity = entity
+            return {
+              entity: entity,
+              distance: distance
+            }
+          })
+          .filter(it => it.distance < 65.0)
+
+        entitiesNearCenter.sort((a, b) => {
+          if (a.distance < b.distance) {
+            return -1
+          } else if (a.distance > b.distance) {
+            return 1
+          } else {
+            if (a.entity.entityId < b.entity.entityId) {
+              return -1
+            } else {
+              return 1
             }
           }
-        }
+        })
 
         this.blurChatTextArea()
 
         if (pointer.rightButtonReleased()) {
           this.lastClickTime = getUnixTimeSeconds()
 
-          if (nearestEntity != null && nearestDistance < 60) {
-            this.clearPendingInteractionTargetRequest()
-            this.simulationContext.setSelectedEntityId(nearestEntity.entityId)
+          if (entitiesNearCenter.length !== 0) {
+            const selectedIndex = entitiesNearCenter
+              .findIndex(it => it.entity.entityId === this.dynamicState.selectedEntityId)
+
+            const nextIndex = (selectedIndex === -1 || selectedIndex === (entitiesNearCenter.length - 1))
+              ? 0
+              : selectedIndex + 1
+
+            this.simulationContext.setSelectedEntityId(entitiesNearCenter[nextIndex].entity.entityId)
           } else {
             this.simulationContext.setSelectedEntityId(null)
             this.clearPendingInteractionTargetRequest()
@@ -860,9 +882,10 @@ export class SimulationScene extends Phaser.Scene {
   }
 
   clampCamera() {
+    const buffer = 1000.0
     const mainCamera = this.mainCamera
-    mainCamera.scrollX = Math.min(Math.max(mainCamera.scrollX, 0), this.worldBounds.x)
-    mainCamera.scrollY = Math.min(Math.max(mainCamera.scrollY, 0), this.worldBounds.y)
+    mainCamera.scrollX = Math.min(Math.max(mainCamera.scrollX, -buffer), this.worldBounds.x + buffer)
+    mainCamera.scrollY = Math.min(Math.max(mainCamera.scrollY, -buffer), this.worldBounds.y + buffer)
   }
 
   calculateAutoInteractAction(): AutoInteractAction | null {

@@ -7,7 +7,7 @@ import botfarmshared.misc.Vector2
 
 class DefaultNoAgentGameScenario : GameScenario(
    identifier = "default-no-agent",
-   name = "Default (no agent)"
+   name = "No Agents"
 ) {
    override fun configureGameSimulation(simulation: GameSimulation) {
       spawnCommonEnvironmentEntities(simulation)

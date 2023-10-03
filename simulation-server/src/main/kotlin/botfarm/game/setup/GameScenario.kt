@@ -314,8 +314,8 @@ abstract class GameScenario(
          craftableConfig = CraftableConfig(
             craftingCost = ItemCollection(
                listOf(
-                  ItemCollectionEntry("wood", 200),
-                  ItemCollectionEntry("stone", 75)
+                  ItemCollectionEntry("wood", 150),
+                  ItemCollectionEntry("stone", 50)
                )
             )
          )

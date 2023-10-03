@@ -92,6 +92,9 @@ class Vector2(
          add(this@Vector2.x.roundToInt())
          add(this@Vector2.y.roundToInt())
       }
+
+   val rounded: Vector2
+      get() = Vector2(this.x.roundToInt().toDouble(), this.y.roundToInt().toDouble())
 }
 
 @Serializable
