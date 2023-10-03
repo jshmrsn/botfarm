@@ -4,9 +4,11 @@ interface Vector2 {
   readonly y: number
   getMagnitude(): number
   distanceTo(other: Vector2): number
-  minusVector(other: Vector2): number
-  plusVector(other: Vector2): number
+  minus(other: Vector2): number
+  plus(other: Vector2): number
 }
+
+declare function vector2(x: number, y: number): Vector2;
 
 interface Entity {
   readonly entityId: string
@@ -62,6 +64,6 @@ declare function getCurrentInventory(): InventoryItem[];
 declare function getCurrentNearbyEntities(): Entity[];
 
 // General actions you can take
-declare function walkToLocation(location: Vector2);
+declare function walkTo(location: Vector2);
 declare function speak(wordsToSay: string);
 declare function recordThought(thought: string);

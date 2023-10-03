@@ -1,3 +1,4 @@
+// import {ItemOnGroundComponent} from "./scripted-agent-interfaces"
 const speak = api.speak;
 function convertJsArray(jsArray) {
     const result = [];
@@ -25,14 +26,11 @@ class Vector2 {
         return new Vector2(this.x + other.x, this.y + other.y);
     }
 }
+function vector2(x, y) {
+    return api.makeVector2(x, y);
+}
 function getCurrentNearbyEntities() {
     const res = api.getCurrentNearbyEntities();
     const raw = convertJsArray(res);
-    return raw.map(it => {
-        console.log("it.location", it.location);
-        return {
-            entityId: it.entityId,
-            location: new Vector2(it.location.x, it.location.y)
-        };
-    });
+    return raw;
 }

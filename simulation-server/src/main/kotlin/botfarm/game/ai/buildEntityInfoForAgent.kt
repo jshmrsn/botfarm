@@ -76,7 +76,8 @@ fun buildEntityInfoForAgent(
          itemName = itemConfig.name,
          description = itemConfig.description,
          canBeDamagedByToolItemConfigKey = itemConfig.killableConfig?.canBeDamagedByToolItemConfigKey,
-         canBePickedUp = itemConfig.storableConfig != null
+         canBePickedUp = itemConfig.storableConfig != null,
+         amount = itemComponent.amount
       )
 
       if (interactingEntity != null) {

@@ -21,15 +21,15 @@ class AgentStepResult(
    val statusDuration: Double? = null,
    val agentStatus: String? = null,
    val newDebugInfo: String? = null,
-   val interactions: Interactions? = null,
+   val actions: Actions? = null,
    val error: String? = null,
    val wasRateLimited: Boolean = false,
    val promptUsages: List<PromptUsageInfo> = listOf()
 )
 
 @Serializable
-class Interactions(
-   val locationToWalkToAndReason: ReasonToWalkToAndReason? = null,
+class Actions(
+   val walk: WalkAction? = null,
    val actionOnEntity: ActionOnEntity? = null,
    val useEquippedToolItem: UseEquippedToolItem? = null,
    val actionOnInventoryItem: ActionOnInventoryItem? = null,
@@ -39,7 +39,7 @@ class Interactions(
 )
 
 @Serializable
-class ReasonToWalkToAndReason(
+class WalkAction(
    val location: List<Double>,
    val reason: String? = null
 )

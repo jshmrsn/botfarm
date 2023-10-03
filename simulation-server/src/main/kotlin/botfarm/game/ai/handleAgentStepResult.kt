@@ -32,11 +32,9 @@ fun handleAgentStepResult(
       debugInfo = debugInfo
    )
 
-   val interactions = agentStepResult.interactions
+   val actions = agentStepResult.actions
 
    val currentLocation = positionComponent.data.positionAnimation.resolve(simulationTimeForStep)
-
-
 
    agentComponent.modifyData {
       it.copy(
@@ -65,18 +63,18 @@ fun handleAgentStepResult(
    }
 
 
-   if (interactions != null) {
-      val speak = interactions.speak
+   if (actions != null) {
+      val speak = actions.speak
 
-      val facialExpressionEmoji = interactions.facialExpressionEmoji
+      val facialExpressionEmoji = actions.facialExpressionEmoji
 
-      val locationToWalkToAndReason = interactions.locationToWalkToAndReason
+      val locationToWalkToAndReason = actions.walk
 
-      val actionOnEntity = interactions.actionOnEntity
-      val useEquippedToolItem = interactions.useEquippedToolItem
+      val actionOnEntity = actions.actionOnEntity
+      val useEquippedToolItem = actions.useEquippedToolItem
 
-      val actionOnInventoryItem = interactions.actionOnInventoryItem
-      val craftItemAction = interactions.craftItemAction
+      val actionOnInventoryItem = actions.actionOnInventoryItem
+      val craftItemAction = actions.craftItemAction
 
 
       if (facialExpressionEmoji != null) {

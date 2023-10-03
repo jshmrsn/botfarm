@@ -1,29 +1,95 @@
 package botfarmagent.game.agents.scripted
 
-import botfarmshared.game.apidata.AgentStepResult
-import botfarmshared.game.apidata.Interactions
+import botfarmshared.engine.apidata.EntityId
+import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
 import org.graalvm.polyglot.HostAccess
 
 class JsVector2(
-   value: Vector2
+   val value: Vector2
 ) {
    @HostAccess.Export
    @JvmField
-   val x = value.x
+   val x = this.value.x
 
    @HostAccess.Export
    @JvmField
-   val y = value.y
+   val y = this.value.y
+
+   override fun toString(): String {
+      return "JsVector2(${this.x}, ${this.y})"
+   }
+
+   @HostAccess.Export
+   fun getMagnitude(): Double {
+      return this.value.magnitude()
+   }
+
+   @HostAccess.Export
+   fun distanceTo(other: JsVector2): Double {
+      return this.value.distance(other.value)
+   }
+
+   @HostAccess.Export
+   fun plus(other: JsVector2): JsVector2 {
+      return JsVector2(this.value + other.value)
+   }
+
+   @HostAccess.Export
+   fun minus(other: JsVector2): JsVector2 {
+      return JsVector2(this.value - other.value)
+   }
 }
 
-class NearbyEntity(
+class JsItemOnGroundComponent(
+   val api: AgentJavaScriptApi,
+   val entityInfo: EntityInfo,
+   @HostAccess.Export @JvmField val description: String,
+   @HostAccess.Export @JvmField val name: String,
+   @HostAccess.Export @JvmField val itemTypeId: String,
+   @HostAccess.Export @JvmField val canBePickedUp: Boolean,
+   @HostAccess.Export @JvmField val amount: Int
+) {
    @HostAccess.Export
-   @JvmField
-   val location: JsVector2,
-   @HostAccess.Export
-   @JvmField
-   val entityId: String
+   fun pickup() {
+      println("PICKUP CALLEd")
+      this.api.pickUpItem(this.entityInfo.entityId.value)
+   }
+}
+
+class JsItemInfo(
+   @HostAccess.Export @JvmField val name: String,
+   @HostAccess.Export @JvmField val description: String,
+   @HostAccess.Export @JvmField val itemTypeId: String
+) {
+   constructor(itemInfo: ItemInfo) : this(
+      name = itemInfo.name,
+      description = itemInfo.description,
+      itemTypeId = itemInfo.itemConfigKey
+   )
+}
+
+class JsCharacterComponent(
+   val api: AgentJavaScriptApi,
+   val entityInfo: EntityInfo,
+
+   @HostAccess.Export @JvmField val name: String,
+   @HostAccess.Export @JvmField val gender: String,
+   @HostAccess.Export @JvmField val skinColor: String,
+   @HostAccess.Export @JvmField val age: Int,
+   @HostAccess.Export @JvmField val description: String,
+   @HostAccess.Export @JvmField val equippedItemInfo: ItemInfo? = null,
+   @HostAccess.Export @JvmField val hairColor: String? = null,
+   @HostAccess.Export @JvmField val hairStyle: String? = null
+)
+
+class JsInventoryItem()
+
+class JsEntity(
+   @HostAccess.Export @JvmField val location: JsVector2,
+   @HostAccess.Export @JvmField val entityId: String,
+   @HostAccess.Export @JvmField val itemOnGround: JsItemOnGroundComponent?,
+   @HostAccess.Export @JvmField val character: JsCharacterComponent?
 )
 
 fun <T> List<T>.toJs(): JsArray<T> {
@@ -33,7 +99,6 @@ fun <T> List<T>.toJs(): JsArray<T> {
 fun Vector2.toJs(): JsVector2 {
    return JsVector2(this)
 }
-
 
 class JsArray<T>(
    val values: List<T>
@@ -52,22 +117,65 @@ class AgentJavaScriptApi(
 ) {
    @HostAccess.Export
    fun speak(message: String) {
-      synchronized(this.agent) {
-         this.agent.addPendingResult(AgentStepResult(
-            interactions = Interactions(
-               speak = message
-            )
-         ))
-      }
+      this.addActions(
+         Actions(
+            speak = message
+         )
+      )
    }
 
    @HostAccess.Export
-   fun getCurrentNearbyEntities(): JsArray<NearbyEntity> {
-      return this.agent.mostRecentInputs.newObservations.entitiesById.values.map {
-         NearbyEntity(
-            entityId = it.entityId.value,
-            location = it.location.toJs()
+   fun makeVector2(x: Double, y: Double): JsVector2 {
+      return JsVector2(Vector2(x, y))
+   }
+
+   fun buildJsEntity(entityInfo: EntityInfo): JsEntity {
+      val itemOnGround = entityInfo.itemEntityInfo?.let { itemEntityInfo ->
+         JsItemOnGroundComponent(
+            api = this,
+            entityInfo = entityInfo,
+
+            description = itemEntityInfo.description,
+            name = itemEntityInfo.itemName,
+            itemTypeId = itemEntityInfo.itemConfigKey,
+            canBePickedUp = itemEntityInfo.canBePickedUp,
+            amount = itemEntityInfo.amount
          )
+      }
+
+      val character = entityInfo.characterEntityInfo?.let {
+         JsCharacterComponent(
+            api = this,
+            entityInfo = entityInfo,
+
+            name = it.name,
+            gender = it.gender,
+            skinColor = it.skinColor,
+            age = it.age,
+            description = it.description,
+            equippedItemInfo = it.equippedItemInfo,
+            hairColor = it.hairColor,
+            hairStyle = it.hairStyle
+         )
+      }
+
+      return JsEntity(
+         entityId = entityInfo.entityId.value,
+         location = entityInfo.location.toJs(),
+         itemOnGround = itemOnGround,
+         character = character
+      )
+   }
+
+   @HostAccess.Export
+   fun getCurrentInventory(): JsArray<JsInventoryItem> {
+      return listOf<JsInventoryItem>().toJs()
+   }
+
+   @HostAccess.Export
+   fun getCurrentNearbyEntities(): JsArray<JsEntity> {
+      return this.agent.mostRecentInputs.newObservations.entitiesById.values.map { entityInfo ->
+         this.buildJsEntity(entityInfo)
       }.toList().toJs()
    }
 
@@ -76,16 +184,39 @@ class AgentJavaScriptApi(
       Thread.sleep(millis)
    }
 
-   @HostAccess.Export
-   fun pickUp() {
-
+   fun addActions(actions: Actions) {
+      this.agent.addPendingResult(
+         AgentStepResult(
+            actions = actions
+         )
+      )
    }
 
    @HostAccess.Export
-   fun walk(
-      valueA: Array<Int>,
-      valueB: Map<String, Int>
+   fun pickUpItem(entityId: String) {
+      this.addActions(
+         Actions(
+            actionOnEntity = ActionOnEntity(
+               actionId = "pickupItem",
+               reason = "JavaScript",
+               targetEntityId = EntityId(entityId)
+            )
+         )
+      )
+   }
+
+   @HostAccess.Export
+   fun walkTo(
+      destination: JsVector2
    ) {
+      this.addActions(
+         Actions(
+            walk = WalkAction(
+               reason = "JavaScript",
+               location = listOf(destination.value.x, destination.value.y)
+            )
+         )
+      )
 //      val state = this.agentAPI.state
 //      val simulation = this.agentAPI.simulation
 //      val entity = this.agentAPI.entity
@@ -122,3 +253,4 @@ class AgentJavaScriptApi(
 //      }
    }
 }
+

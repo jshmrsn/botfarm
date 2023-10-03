@@ -1,9 +1,12 @@
+// import {ItemOnGroundComponent} from "./scripted-agent-interfaces"
+
 declare const api: any
 
 const speak = api.speak
 
 declare class JsArray {
   getLength(): number
+
   get(index: number): any
 }
 
@@ -16,7 +19,7 @@ function convertJsArray(jsArray: JsArray): any[] {
   return result
 }
 
-interface NativeVector2 {
+interface JsVector2 {
   readonly x: number
   readonly y: number
 }
@@ -47,14 +50,35 @@ class Vector2 {
   }
 }
 
+interface ItemOnGroundComponent {
+  description: string
+  name: string
+  itemTypeId: string
+  canBePickedUp: boolean
+  amount: number
+  pickup: () => void
+}
+
+interface JsEntity {
+  location: JsVector2
+  entityId: string,
+  itemOnGround: ItemOnGroundComponent | null
+}
+
+function vector2(x: number, y: number): Vector2 {
+  return api.makeVector2(x, y)
+}
+
 function getCurrentNearbyEntities() {
   const res = api.getCurrentNearbyEntities()
   const raw = convertJsArray(res)
 
-  return raw.map(it => {
-    return {
-      entityId: it.entityId,
-      location: new Vector2(it.location.x, it.location.y)
-    }
-  })
+  return raw
 }
+
+function getCurrentInventory() {
+  return api.getCurrentInventory()
+}
+
+const recordThought = api.recordThought
+const walkTo = api.walkTo

@@ -32,7 +32,7 @@ object AgentResponseSchema_v1 {
 
    @Serializable
    class AgentResponseFunctionInputs(
-      val locationToWalkToAndReason: ReasonToWalkToAndReason? = null,
+      val locationToWalkToAndReason: WalkAction? = null,
       val actionOnEntity: ActionOnEntity? = null,
       val actionOnInventoryItem: ActionOnInventoryItem? = null,
       val craftItem: CraftItemAction? = null,

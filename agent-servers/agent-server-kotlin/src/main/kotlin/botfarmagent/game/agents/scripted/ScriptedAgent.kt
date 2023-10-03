@@ -2,8 +2,6 @@ package botfarmagent.game.agents.scripted
 
 import botfarm.agentserver.ModelInfo
 import botfarm.agentserver.PromptBuilder
-import botfarm.agentserver.RunPromptResult
-import botfarm.agentserver.runPrompt
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
 import botfarmagent.game.agents.common.*
@@ -12,7 +10,6 @@ import botfarmagent.game.agents.default.updateMemory
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.AgentStepResult
 import botfarmshared.game.apidata.AgentSyncInputs
-import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.serialization.json.*
 import org.graalvm.polyglot.Context
@@ -35,14 +32,17 @@ class ScriptedAgent(
          .option("js.strict", "true")
          .build()
 
+   val agentJavaScriptApi: AgentJavaScriptApi
+
    init {
       val initialInputs = this.initialInputs
       val simulationTime = initialInputs.simulationTime
       val selfInfo = initialInputs.selfInfo
 
       val javaScriptBindings = this.javaScriptContext.getBindings("js")
-      val agentJavaScriptBindings = AgentJavaScriptApi(this)
-      javaScriptBindings.putMember("api", agentJavaScriptBindings)
+      val agentJavaScriptApi = AgentJavaScriptApi(this)
+      this.agentJavaScriptApi = agentJavaScriptApi
+      javaScriptBindings.putMember("api", agentJavaScriptApi)
 
       val sourceName = "helpers"
 
@@ -181,29 +181,6 @@ class ScriptedAgent(
    override suspend fun step(
       inputs: AgentSyncInputs
    ) {
-      run {
-         val sourceName = "agent"
-         val responseScript = """
-            (function() {
-            const result = getCurrentNearbyEntities()
-            console.log("result", result)
-            console.log("result first", result[0])
-            for (const x of result) {
-              console.log("x", JSON.stringify(x))
-            }
-            })()
-         """.trimIndent()
-         val javaScriptSource = Source.newBuilder("js", responseScript, sourceName).build()
-         try {
-            this.javaScriptContext.eval(javaScriptSource)
-         } catch (exception: Exception) {
-            println("Exception evaluating agent JavaScript: " + exception.stackTraceToString())
-         }
-      }
-
-
-      return
-
       val simulationTimeForStep = inputs.simulationTime
 
       val modelInfo = if (this.useGpt4) {
@@ -412,33 +389,33 @@ class ScriptedAgent(
          it.addLine("")
       }
 
-      builder.addSection("observedEntities", reserveTokens = 1000) {
-         it.addLine("## OBSERVED_ENTITIES")
-
-         val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
-
-         var entityIndex = 0
-         for (entityInfo in sortedEntities) {
-            val result = it.addJsonLine(
-               buildStateForEntity(
-                  entityInfo = entityInfo
-               ),
-               optional = true
-            ).didFit
-
-            if (!result) {
-               println(
-                  "Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
-                     selfInfo.entityInfo.location
-                  )
-               )
-               break
-            }
-
-            ++entityIndex
-         }
-         it.addLine("", optional = true)
-      }
+//      builder.addSection("observedEntities", reserveTokens = 1000) {
+//         it.addLine("## OBSERVED_ENTITIES")
+//
+//         val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
+//
+//         var entityIndex = 0
+//         for (entityInfo in sortedEntities) {
+//            val result = it.addJsonLine(
+//               buildStateForEntity(
+//                  entityInfo = entityInfo
+//               ),
+//               optional = true
+//            ).didFit
+//
+//            if (!result) {
+//               println(
+//                  "Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
+//                     selfInfo.entityInfo.location
+//                  )
+//               )
+//               break
+//            }
+//
+//            ++entityIndex
+//         }
+//         it.addLine("", optional = true)
+//      }
 
       builder.addSection("shortTermMemory") {
          it.addLine("## YOUR_ACTIVE_MEMORY")
@@ -511,6 +488,8 @@ class ScriptedAgent(
 
       typesSection.addLine(interfacesSource)
 
+      val runtimeLines = mutableListOf<String>()
+
       selfSection.addLine(
          """
          // Your own state
@@ -520,92 +499,123 @@ class ScriptedAgent(
       """.trimIndent()
       )
 
-      entityListSection.addLine(
-         """
-         // Entities around you
-         const tree_1: Tree = {
-             location: {x: 2000, y: 2300}
+      val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
+      val bindings = this.javaScriptContext.getBindings("js")
+
+      var entityIndex = 0
+      for (entityInfo in sortedEntities) {
+         val jsEntity = this.agentJavaScriptApi.buildJsEntity(entityInfo)
+
+         val entityVariableName = "entity_${entityInfo.entityId.value}"
+         val serializedAsJavaScript = JavaScriptSerialization.serialize(jsEntity)
+
+         val entityAsCode = "const $entityVariableName: Entity = $serializedAsJavaScript"
+
+         val addLineResult = entityListSection.addLine(
+            entityAsCode,
+            optional = true
+         ).didFit
+
+         if (!addLineResult) {
+            println(
+               "Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
+                  selfInfo.entityInfo.location
+               )
+            )
+            break
          }
 
-         const tree_2: Tree = {
-             location: {x: 1900, y: 2300}
-         }
+         bindings.putMember(entityVariableName, jsEntity)
 
-         const boulder_1: Boulder = {
-             location: {x: 1900, y: 1900}
-         }
-      """.trimIndent()
-      )
+         ++entityIndex
+      }
+      entityListSection.addLine("", optional = true)
 
-      val promptId = buildShortRandomString()
+
+      val text = builder.buildText()
+      println("prompt: $text")
 
       val promptSendTime = getCurrentUnixTimeSeconds()
 
-      val promptResult = runPrompt(
-         openAI = this.context.openAI,
-         modelInfo = modelInfo,
-         promptBuilder = builder,
-         functionName = AgentResponseSchema_v1.functionName,
-         functionSchema = AgentResponseSchema_v1.functionSchema,
-         functionDescription = null,
-         debugInfo = "${inputs.agentType} (step) (simulationId = $simulationId agentId = $agentId, syncId = $syncId, promptId = $promptId)",
-         completionPrefix = completionPrefix,
-         completionMaxTokens = completionMaxTokens,
-         useFunctionCalling = this.useFunctionCalling
-      )
+      val responseScript = """
+         const result = getCurrentNearbyEntities()
+         const first = result[0]
+         console.log("first", result[0])
+         console.log("first location", result[0].location)
+         console.log("first location.x", result[0].location.x)
+         console.log("first location mag", result[0].location.getMagnitude())
+         console.log("first location min", result[0].location.plus(vector2(99999, 0)))
+         console.log("entity_D0D7FA4F print", entity_D0D7FA4F)
 
-      when (promptResult) {
-         is RunPromptResult.Success -> {}
-         is RunPromptResult.RateLimitError -> {
-            return this.addPendingResult(
-               AgentStepResult(
-                  error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true
-               )
-            )
-         }
+         console.log("first json", JSON.stringify(first))
+      """.trimIndent()
 
-         is RunPromptResult.UnknownApiError -> {
-            return this.addPendingResult(
-               AgentStepResult(
-                  error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName
-               )
-            )
-         }
 
-         is RunPromptResult.LengthLimit -> {
-            return this.addPendingResult(
-               AgentStepResult(
-                  error = "Prompt exceeded max length (errorId = ${promptResult.errorId})"
-               )
-            )
-         }
-      }
-
-      this.previousPromptDoneUnixTime = getCurrentUnixTimeSeconds()
-
-      val responseText: String = promptResult.responseText
-
-      this.previousPromptSendSimulationTime = simulationTimeForStep
-
-      val codeBlockStartIndex = responseText.indexOf("```")
-      val responseScript = if (codeBlockStartIndex >= 0) {
-         val newlineIndex = responseText.indexOf("\n")
-         val textAfterBlockStart = responseText.substring(newlineIndex + 1)
-         val blockEndIndex = textAfterBlockStart.indexOf("```")
-
-         if (blockEndIndex < 0) {
-            throw Exception("Script block end not found:\n$textAfterBlockStart")
-         } else {
-            textAfterBlockStart.substring(0, blockEndIndex)
-         }
-      } else {
-         responseText
-      }
+//      val promptId = buildShortRandomString()
+//      val promptResult = runPrompt(
+//         openAI = this.context.openAI,
+//         modelInfo = modelInfo,
+//         promptBuilder = builder,
+//         functionName = AgentResponseSchema_v1.functionName,
+//         functionSchema = AgentResponseSchema_v1.functionSchema,
+//         functionDescription = null,
+//         debugInfo = "${inputs.agentType} (step) (simulationId = $simulationId agentId = $agentId, syncId = $syncId, promptId = $promptId)",
+//         completionPrefix = completionPrefix,
+//         completionMaxTokens = completionMaxTokens,
+//         useFunctionCalling = this.useFunctionCalling
+//      )
+//
+//      when (promptResult) {
+//         is RunPromptResult.Success -> {}
+//         is RunPromptResult.RateLimitError -> {
+//            return this.addPendingResult(
+//               AgentStepResult(
+//                  error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
+//                  wasRateLimited = true
+//               )
+//            )
+//         }
+//
+//         is RunPromptResult.UnknownApiError -> {
+//            return this.addPendingResult(
+//               AgentStepResult(
+//                  error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName
+//               )
+//            )
+//         }
+//
+//         is RunPromptResult.LengthLimit -> {
+//            return this.addPendingResult(
+//               AgentStepResult(
+//                  error = "Prompt exceeded max length (errorId = ${promptResult.errorId})"
+//               )
+//            )
+//         }
+//      }
+//
+//      val responseText: String = promptResult.responseText
+//
+//      this.previousPromptDoneUnixTime = getCurrentUnixTimeSeconds()
+//      this.previousPromptSendSimulationTime = simulationTimeForStep
+//
+//      val codeBlockStartIndex = responseText.indexOf("```")
+//      val responseScript = if (codeBlockStartIndex >= 0) {
+//         val newlineIndex = responseText.indexOf("\n")
+//         val textAfterBlockStart = responseText.substring(newlineIndex + 1)
+//         val blockEndIndex = textAfterBlockStart.indexOf("```")
+//
+//         if (blockEndIndex < 0) {
+//            throw Exception("Script block end not found:\n$textAfterBlockStart")
+//         } else {
+//            textAfterBlockStart.substring(0, blockEndIndex)
+//         }
+//      } else {
+//         responseText
+//      }
 
       this.addPendingResult(
          AgentStepResult(
-            interactions = null,
+            actions = null,
             newDebugInfo = responseScript.lines()
                .joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
@@ -622,8 +632,14 @@ class ScriptedAgent(
 
       println("responseScript: $responseScript")
 
+      val wrappedResponseScript = """
+         (function() {
+         $responseScript
+         })()
+      """.trimIndent()
+
       val sourceName = "agent"
-      val javaScriptSource = Source.newBuilder("js", responseScript, sourceName).build()
+      val javaScriptSource = Source.newBuilder("js", wrappedResponseScript, sourceName).build()
       try {
          this.javaScriptContext.eval(javaScriptSource)
       } catch (exception: Exception) {

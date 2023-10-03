@@ -602,8 +602,8 @@ class DefaultAgent(
          )
       }
 
-      val interactions = Interactions(
-         locationToWalkToAndReason = locationToWalkToAndReason,
+      val actions = Actions(
+         walk = locationToWalkToAndReason,
          actionOnEntity = actionOnEntity,
          actionOnInventoryItem = actionOnInventoryItem,
          speak = iWantToSay,
@@ -638,7 +638,7 @@ class DefaultAgent(
 
       this.addPendingResult(
          AgentStepResult(
-            interactions = interactions,
+            actions = actions,
             newDebugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",

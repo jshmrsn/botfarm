@@ -84,7 +84,8 @@ class ItemEntityInfo(
    val itemName: String,
    val description: String,
    val canBeDamagedByToolItemConfigKey: String?,
-   val canBePickedUp: Boolean
+   val canBePickedUp: Boolean,
+   val amount: Int
 )
 
 @Serializable

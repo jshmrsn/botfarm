@@ -54,7 +54,7 @@ object DynamicSerialization {
       )
    }
 
-   private fun resolvePossibleInlineValueClassInstance(value: Any, valueClass: KClass<*>): Any? {
+   fun resolvePossibleInlineValueClassInstance(value: Any, valueClass: KClass<*>): Any? {
       if (valueClass.isValue) {
          // jshmrsn: I am confused why inline values class instances are represented using their custom classes
          // instead of their underlying value class. I would expect the runtime instances to just be the inline
