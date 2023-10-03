@@ -4,7 +4,7 @@ import kotlin.math.roundToInt
 import kotlin.random.Random
 
 class RandomConfig private constructor(
-   // joshr: These can't be private because they are serialized
+   // jshmrsn: These can't be private because they are serialized
    val fixed: Double? = null,
    val range: Range? = null
 ) {

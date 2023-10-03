@@ -6,7 +6,6 @@ const speak = api.speak
 
 declare class JsArray {
   getLength(): number
-
   get(index: number): any
 }
 
@@ -70,14 +69,11 @@ function vector2(x: number, y: number): Vector2 {
 }
 
 function getCurrentNearbyEntities() {
-  const res = api.getCurrentNearbyEntities()
-  const raw = convertJsArray(res)
-
-  return raw
+  return convertJsArray(api.getCurrentNearbyEntities())
 }
 
-function getCurrentInventory() {
-  return api.getCurrentInventory()
+function getCurrentInventoryItemStacks() {
+  return convertJsArray(api.getCurrentInventoryItemStacks())
 }
 
 const recordThought = api.recordThought

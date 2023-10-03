@@ -5,7 +5,6 @@ import com.knuddels.jtokkit.api.EncodingRegistry
 import com.knuddels.jtokkit.api.ModelType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
-import kotlin.math.roundToInt
 
 sealed class SectionOrEntry {
    class Entry(
@@ -18,44 +17,25 @@ sealed class SectionOrEntry {
    ) : SectionOrEntry()
 }
 
-val ratios = mutableListOf<Double>()
+// jshmrsn: Re-using the same registry significantly sped up token counting over many inputs
+val registry: EncodingRegistry = Encodings.newDefaultEncodingRegistry()
+
+var totalTokenCountDurationMs = 0.0
+var totalTokenCount = 0L
 
 fun getApproximateTokenCountForText(
    modelType: ModelType,
    text: String
 ): Int {
-   val conservativeAverageRatio = 3.6 // 3.8 observed
-   val approximateCount = Math.ceil(text.length / conservativeAverageRatio).roundToInt()
+   val startNanoTime = System.nanoTime()
+   val encoding = registry.getEncodingForModel(modelType)
 
-   val useTiktoken = true
-   if (useTiktoken) {
-      // joshr: Tiktoken takes a lot of CPU time :(
-      val startTime = System.nanoTime()
+   val count = encoding.countTokens(text)
 
-      val registry: EncodingRegistry = Encodings.newDefaultEncodingRegistry()
-      val encoding = registry.getEncodingForModel(modelType)
+   totalTokenCount += count
+   totalTokenCountDurationMs += (System.nanoTime() - startNanoTime) / 1000000.0
 
-      val count = encoding.countTokens(text)
-
-//      val length = text.length
-//      val endTime = System.nanoTime()
-//
-//      val ratio = length / count.toDouble()
-//      if (length > 15) {
-//         ratios.add(ratio)
-//      }
-//
-//      println("ms: " + ((endTime - startTime) / 1000000.0))
-//      println("Length: " + length)
-//      println("Count: " + count)
-//      println("Approximate count: " + approximateCount)
-//      println("Ratio: " + ratio)
-//      println("Average ratio: " + ratios.average())
-
-      return count
-   } else {
-      return approximateCount
-   }
+   return count
 }
 
 class PromptBuilder(

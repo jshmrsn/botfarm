@@ -22,6 +22,9 @@ interface Entity {
 
 interface ActiveGrowth {
   growingItemTypeId: string
+  growingIntoItemTypeId: string
+  duration: number
+  startTime: number
 }
 
 interface GrowerComponent {
@@ -41,26 +44,32 @@ interface ItemOnGroundComponent {
 interface DamageableComponent {
   hp: number
   canBeDamagedByEquippedItemTypeId: string | null
-  attack()
+  attackWithEquippedItem()
 }
 
 interface CharacterComponent {
   name: string
 }
 
-interface InventoryItem {
+interface InventoryItemStack {
   readonly name: string
   readonly description: string
   readonly itemTypeId: string
   readonly isEquipped: boolean
   readonly canBeEquipped: boolean
   readonly amount: number
+  readonly stackIndex: number
+  readonly spawnItemOnUseItemTypeId: string | null
+  readonly canBeUsedWhenEquipped: boolean
 
-  drop()
+  dropAll()
+  dropAmount(amount: number)
+  equip()
+  use() // NOTE: Must be equipped before using, and requires canBeUsedWhenEquipped
 }
 
 // Functions to query current world state
-declare function getCurrentInventory(): InventoryItem[];
+declare function getCurrentInventoryItemStacks(): InventoryItemStack[];
 declare function getCurrentNearbyEntities(): Entity[];
 
 // General actions you can take

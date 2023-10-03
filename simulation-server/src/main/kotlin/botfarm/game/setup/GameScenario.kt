@@ -95,7 +95,7 @@ abstract class GameScenario(
             description = description,
             spriteConfigKey = spriteConfigKey,
             iconUrl = iconUrl ?: textureUrl,
-            killableConfig = killableConfig,
+            damageableConfig = killableConfig,
             storableConfig = storableConfig,
             equippableConfig = equippableConfig,
             craftableConfig = craftableConfig,
@@ -279,7 +279,7 @@ abstract class GameScenario(
             )
          ),
          killableConfig = KillableConfig(
-            canBeDamagedByToolItemConfigKey = "axe",
+            damageableByEquippedToolItemConfigKey = "axe",
             maxHp = 100
          )
       )
@@ -299,7 +299,7 @@ abstract class GameScenario(
          ),
          spriteBaseScale = Vector2.uniform(0.35),
          killableConfig = KillableConfig(
-            canBeDamagedByToolItemConfigKey = "pickaxe",
+            damageableByEquippedToolItemConfigKey = "pickaxe",
             maxHp = 100
          )
       )

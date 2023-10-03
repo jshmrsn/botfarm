@@ -5,113 +5,6 @@ import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
 import org.graalvm.polyglot.HostAccess
 
-class JsVector2(
-   val value: Vector2
-) {
-   @HostAccess.Export
-   @JvmField
-   val x = this.value.x
-
-   @HostAccess.Export
-   @JvmField
-   val y = this.value.y
-
-   override fun toString(): String {
-      return "JsVector2(${this.x}, ${this.y})"
-   }
-
-   @HostAccess.Export
-   fun getMagnitude(): Double {
-      return this.value.magnitude()
-   }
-
-   @HostAccess.Export
-   fun distanceTo(other: JsVector2): Double {
-      return this.value.distance(other.value)
-   }
-
-   @HostAccess.Export
-   fun plus(other: JsVector2): JsVector2 {
-      return JsVector2(this.value + other.value)
-   }
-
-   @HostAccess.Export
-   fun minus(other: JsVector2): JsVector2 {
-      return JsVector2(this.value - other.value)
-   }
-}
-
-class JsItemOnGroundComponent(
-   val api: AgentJavaScriptApi,
-   val entityInfo: EntityInfo,
-   @HostAccess.Export @JvmField val description: String,
-   @HostAccess.Export @JvmField val name: String,
-   @HostAccess.Export @JvmField val itemTypeId: String,
-   @HostAccess.Export @JvmField val canBePickedUp: Boolean,
-   @HostAccess.Export @JvmField val amount: Int
-) {
-   @HostAccess.Export
-   fun pickup() {
-      println("PICKUP CALLEd")
-      this.api.pickUpItem(this.entityInfo.entityId.value)
-   }
-}
-
-class JsItemInfo(
-   @HostAccess.Export @JvmField val name: String,
-   @HostAccess.Export @JvmField val description: String,
-   @HostAccess.Export @JvmField val itemTypeId: String
-) {
-   constructor(itemInfo: ItemInfo) : this(
-      name = itemInfo.name,
-      description = itemInfo.description,
-      itemTypeId = itemInfo.itemConfigKey
-   )
-}
-
-class JsCharacterComponent(
-   val api: AgentJavaScriptApi,
-   val entityInfo: EntityInfo,
-
-   @HostAccess.Export @JvmField val name: String,
-   @HostAccess.Export @JvmField val gender: String,
-   @HostAccess.Export @JvmField val skinColor: String,
-   @HostAccess.Export @JvmField val age: Int,
-   @HostAccess.Export @JvmField val description: String,
-   @HostAccess.Export @JvmField val equippedItemInfo: ItemInfo? = null,
-   @HostAccess.Export @JvmField val hairColor: String? = null,
-   @HostAccess.Export @JvmField val hairStyle: String? = null
-)
-
-class JsInventoryItem()
-
-class JsEntity(
-   @HostAccess.Export @JvmField val location: JsVector2,
-   @HostAccess.Export @JvmField val entityId: String,
-   @HostAccess.Export @JvmField val itemOnGround: JsItemOnGroundComponent?,
-   @HostAccess.Export @JvmField val character: JsCharacterComponent?
-)
-
-fun <T> List<T>.toJs(): JsArray<T> {
-   return JsArray(this)
-}
-
-fun Vector2.toJs(): JsVector2 {
-   return JsVector2(this)
-}
-
-class JsArray<T>(
-   val values: List<T>
-) {
-   @HostAccess.Export
-   fun getLength(): Int = this.values.size
-
-   @HostAccess.Export
-   fun get(index: Int): T {
-      return this.values.get(index)
-   }
-}
-
 class AgentJavaScriptApi(
    val agent: ScriptedAgent
 ) {
@@ -129,47 +22,27 @@ class AgentJavaScriptApi(
       return JsVector2(Vector2(x, y))
    }
 
+   fun buildJsInventoryItemStackInfo(
+      itemStackInfo: ItemStackInfo,
+      stackIndex: Int
+   ): JsInventoryItemStackInfo {
+      return JsInventoryItemStackInfo(
+         api = this,
+         stackIndex = stackIndex,
+         itemStackInfo = itemStackInfo
+      )
+   }
+
    fun buildJsEntity(entityInfo: EntityInfo): JsEntity {
-      val itemOnGround = entityInfo.itemEntityInfo?.let { itemEntityInfo ->
-         JsItemOnGroundComponent(
-            api = this,
-            entityInfo = entityInfo,
-
-            description = itemEntityInfo.description,
-            name = itemEntityInfo.itemName,
-            itemTypeId = itemEntityInfo.itemConfigKey,
-            canBePickedUp = itemEntityInfo.canBePickedUp,
-            amount = itemEntityInfo.amount
-         )
-      }
-
-      val character = entityInfo.characterEntityInfo?.let {
-         JsCharacterComponent(
-            api = this,
-            entityInfo = entityInfo,
-
-            name = it.name,
-            gender = it.gender,
-            skinColor = it.skinColor,
-            age = it.age,
-            description = it.description,
-            equippedItemInfo = it.equippedItemInfo,
-            hairColor = it.hairColor,
-            hairStyle = it.hairStyle
-         )
-      }
-
       return JsEntity(
-         entityId = entityInfo.entityId.value,
-         location = entityInfo.location.toJs(),
-         itemOnGround = itemOnGround,
-         character = character
+         api = this,
+         entityInfo = entityInfo
       )
    }
 
    @HostAccess.Export
-   fun getCurrentInventory(): JsArray<JsInventoryItem> {
-      return listOf<JsInventoryItem>().toJs()
+   fun getCurrentInventoryItemStacks(): JsArray<JsInventoryItemStackInfo> {
+      return listOf<JsInventoryItemStackInfo>().toJs()
    }
 
    @HostAccess.Export
@@ -200,6 +73,71 @@ class AgentJavaScriptApi(
                actionId = "pickupItem",
                reason = "JavaScript",
                targetEntityId = EntityId(entityId)
+            )
+         )
+      )
+   }
+
+
+   @HostAccess.Export
+   fun interactWithEntity(entityId: String) {
+      this.addActions(
+         Actions(
+            actionOnEntity = ActionOnEntity(
+               actionId = "interact",
+               reason = "JavaScript",
+               targetEntityId = EntityId(entityId)
+            )
+         )
+      )
+   }
+
+   @HostAccess.Export
+   fun equipItem(
+      itemConfigKey: String,
+      stackIndex: Int?,
+      reason: String? = null
+   ) {
+      this.addActions(
+         Actions(
+            actionOnInventoryItem = ActionOnInventoryItem(
+               actionId = "equipItem",
+               reason = reason ?: "JavaScript",
+               itemConfigKey = itemConfigKey,
+               stackIndex = stackIndex
+            )
+         )
+      )
+   }
+
+   @HostAccess.Export
+   fun useEquippedItem(
+      reason: String?
+   ) {
+      this.addActions(
+         Actions(
+            useEquippedToolItem = UseEquippedToolItem(
+               reason = reason ?: "JavaScript"
+            )
+         )
+      )
+   }
+
+   @HostAccess.Export
+   fun dropItem(
+      itemConfigKey: String,
+      stackIndex: Int?,
+      amount: Int?,
+      reason: String? = null
+   ) {
+      this.addActions(
+         Actions(
+            actionOnInventoryItem = ActionOnInventoryItem(
+               actionId = "dropItem",
+               reason = reason ?: "JavaScript",
+               itemConfigKey = itemConfigKey,
+               stackIndex = stackIndex,
+               amount = amount
             )
          )
       )

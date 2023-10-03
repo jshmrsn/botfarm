@@ -9,8 +9,8 @@ fun getSortedObservedEntities(
 ) = inputs.newObservations.entitiesById
    .values
    .sortedWith { a, b ->
-      val isCharacterA = a.characterEntityInfo != null
-      val isCharacterB = b.characterEntityInfo != null
+      val isCharacterA = a.characterInfo != null
+      val isCharacterB = b.characterInfo != null
       if (isCharacterA != isCharacterB) {
          if (isCharacterA) {
             -1

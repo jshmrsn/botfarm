@@ -24,6 +24,10 @@ sealed class UpdateMemoryResult {
       val errorId: String
    ) : UpdateMemoryResult()
 
+   class ConnectionError(
+      val errorId: String
+   ) : UpdateMemoryResult()
+
    class LengthLimit(
       val errorId: String
    ) : UpdateMemoryResult()
@@ -250,6 +254,12 @@ suspend fun updateMemory(
          )
       }
 
+      is RunPromptResult.ConnectionError -> {
+         return UpdateMemoryResult.ConnectionError(
+            errorId = promptResult.errorId
+         )
+      }
+
       is RunPromptResult.UnknownApiError -> {
          return UpdateMemoryResult.RunPromptError(
             errorId = promptResult.errorId,
@@ -267,7 +277,7 @@ suspend fun updateMemory(
          val usage = promptResult.usage
          val updatedShortTermMemory = promptResult.responseText
 
-         // joshr: Waiting for successful prompt completion before clearing state
+         // jshmrsn: Waiting for successful prompt completion before clearing state
          memoryState.automaticShortTermMemories.clear()
          memoryState.automaticShortTermMemories.addAll(automaticShortTermMemoriesToKeep)
 

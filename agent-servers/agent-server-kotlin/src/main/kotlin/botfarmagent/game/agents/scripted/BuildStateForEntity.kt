@@ -6,23 +6,23 @@ import kotlinx.serialization.json.*
 fun buildStateForEntity(
    entityInfo: EntityInfo
 ): JsonObject {
-   val characterEntityInfo = entityInfo.characterEntityInfo
+   val characterInfo = entityInfo.characterInfo
 
    return buildJsonObject {
       put("entityId", entityInfo.entityId.value)
 
-      if (characterEntityInfo != null) {
-         put("description", characterEntityInfo.description)
-         put("name", characterEntityInfo.name)
-         put("age", characterEntityInfo.age)
-         put("gender", characterEntityInfo.gender)
+      if (characterInfo != null) {
+         put("description", characterInfo.description)
+         put("name", characterInfo.name)
+         put("age", characterInfo.age)
+         put("gender", characterInfo.gender)
       }
 
-      val itemEntityInfo = entityInfo.itemEntityInfo
+      val itemInfo = entityInfo.itemInfo
 
-      if (itemEntityInfo != null) {
-         put("itemName", itemEntityInfo.itemName)
-         put("description", itemEntityInfo.description)
+      if (itemInfo != null) {
+         put("itemName", itemInfo.itemName)
+         put("description", itemInfo.description)
       }
 
       if (entityInfo.availableActionIds != null) {

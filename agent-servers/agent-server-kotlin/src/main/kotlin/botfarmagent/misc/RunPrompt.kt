@@ -9,6 +9,7 @@ import com.aallam.openai.api.chat.*
 import com.aallam.openai.api.completion.CompletionRequest
 import com.aallam.openai.api.core.FinishReason
 import com.aallam.openai.api.core.Usage
+import com.aallam.openai.api.exception.GenericIOException
 import com.aallam.openai.api.exception.RateLimitException
 import com.aallam.openai.api.model.ModelId
 import com.aallam.openai.client.OpenAI
@@ -16,6 +17,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlin.math.roundToInt
 
 
 sealed class RunPromptResult {
@@ -26,6 +28,7 @@ sealed class RunPromptResult {
 
    class LengthLimit(val errorId: String, val usage: PromptUsage) : RunPromptResult()
    class RateLimitError(val errorId: String) : RunPromptResult()
+   class ConnectionError(val errorId: String) : RunPromptResult()
    class UnknownApiError(val errorId: String, val exception: Exception) : RunPromptResult()
 }
 
@@ -49,6 +52,10 @@ suspend fun runPrompt(
    println("Running prompt using model ${modelInfo.modelId}, ${debugInfo}:\n$prompt")
    println("Prompt token usage summary ${modelInfo.modelId}, ${debugInfo}:\n${promptBuilder.buildTokenUsageSummary()}")
 
+   println("All-time total token count: $totalTokenCount")
+   println("All-time total token count duration ms: ${totalTokenCountDurationMs.roundToInt()}")
+   println("All-time average ms per 1k tokens: ${totalTokenCountDurationMs.roundToInt() / (totalTokenCount / 1000.0).roundToInt()}")
+
    val usage: Usage?
    val promptUsage: PromptUsage
    val responseText: String
@@ -69,6 +76,10 @@ suspend fun runPrompt(
          val errorId = buildShortRandomString()
          println("Got rate limit exception running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
          return RunPromptResult.RateLimitError(errorId = errorId)
+      } catch (exception: GenericIOException) {
+         val errorId = buildShortRandomString()
+         println("Got connection error running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
+         return RunPromptResult.ConnectionError(errorId = errorId)
       } catch (exception: Exception) {
          val errorId = buildShortRandomString()
          println("Got unknown error running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
@@ -128,6 +139,10 @@ suspend fun runPrompt(
          val errorId = buildShortRandomString()
          println("Got rate limit exception running prompt (errorId = $errorId, $debugInfo, ${modelInfo.modelId}):\n" + exception.stackTraceToString())
          return RunPromptResult.RateLimitError(errorId = errorId)
+      } catch (exception: GenericIOException) {
+         val errorId = buildShortRandomString()
+         println("Got connection error running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
+         return RunPromptResult.ConnectionError(errorId = errorId)
       } catch (exception: Exception) {
          val errorId = buildShortRandomString()
          println("Got unknown error running prompt (errorId = $errorId, $debugInfo, ${modelInfo.modelId}):\n" + exception.stackTraceToString())
@@ -181,8 +196,9 @@ sealed class RunJsonPromptResult {
       val usage: PromptUsage
    ) : RunJsonPromptResult()
 
-   class LengthLimit(val errorId: String) : RunJsonPromptResult()
+   class LengthLimit(val errorId: String, val usage: PromptUsage) : RunJsonPromptResult()
    class RateLimitError(val errorId: String) : RunJsonPromptResult()
+   class ConnectionError(val errorId: String) : RunJsonPromptResult()
    class UnknownApiError(val errorId: String, val exception: Exception) : RunJsonPromptResult()
 }
 
@@ -252,11 +268,15 @@ suspend fun runPromptWithJsonOutput(
       }
 
       is RunPromptResult.LengthLimit -> {
-         return RunJsonPromptResult.LengthLimit(errorId = result.errorId)
+         return RunJsonPromptResult.LengthLimit(errorId = result.errorId, usage = result.usage)
       }
 
       is RunPromptResult.RateLimitError -> {
          return RunJsonPromptResult.RateLimitError(errorId = result.errorId)
+      }
+
+      is RunPromptResult.ConnectionError -> {
+         return RunJsonPromptResult.ConnectionError(errorId = result.errorId)
       }
 
       is RunPromptResult.UnknownApiError -> {

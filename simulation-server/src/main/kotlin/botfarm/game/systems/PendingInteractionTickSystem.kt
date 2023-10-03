@@ -89,9 +89,9 @@ fun pendingInteractionTickSystem(
                      GameSimulation.PickUpItemResult.Success -> {}
                      GameSimulation.PickUpItemResult.TooFar -> sendAlertToControlledClient("Too far away to pick up item")
                   }
-               } else if (itemConfig.killableConfig?.canBeDamagedByToolItemConfigKey != null &&
+               } else if (itemConfig.damageableConfig?.damageableByEquippedToolItemConfigKey != null &&
                   equippedToolItemConfig != null &&
-                  itemConfig.killableConfig.canBeDamagedByToolItemConfigKey == equippedToolItemConfig.key
+                  itemConfig.damageableConfig.damageableByEquippedToolItemConfigKey == equippedToolItemConfig.key
                ) {
                   val result = simulation.interactWithEntityUsingEquippedItem(
                      interactingEntity = context.entity,

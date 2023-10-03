@@ -139,8 +139,18 @@ fun handleAgentStepResult(
             expectedItemConfigKey = null
          )
 
-         if (result != GameSimulation.UseEquippedItemResult.Success) {
-            simulation.broadcastAlertAsGameMessage("Unable to use equipped item for agent ($debugInfo): result ${result.name}")
+         if (result !is GameSimulation.UseEquippedItemResult.Success) {
+            simulation.broadcastAlertAsGameMessage("Unable to use equipped item for agent ($debugInfo): result ${result::class.simpleName}")
+         } else {
+            state.newObservations.actionOnInventoryItemActionRecords.add(
+               ActionOnInventoryItemRecord(
+                  startedAtTime = simulationTimeForStep,
+                  reason = useEquippedToolItem.reason,
+                  itemConfigKey = result.equippedToolItemConfig.key,
+                  amount = 1,
+                  actionId = "equip"
+               )
+            )
          }
       }
 
@@ -256,7 +266,8 @@ fun handleAgentStepResult(
             }
          } else if (actionIdKey == "pickupItem" ||
             actionIdKey == "harvestItem" ||
-            actionIdKey == "plantItem"
+            actionIdKey == "plantItem" ||
+            actionIdKey == "interact"
          ) {
             agentApi.interactWithEntity(targetEntity)
          } else {

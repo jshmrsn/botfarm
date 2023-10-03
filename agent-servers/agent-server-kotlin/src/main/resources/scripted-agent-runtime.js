@@ -30,12 +30,10 @@ function vector2(x, y) {
     return api.makeVector2(x, y);
 }
 function getCurrentNearbyEntities() {
-    const res = api.getCurrentNearbyEntities();
-    const raw = convertJsArray(res);
-    return raw;
+    return convertJsArray(api.getCurrentNearbyEntities());
 }
-function getCurrentInventory() {
-    return api.getCurrentInventory();
+function getCurrentInventoryItemStacks() {
+    return convertJsArray(api.getCurrentInventoryItemStacks());
 }
 const recordThought = api.recordThought;
 const walkTo = api.walkTo;

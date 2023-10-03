@@ -83,9 +83,14 @@ class ItemEntityInfo(
    val itemConfigKey: String,
    val itemName: String,
    val description: String,
-   val canBeDamagedByToolItemConfigKey: String?,
    val canBePickedUp: Boolean,
    val amount: Int
+)
+
+@Serializable
+class DamageableEntityInfo(
+   val damageableByEquippedToolItemConfigKey: String?,
+   val hp: Int
 )
 
 @Serializable
@@ -107,9 +112,10 @@ class EntityInfo(
    val entityId: EntityId,
    val location: Vector2,
    val availableActionIds: List<String>? = null,
-   val itemEntityInfo: ItemEntityInfo?,
-   val characterEntityInfo: CharacterEntityInfo?,
-   val growerEntityInfo: GrowerEntityInfo? = null
+   val itemInfo: ItemEntityInfo?,
+   val damageableInfo: DamageableEntityInfo?,
+   val characterInfo: CharacterEntityInfo?,
+   val growerInfo: GrowerEntityInfo? = null
 )
 
 @Serializable
@@ -150,7 +156,9 @@ class ItemStackInfo(
    val itemName: String,
    val itemDescription: String,
    val canBeEquipped: Boolean,
-   val canBeDropped: Boolean
+   val canBeDropped: Boolean,
+   val isEquipped: Boolean,
+   val spawnItemOnUseConfigKey: String?
 )
 
 @Serializable

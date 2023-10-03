@@ -43,7 +43,7 @@ enum class EquipmentSlot {
 class KillableConfig(
    val maxHp: Int,
    val spawnItemOnDestructionConfig: SpawnItemOnDestructionConfig? = null,
-   val canBeDamagedByToolItemConfigKey: String? = null
+   val damageableByEquippedToolItemConfigKey: String? = null
 )
 
 class StorableConfig(
@@ -67,7 +67,7 @@ class ItemConfig(
    val blocksPlacement: Boolean = false,
    val equippableConfig: EquippableConfig? = null,
    val storableConfig: StorableConfig? = null,
-   val killableConfig: KillableConfig? = null,
+   val damageableConfig: KillableConfig? = null,
    val craftableConfig: CraftableConfig? = null,
    val spawnItemOnDestructionConfig: SpawnItemOnDestructionConfig? = null, // tree spawns wood when cut down
    val growerConfig: GrowerConfig? = null, // farm plots receive and grow carrot seeds

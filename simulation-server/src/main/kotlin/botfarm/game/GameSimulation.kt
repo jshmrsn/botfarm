@@ -648,13 +648,13 @@ class GameSimulation(
       }
    }
 
-   enum class UseEquippedItemResult {
-      Success,
-      UnexpectedEquippedItem,
-      NoActionForEquippedTool,
-      NoToolItemEquipped,
-      Busy,
-      Dead
+   sealed class UseEquippedItemResult {
+      class Success(val equippedToolItemConfig: ItemConfig) : UseEquippedItemResult()
+      object UnexpectedEquippedItem : UseEquippedItemResult()
+      object NoActionForEquippedTool : UseEquippedItemResult()
+      object NoToolItemEquipped : UseEquippedItemResult()
+      object Busy : UseEquippedItemResult()
+      object Dead : UseEquippedItemResult()
    }
 
    fun useEquippedToolItem(
@@ -675,7 +675,6 @@ class GameSimulation(
          return UseEquippedItemResult.NoToolItemEquipped
       }
 
-      val equippedStackIndex = equippedToolItemConfigAndStackIndex.first
       val equippedToolItemConfig = equippedToolItemConfigAndStackIndex.second
 
       if (expectedItemConfigKey != null &&
@@ -741,7 +740,9 @@ class GameSimulation(
             }
          }
 
-         return UseEquippedItemResult.Success
+         return UseEquippedItemResult.Success(
+            equippedToolItemConfig = equippedToolItemConfig
+         )
       }
 
       return UseEquippedItemResult.NoActionForEquippedTool
@@ -807,10 +808,10 @@ class GameSimulation(
          return InteractWithEntityUsingEquippedItemResult.TooFar
       }
 
-      if (targetItemConfig.killableConfig?.canBeDamagedByToolItemConfigKey != null &&
-         targetItemConfig.killableConfig.canBeDamagedByToolItemConfigKey == equippedToolItemConfig.key
+      if (targetItemConfig.damageableConfig?.damageableByEquippedToolItemConfigKey != null &&
+         targetItemConfig.damageableConfig.damageableByEquippedToolItemConfigKey == equippedToolItemConfig.key
       ) {
-         val killableComponent = targetEntity.getComponent<KillableComponentData>()
+         val killableComponent = targetEntity.getComponent<DamageableComponentData>()
 
          this.applyPerformedAction(
             entity = interactingEntity,
@@ -908,7 +909,7 @@ class GameSimulation(
          throw Exception("Damage cannot be negative")
       }
 
-      val killableComponent = targetEntity.getComponent<KillableComponentData>()
+      val killableComponent = targetEntity.getComponent<DamageableComponentData>()
 
       if (killableComponent.data.killedAtTime != null) {
          return
@@ -1213,10 +1214,10 @@ class GameSimulation(
          )
       )
 
-      if (itemConfig.killableConfig != null) {
+      if (itemConfig.damageableConfig != null) {
          components.add(
-            KillableComponentData(
-               hp = itemConfig.killableConfig.maxHp
+            DamageableComponentData(
+               hp = itemConfig.damageableConfig.maxHp
             )
          )
       }
@@ -1283,7 +1284,7 @@ class GameSimulation(
                age = age,
                bodySelections = bodySelections
             ),
-            KillableComponentData(
+            DamageableComponentData(
                hp = 100
             ),
             InventoryComponentData(),
@@ -1678,7 +1679,7 @@ class GameSimulation(
                age = 30,
                bodySelections = this.buildRandomCharacterBodySelections()
             ),
-            KillableComponentData(
+            DamageableComponentData(
                hp = 100
             ),
             InventoryComponentData(),

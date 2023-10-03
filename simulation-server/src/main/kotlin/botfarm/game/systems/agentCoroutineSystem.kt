@@ -223,7 +223,9 @@ private suspend fun sync(
             itemName = itemConfig.name,
             itemDescription = itemConfig.description,
             canBeDropped = itemConfig.storableConfig?.canBeDropped ?: false,
-            canBeEquipped = itemConfig.equippableConfig != null
+            canBeEquipped = itemConfig.equippableConfig != null,
+            isEquipped = it.isEquipped,
+            spawnItemOnUseConfigKey = itemConfig.spawnItemOnUseConfig?.spawnItemConfigKey
          )
       }
    )

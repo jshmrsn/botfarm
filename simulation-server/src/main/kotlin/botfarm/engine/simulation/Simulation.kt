@@ -240,7 +240,7 @@ open class Simulation(
 
       if (!webSocketSession.isActive) {
          println("sendWebSocketMessage: Web socket session is already closed")
-         this.handleWebSocketClose(client.webSocketSession)
+         // jshmrsn: Not removing client here because that can modify clients list while it's being iterated
          return
       }
 
@@ -504,6 +504,13 @@ open class Simulation(
 
       val webSocketMessagesToRetrySnapshot = this.webSocketMessagesToRetry.map { it }
       this.webSocketMessagesToRetry.clear()
+
+      this.clients.toList().forEach {
+         if (!it.webSocketSession.isActive) {
+            println("Found inactive web socket session, calling handleWebSocketClose")
+            this.handleWebSocketClose(it.webSocketSession)
+         }
+      }
 
       webSocketMessagesToRetrySnapshot.forEach {
          if (it.client.webSocketSession.isActive) {

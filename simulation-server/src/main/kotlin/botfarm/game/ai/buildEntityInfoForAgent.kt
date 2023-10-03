@@ -3,10 +3,7 @@ package botfarm.game.ai
 import botfarm.common.resolvePosition
 import botfarmshared.game.apidata.*
 import botfarm.engine.simulation.Entity
-import botfarm.game.components.CharacterComponentData
-import botfarm.game.components.GrowerComponentData
-import botfarm.game.components.ItemComponentData
-import botfarm.game.components.getEquippedItemConfig
+import botfarm.game.components.*
 import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
 
@@ -39,7 +36,6 @@ fun buildEntityInfoForAgent(
 
    val growerComponent = entity.getComponentOrNull<GrowerComponentData>()?.data
 
-
    val growerEntityInfo = if (growerComponent != null) {
       val activeGrowth = growerComponent.activeGrowth
 
@@ -64,9 +60,13 @@ fun buildEntityInfoForAgent(
       null
    }
 
+   val damageableComponent = entity.getComponentOrNull<DamageableComponentData>()?.data
+
+
    val itemComponent = entity.getComponentOrNull<ItemComponentData>()?.data
 
    val itemEntityInfo: ItemEntityInfo?
+   val damageableEntityInfo: DamageableEntityInfo?
 
    if (itemComponent != null) {
       val itemConfig = simulation.getConfig<ItemConfig>(itemComponent.itemConfigKey)
@@ -75,10 +75,18 @@ fun buildEntityInfoForAgent(
          itemConfigKey = itemComponent.itemConfigKey,
          itemName = itemConfig.name,
          description = itemConfig.description,
-         canBeDamagedByToolItemConfigKey = itemConfig.killableConfig?.canBeDamagedByToolItemConfigKey,
          canBePickedUp = itemConfig.storableConfig != null,
          amount = itemComponent.amount
       )
+
+      damageableEntityInfo = if (damageableComponent != null) {
+         DamageableEntityInfo(
+            hp = damageableComponent.hp,
+            damageableByEquippedToolItemConfigKey = itemConfig.damageableConfig?.damageableByEquippedToolItemConfigKey
+         )
+      } else {
+         null
+      }
 
       if (interactingEntity != null) {
          availableActionIds = mutableListOf()
@@ -87,8 +95,8 @@ fun buildEntityInfoForAgent(
             availableActionIds.add("pickupItem")
          }
 
-         if (itemConfig.killableConfig?.canBeDamagedByToolItemConfigKey != null &&
-            itemConfig.killableConfig.canBeDamagedByToolItemConfigKey == interactingEquippedItemKey
+         if (itemConfig.damageableConfig?.damageableByEquippedToolItemConfigKey != null &&
+            itemConfig.damageableConfig.damageableByEquippedToolItemConfigKey == interactingEquippedItemKey
          ) {
             availableActionIds.add("harvestItem")
          }
@@ -104,6 +112,7 @@ fun buildEntityInfoForAgent(
       }
    } else {
       itemEntityInfo = null
+      damageableEntityInfo = null
    }
 
    if (availableActionIds != null && availableActionIds.isEmpty()) {
@@ -115,8 +124,9 @@ fun buildEntityInfoForAgent(
       entityId = entity.entityId,
       location = entity.resolvePosition(simulationTime),
       availableActionIds = availableActionIds,
-      itemEntityInfo = itemEntityInfo,
-      characterEntityInfo = characterEntityInfo,
-      growerEntityInfo = growerEntityInfo
+      itemInfo = itemEntityInfo,
+      characterInfo = characterEntityInfo,
+      growerInfo = growerEntityInfo,
+      damageableInfo = damageableEntityInfo
    )
 }

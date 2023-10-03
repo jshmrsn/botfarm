@@ -59,14 +59,16 @@ class DefaultAgent(
       val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
          .also { newAutomaticShortTermMemories ->
             pendingEvents.activityStreamEntries.forEach { activityStreamEntry ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = activityStreamEntry.time,
-                     summary = activityStreamEntry.title + (activityStreamEntry.message?.let {
-                        "\n" + activityStreamEntry.message
-                     } ?: "")
+               if (activityStreamEntry.sourceEntityId != inputs.selfInfo.entityInfo.entityId) {
+                  newAutomaticShortTermMemories.add(
+                     AutomaticShortTermMemory(
+                        time = activityStreamEntry.time,
+                        summary = activityStreamEntry.title + (activityStreamEntry.message?.let {
+                           "\n" + activityStreamEntry.message
+                        } ?: "")
+                     )
                   )
-               )
+               }
             }
 
             pendingEvents.selfSpokenMessages.forEach { selfSpokenMessage ->
@@ -199,6 +201,11 @@ class DefaultAgent(
             is UpdateMemoryResult.RateLimit -> {
                wasRateLimited = true
                errors.add("Memory update prompt rate limited: " + updateMemoryResult.errorId)
+            }
+
+            is UpdateMemoryResult.ConnectionError -> {
+               wasRateLimited = true
+               errors.add("Memory update prompt connection error: " + updateMemoryResult.errorId)
             }
 
             is UpdateMemoryResult.LengthLimit -> {
@@ -502,7 +509,9 @@ class DefaultAgent(
       )
 
       when (promptResult) {
-         is RunJsonPromptResult.Success -> {}
+         is RunJsonPromptResult.Success -> {
+            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
+         }
          is RunJsonPromptResult.RateLimitError -> {
             return this.addPendingResult(
                AgentStepResult(
@@ -512,11 +521,23 @@ class DefaultAgent(
             )
          }
 
+         is RunJsonPromptResult.ConnectionError -> {
+            return this.addPendingResult(
+               AgentStepResult(
+                  error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
+                  wasRateLimited = true
+               )
+            )
+         }
+
          is RunJsonPromptResult.JsonParseFailed -> {
+            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
+
             return this.addPendingResult(
                AgentStepResult(
                   error = "Failed to parse json of prompt output (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true
+                  wasRateLimited = true,
+                  promptUsages = promptUsages
                )
             )
          }
@@ -530,9 +551,12 @@ class DefaultAgent(
          }
 
          is RunJsonPromptResult.LengthLimit -> {
+            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
+
             return this.addPendingResult(
                AgentStepResult(
-                  error = "Prompt exceeded max length (errorId = ${promptResult.errorId})"
+                  error = "Prompt exceeded max length (errorId = ${promptResult.errorId})",
+                  promptUsages = promptUsages
                )
             )
          }
@@ -612,8 +636,6 @@ class DefaultAgent(
          useEquippedToolItem = useEquippedToolItem
       )
 
-      promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
-
       val newDebugInfoLines = mutableListOf<String>()
       newDebugInfoLines.add("### Sync ID: $syncId")
       newDebugInfoLines.add("")
@@ -657,23 +679,23 @@ class DefaultAgent(
 fun buildStateForEntity(
    entityInfo: EntityInfo
 ): JsonObject {
-   val characterEntityInfo = entityInfo.characterEntityInfo
+   val characterInfo = entityInfo.characterInfo
 
    return buildJsonObject {
       put("entityId", entityInfo.entityId.value)
 
-      if (characterEntityInfo != null) {
-         put("description", characterEntityInfo.description)
-         put("name", characterEntityInfo.name)
-         put("age", characterEntityInfo.age)
-         put("gender", characterEntityInfo.gender)
+      if (characterInfo != null) {
+         put("description", characterInfo.description)
+         put("name", characterInfo.name)
+         put("age", characterInfo.age)
+         put("gender", characterInfo.gender)
       }
 
-      val itemEntityInfo = entityInfo.itemEntityInfo
+      val itemInfo = entityInfo.itemInfo
 
-      if (itemEntityInfo != null) {
-         put("itemName", itemEntityInfo.itemName)
-         put("description", itemEntityInfo.description)
+      if (itemInfo != null) {
+         put("itemName", itemInfo.itemName)
+         put("description", itemInfo.description)
       }
 
       if (entityInfo.availableActionIds != null) {

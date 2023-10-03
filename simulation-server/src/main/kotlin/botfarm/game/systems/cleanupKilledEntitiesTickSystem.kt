@@ -3,11 +3,11 @@ package botfarm.game.systems
 import botfarm.engine.simulation.EntityComponent
 import botfarm.engine.simulation.TickSystemContext
 import botfarm.game.GameSimulation
-import botfarm.game.components.KillableComponentData
+import botfarm.game.components.DamageableComponentData
 
 fun cleanupKilledEntitiesTickSystem(
    context: TickSystemContext,
-   killableComponent: EntityComponent<KillableComponentData>
+   killableComponent: EntityComponent<DamageableComponentData>
 ) {
    val simulation = context.simulation as GameSimulation
 

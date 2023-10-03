@@ -1,9 +1,6 @@
 package botfarmagent.game.agents.scripted
 
-import botfarm.agentserver.ModelInfo
-import botfarm.agentserver.PromptBuilder
-import botfarm.agentserver.RunPromptResult
-import botfarm.agentserver.runPrompt
+import botfarm.agentserver.*
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
 import botfarmagent.game.agents.common.*
@@ -86,14 +83,16 @@ class ScriptedAgent(
       val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
          .also { newAutomaticShortTermMemories ->
             pendingEvents.activityStreamEntries.forEach { activityStreamEntry ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = activityStreamEntry.time,
-                     summary = activityStreamEntry.title + (activityStreamEntry.message?.let {
-                        "\n" + activityStreamEntry.message
-                     } ?: "")
+               if (activityStreamEntry.sourceEntityId != inputs.selfInfo.entityInfo.entityId) {
+                  newAutomaticShortTermMemories.add(
+                     AutomaticShortTermMemory(
+                        time = activityStreamEntry.time,
+                        summary = activityStreamEntry.title + (activityStreamEntry.message?.let {
+                           "\n" + activityStreamEntry.message
+                        } ?: "")
+                     )
                   )
-               )
+               }
             }
 
             pendingEvents.selfSpokenMessages.forEach { selfSpokenMessage ->
@@ -228,6 +227,11 @@ class ScriptedAgent(
                errors.add("Memory update prompt rate limited: " + updateMemoryResult.errorId)
             }
 
+            is UpdateMemoryResult.ConnectionError -> {
+               wasRateLimited = true
+               errors.add("Memory update prompt connection error: " + updateMemoryResult.errorId)
+            }
+
             is UpdateMemoryResult.LengthLimit -> {
                errors.add("Memory update prompt length limited: " + updateMemoryResult.errorId)
             }
@@ -353,36 +357,6 @@ class ScriptedAgent(
          it.addLine("")
       }
 
-      builder.addSection("yourInventory") {
-         it.addLine("## YOUR_ITEM_INVENTORY")
-         val inventory = selfInfo.inventoryInfo
-
-         for (itemStack in inventory.itemStacks) {
-            it.addJsonLine(buildJsonObject {
-               put("itemConfigKey", itemStack.itemConfigKey)
-               put("youHaveQuantity", itemStack.amount)
-
-               putJsonArray("availableActionIds") {
-                  if (itemStack.canBeEquipped) {
-                     add(JsonPrimitive("equipItem"))
-                  }
-
-                  if (itemStack.canBeDropped) {
-                     add(JsonPrimitive("dropItem"))
-                  }
-               }
-
-               putJsonObject("itemInfo") {
-                  put("itemName", itemStack.itemName)
-                  put("itemDescription", itemStack.itemDescription)
-               }
-            })
-         }
-
-         it.addLine("")
-      }
-
-
       builder.addSection("shortTermMemory") {
          it.addLine("## YOUR_ACTIVE_MEMORY")
          it.addLine(this.memoryState.shortTermMemory)
@@ -393,16 +367,24 @@ class ScriptedAgent(
       val recentActivitySection = builder.addSection("recentActivity")
       val newActivitySection = builder.addSection("newActivity")
 
-      val codeBlockStartSection = builder.addSection("codeBlockStartSection")
-      codeBlockStartSection.addLine("```ts")
+      builder.addSection("codeBlockStartSection").also {
+         it.addLine("```ts")
+      }
+
       val typesSection = builder.addSection("types")
-      val entityListSection = builder.addSection("entityListSection")
+      val entityListSection = builder.addSection(
+         "entityListSection",
+         reserveTokens = 2500
+      )
+
+      val afterEntityListSection = builder.addSection("afterEntityListSection")
+
       val inventoryListSection = builder.addSection("inventoryListSection")
       val selfSection = builder.addSection("selfSection")
-      val generalActionsSection = builder.addSection("generalActionsSection")
 
-      val codeBlockEndSection = builder.addSection("codeBlockEndSection")
-      codeBlockEndSection.addLine("```")
+      builder.addSection("codeBlockEndSection").also {
+         it.addLine("```")
+      }
 
       val completionPrefix = ""
 
@@ -447,26 +429,58 @@ class ScriptedAgent(
          }
       }
 
+      inventoryListSection.also {
+         val inventory = selfInfo.inventoryInfo
+
+         if (inventory.itemStacks.isEmpty()) {
+            it.addLine("// You have no inventory items")
+         } else {
+            it.addLine("// Your inventory item stacks")
+
+            for ((stackIndex, itemStack) in inventory.itemStacks.withIndex()) {
+               val jsInventoryItemStackInfo = this.agentJavaScriptApi.buildJsInventoryItemStackInfo(
+                  itemStackInfo = itemStack,
+                  stackIndex = stackIndex
+               )
+
+               val itemStackVariableName = "inventory_item_${stackIndex}"
+               val serializedAsJavaScript = JavaScriptSerialization.serialize(jsInventoryItemStackInfo)
+
+               val inventoryItemStackAsCode =
+                  "const $itemStackVariableName: InventoryItemStack = $serializedAsJavaScript"
+
+               val addLineResult = it.addLine(
+                  inventoryItemStackAsCode,
+                  optional = true
+               ).didFit
+
+               if (!addLineResult) {
+                  println("Inventory item did not fit (${stackIndex + 1} / ${inventory.itemStacks.size})")
+                  break
+               }
+
+               bindings.putMember(itemStackVariableName, jsInventoryItemStackInfo)
+            }
+
+            it.addLine("")
+         }
+      }
+
       val interfacesSource = ScriptedAgent::class.java.getResource("/scripted-agent-interfaces.ts")?.readText()
          ?: throw Exception("got null from scripted-agent-interfaces.ts")
-
-      // Content in prompt can affect high-level reasoning
 
       typesSection.addLine(interfacesSource)
 
       val selfJsEntity = this.agentJavaScriptApi.buildJsEntity(selfInfo.entityInfo)
-      selfSection.addLine(
-         """
-         // Your own entity state
-         const self: Entity = ${JavaScriptSerialization.serialize(selfJsEntity)}
-      """.trimIndent()
-      )
+      selfSection.addLine("// Your own entity state")
+      selfSection.addLine("const self: Entity = ${JavaScriptSerialization.serialize(selfJsEntity)}")
+
       bindings.putMember("self", selfJsEntity)
 
       val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
 
       entityListSection.addLine("// Entities in the world")
-      var entityIndex = 0
+      var nextEntityIndex = 0
       for (entityInfo in sortedEntities) {
          val jsEntity = this.agentJavaScriptApi.buildJsEntity(entityInfo)
 
@@ -482,7 +496,7 @@ class ScriptedAgent(
 
          if (!addLineResult) {
             println(
-               "Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
+               "Entity did not fit (${nextEntityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
                   selfInfo.entityInfo.location
                )
             )
@@ -491,10 +505,15 @@ class ScriptedAgent(
 
          bindings.putMember(entityVariableName, jsEntity)
 
-         ++entityIndex
+         ++nextEntityIndex
       }
+
       entityListSection.addLine("", optional = true)
 
+      val remainingEntities = sortedEntities.size - nextEntityIndex
+      if (remainingEntities > 0) {
+         afterEntityListSection.addLine("// NOTE: $remainingEntities entities were omitted from the above list to reduce prompt size, you can use getCurrentNearbyEntities() in your response to get the full list")
+      }
 
       val text = builder.buildText()
       println("prompt: $text")
@@ -530,12 +549,25 @@ class ScriptedAgent(
       )
 
       when (promptResult) {
-         is RunPromptResult.Success -> {}
+         is RunPromptResult.Success -> {
+            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
+         }
          is RunPromptResult.RateLimitError -> {
             return this.addPendingResult(
                AgentStepResult(
                   error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true
+                  wasRateLimited = true,
+                  promptUsages = promptUsages
+               )
+            )
+         }
+
+         is RunPromptResult.ConnectionError -> {
+            return this.addPendingResult(
+               AgentStepResult(
+                  error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
+                  wasRateLimited = true,
+                  promptUsages = promptUsages
                )
             )
          }
@@ -543,15 +575,19 @@ class ScriptedAgent(
          is RunPromptResult.UnknownApiError -> {
             return this.addPendingResult(
                AgentStepResult(
-                  error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName
+                  error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName,
+                  promptUsages = promptUsages
                )
             )
          }
 
          is RunPromptResult.LengthLimit -> {
+            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
+
             return this.addPendingResult(
                AgentStepResult(
-                  error = "Prompt exceeded max length (errorId = ${promptResult.errorId})"
+                  error = "Prompt exceeded max length (errorId = ${promptResult.errorId})",
+                  promptUsages = promptUsages
                )
             )
          }
@@ -608,7 +644,7 @@ class ScriptedAgent(
       try {
          this.javaScriptContext.eval(javaScriptSource)
       } catch (exception: Exception) {
-         println("Exception evaluating agent JavaScript: " + exception.stackTraceToString() +"\nAgent script was: $wrappedResponseScript")
+         println("Exception evaluating agent JavaScript: " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
       }
    }
 }
