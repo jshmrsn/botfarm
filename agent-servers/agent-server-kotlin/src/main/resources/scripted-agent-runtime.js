@@ -34,3 +34,8 @@ function getCurrentNearbyEntities() {
     const raw = convertJsArray(res);
     return raw;
 }
+function getCurrentInventory() {
+    return api.getCurrentInventory();
+}
+const recordThought = api.recordThought;
+const walkTo = api.walkTo;

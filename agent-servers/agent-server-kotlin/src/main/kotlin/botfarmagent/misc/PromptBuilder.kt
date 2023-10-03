@@ -1,5 +1,7 @@
 package botfarm.agentserver
 
+import com.knuddels.jtokkit.Encodings
+import com.knuddels.jtokkit.api.EncodingRegistry
 import com.knuddels.jtokkit.api.ModelType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
@@ -25,28 +27,35 @@ fun getApproximateTokenCountForText(
    val conservativeAverageRatio = 3.6 // 3.8 observed
    val approximateCount = Math.ceil(text.length / conservativeAverageRatio).roundToInt()
 
-   // joshr: Tiktoken takes a lot of CPU time :(
-//   val startTime = System.nanoTime()
-//
-//   val registry: EncodingRegistry = Encodings.newDefaultEncodingRegistry()
-//   val encoding = registry.getEncodingForModel(modelType)
-//   val length = text.length
-//
-//   val count = encoding.countTokens(text)
-//   val endTime = System.nanoTime()
-//
-//   val ratio = length / count.toDouble()
-//   if (length > 15) {
-//      ratios.add(ratio)
-//   }
-//   println("ms: " + ((endTime - startTime) / 1000000.0))
-//   println("Length: " + length)
-//   println("Count: " + count)
-//   println("Approximate count: " + approximateCount)
-//   println("Ratio: " + ratio)
-//   println("Average ratio: " + ratios.average())
+   val useTiktoken = true
+   if (useTiktoken) {
+      // joshr: Tiktoken takes a lot of CPU time :(
+      val startTime = System.nanoTime()
 
-   return approximateCount
+      val registry: EncodingRegistry = Encodings.newDefaultEncodingRegistry()
+      val encoding = registry.getEncodingForModel(modelType)
+
+      val count = encoding.countTokens(text)
+
+//      val length = text.length
+//      val endTime = System.nanoTime()
+//
+//      val ratio = length / count.toDouble()
+//      if (length > 15) {
+//         ratios.add(ratio)
+//      }
+//
+//      println("ms: " + ((endTime - startTime) / 1000000.0))
+//      println("Length: " + length)
+//      println("Count: " + count)
+//      println("Approximate count: " + approximateCount)
+//      println("Ratio: " + ratio)
+//      println("Average ratio: " + ratios.average())
+
+      return count
+   } else {
+      return approximateCount
+   }
 }
 
 class PromptBuilder(
