@@ -17,6 +17,7 @@ import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.delay
 import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.Source
+import org.graalvm.polyglot.Value
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
@@ -211,7 +212,7 @@ class ScriptedAgent(
       inputs: AgentSyncInputs
    ) {
       val simulationTimeForStep = inputs.simulationTime
-      val bindingsToAdd = mutableListOf<Pair<String, Any>>()
+      val bindingsToAdd = mutableListOf<Pair<String, (conversionContext: JsConversionContext) -> Any>>()
 
       val modelInfo = if (this.useGpt4) {
          ModelInfo.gpt_4
@@ -527,7 +528,12 @@ class ScriptedAgent(
                break
             }
 
-            bindingsToAdd.add(variableName to jsCraftingRecipe)
+            bindingsToAdd.add(variableName to {
+               this.agentJavaScriptApi.buildJsCraftingRecipe(
+                  craftingRecipe = craftingRecipe,
+                  jsConversionContext = it
+               )
+            })
          }
       }
 
@@ -561,7 +567,9 @@ class ScriptedAgent(
                   break
                }
 
-               bindingsToAdd.add(itemStackVariableName to jsInventoryItemStackInfo)
+               bindingsToAdd.add(itemStackVariableName to {
+                  jsInventoryItemStackInfo
+               })
             }
          }
       }
@@ -571,7 +579,9 @@ class ScriptedAgent(
 
       selfSection.addLine("const self: Entity = ${SerializationAsJavaScriptCode.serialize(selfJsEntity)}")
 
-      bindingsToAdd.add("self" to selfJsEntity)
+      bindingsToAdd.add("self" to {
+         selfJsEntity
+      })
 
       val groupedSortedEntities = getGroupedSortedObservedEntities(inputs, selfInfo)
 
@@ -610,7 +620,9 @@ class ScriptedAgent(
 
             addedEntityIds.add(entityInfo.entityId)
 
-            bindingsToAdd.add(entityVariableName to jsEntity)
+            bindingsToAdd.add(entityVariableName to {
+               jsEntity
+            })
 
             ++nextEntityIndex
          }
@@ -839,10 +851,22 @@ class ScriptedAgent(
          this.mostRecentScript = wrappedResponseScript
          this.agentJavaScriptApi.shouldEndScript = false
 
+
+         this.addPendingResult(
+            AgentStepResult(
+               agentStatus = "running-script",
+               statusStartUnixTime = getCurrentUnixTimeSeconds(),
+               statusDuration = null
+            )
+         )
+
          this.activeScriptThread = thread {
             val bindings = this.javaScriptContext.getBindings("js")
+
+            val jsConversionContext = JsConversionContext(bindings)
+
             bindingsToAdd.forEach {
-               bindings.putMember(it.first, it.second)
+               bindings.putMember(it.first, it.second(jsConversionContext))
             }
 
             val sourceName = "agent"
@@ -852,6 +876,14 @@ class ScriptedAgent(
                this.javaScriptContext.eval(javaScriptSource)
                println("Agent script thread complete: $promptId")
                synchronized(this) {
+                  this.addPendingResult(
+                     AgentStepResult(
+                        agentStatus = "script-done",
+                        statusStartUnixTime = getCurrentUnixTimeSeconds(),
+                        statusDuration = null
+                     )
+                  )
+
                   if (this.activeScriptPromptId == promptId) {
                      this.activeScriptPromptId = null
                   }
@@ -895,11 +927,52 @@ class ScriptedAgent(
             summary = "I had the thought: " + thought
          )
       )
-
    }
 }
 
-val responseOverride: String? = null
+val responseOverride: String? = """
+   const woodNeeded = crafting_recipe_house.costEntries.find(entry => entry.itemTypeId === "wood").amount;
+   const stoneNeeded = crafting_recipe_house.costEntries.find(entry => entry.itemTypeId === "stone").amount;
+   
+   const currentWood = getTotalInventoryAmountForItemTypeId("wood");
+   const currentStone = getTotalInventoryAmountForItemTypeId("stone");
+   if (currentWood < woodNeeded || currentStone < stoneNeeded) {
+     // We still need more resources. Let's continue gathering.
+     // First, let's check if there are any items on the ground that we can pick up.
+     const nearbyEntities = getCurrentNearbyEntities();
+     const nearbyWood = nearbyEntities.find(entity => entity.itemOnGround && entity.itemOnGround.itemTypeId === "wood");
+     const nearbyStone = nearbyEntities.find(entity => entity.itemOnGround && entity.itemOnGround.itemTypeId === "stone");
+     if (nearbyWood) {
+       // There's wood on the ground. Let's pick it up.
+       walkTo(nearbyWood.location);
+       nearbyWood.itemOnGround.pickup();
+     } else if (nearbyStone) {
+       // There's stone on the ground. Let's pick it up.
+       walkTo(nearbyStone.location);
+       nearbyStone.itemOnGround.pickup();
+     } else {
+       // There's no wood or stone on the ground. Let's find a tree or boulder to harvest.
+       const nearbyTree = nearbyEntities.find(entity => entity.itemOnGround && entity.itemOnGround.itemTypeId === "tree");
+       const nearbyBoulder = nearbyEntities.find(entity => entity.itemOnGround && entity.itemOnGround.itemTypeId === "boulder");
+       if (nearbyTree) {
+         // There's a tree nearby. Let's equip our axe and cut it down.
+         const axe = getCurrentInventoryItemStacks().find(item => item.itemTypeId === "axe");
+         axe.equip();
+         nearbyTree.damageable.attackWithEquippedItem();
+       } else if (nearbyBoulder) {
+         // There's a boulder nearby. Let's equip our pickaxe and break it apart.
+         const pickaxe = getCurrentInventoryItemStacks().find(item => item.itemTypeId === "pickaxe");
+         pickaxe.equip();
+         nearbyBoulder.damageable.attackWithEquippedItem();
+       }
+     }
+   } else {
+     // We have enough resources to craft the house. Let's do it.
+     crafting_recipe_house.craft();
+     speak("Player, we have gathered enough resources. I'm going to start crafting the house now.");
+   }
+
+""".trimIndent()
 //   """
 //   const nearbyEntities = getCurrentNearbyEntities();
 //   const nearbyTrees = nearbyEntities.filter(entity => entity.itemOnGround && entity.itemOnGround.itemTypeId === 'tree');

@@ -1338,6 +1338,14 @@ export class SimulationScene extends Phaser.Scene {
           statusSuffix += "💭"
         } else if (agentComponentData.agentStatus === "prompt-finished") {
           // statusSuffix += "✅"
+        } else if (agentComponentData.agentStatus === "running-script") {
+          statusSuffix += "📜"
+        } else if (agentComponentData.agentStatus === "script-done") {
+          statusSuffix += "📜✅"
+        } else if (agentComponentData.agentStatus === "waiting-for-action") {
+          statusSuffix += "📜🕒"
+        } else if (agentComponentData.agentStatus === "action-done") {
+          statusSuffix += "📜✔️"
         } else if (agentComponentData.agentStatus === "exception") {
           statusSuffix += "🚫🤖"
         } else if (agentComponentData.agentStatus === "script-exception") {
@@ -1858,3 +1866,5 @@ export class SimulationScene extends Phaser.Scene {
     return this.simulation.getCurrentSimulationTime()
   }
 }
+
+

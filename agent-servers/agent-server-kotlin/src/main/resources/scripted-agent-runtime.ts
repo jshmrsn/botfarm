@@ -6,6 +6,7 @@ const speak = api.speak
 
 declare class JsArray {
   getLength(): number
+
   get(index: number): any
 }
 
@@ -76,15 +77,19 @@ function getCurrentInventoryItemStacks() {
   return convertJsArray<any>(api.getCurrentInventoryItemStacks())
 }
 
-function getAllCraftingRecipes(): any[]  {
+function convertCraftingRecipe(it: any) {
+  return {
+    canCurrentlyAfford: it.canCurrentlyAfford,
+    itemTypeId: it.itemTypeId,
+    description: it.description,
+    costEntries: convertJsArray(it.costEntries),
+    craft: it.craft
+  }
+}
+
+function getAllCraftingRecipes(): any[] {
   return convertJsArray<any>(api.getAllCraftingRecipes()).map(it => {
-    return {
-      canCurrentlyAfford: it.canCurrentlyAfford,
-      itemTypeId: it.itemTypeId,
-      description: it.description,
-      costEntries: convertJsArray(it.costEntries),
-      craft: it.craft
-    }
+    return convertCraftingRecipe(it)
   })
 }
 

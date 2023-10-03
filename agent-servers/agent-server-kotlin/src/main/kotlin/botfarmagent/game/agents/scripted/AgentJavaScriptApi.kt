@@ -4,9 +4,18 @@ import botfarmagent.game.agents.common.LongTermMemory
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
+import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import org.graalvm.polyglot.HostAccess
+import org.graalvm.polyglot.Value
+
+class JsConversionContext(
+   val bindings: Value
+) {
+   val convertJsArray = this.bindings.getMember("convertJsArray")
+}
+
 
 class AgentJavaScriptApi(
    val agent: ScriptedAgent
@@ -62,7 +71,8 @@ class AgentJavaScriptApi(
    }
 
    fun buildJsCraftingRecipe(
-      craftingRecipe: CraftingRecipe
+      craftingRecipe: CraftingRecipe,
+      jsConversionContext: JsConversionContext? = null
    ): JsCraftingRecipe {
       var canCurrentlyAfford = true
 
@@ -76,7 +86,8 @@ class AgentJavaScriptApi(
       return JsCraftingRecipe(
          api = this,
          craftingRecipe = craftingRecipe,
-         canCurrentlyAfford = canCurrentlyAfford
+         canCurrentlyAfford = canCurrentlyAfford,
+         jsConversionContext = jsConversionContext
       )
    }
 
@@ -140,7 +151,9 @@ class AgentJavaScriptApi(
 
       this.agent.addPendingResult(
          AgentStepResult(
-            actions = actions
+            actions = actions,
+            agentStatus = "waiting-for-action",
+            statusStartUnixTime = getCurrentUnixTimeSeconds()
          )
       )
 
@@ -160,6 +173,13 @@ class AgentJavaScriptApi(
             val actionResult = this.agent.receivedActionResultById[actionUniqueId]
 
             if (actionResult != null) {
+               this.agent.addPendingResult(
+                  AgentStepResult(
+                     agentStatus = "action-done",
+                     statusStartUnixTime = getCurrentUnixTimeSeconds()
+                  )
+               )
+
                return actionResult
             } else {
                println("Action has not yet completed, waiting... $actionUniqueId ($waitingCounter)")

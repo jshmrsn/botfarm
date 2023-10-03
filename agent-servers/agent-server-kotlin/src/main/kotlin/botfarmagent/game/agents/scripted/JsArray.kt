@@ -17,3 +17,13 @@ class JsArray<T>(
 fun <T> List<T>.toJs(): JsArray<T> {
    return JsArray(this)
 }
+
+fun <T> List<T>.toJs(jsConversionContext: JsConversionContext?): Any {
+   val jsArray = JsArray(this)
+
+   if (jsConversionContext == null) {
+      return jsArray
+   }
+
+   return jsConversionContext.convertJsArray.execute(jsArray)
+}

@@ -8,12 +8,14 @@ class JsItemCostEntry(
    @HostAccess.Export @JvmField val amount: Int
 )
 
+
 class JsCraftingRecipe(
    val api: AgentJavaScriptApi,
    val craftingRecipe: CraftingRecipe,
    @HostAccess.Export
    @JvmField
-   val canCurrentlyAfford: Boolean
+   val canCurrentlyAfford: Boolean,
+   jsConversionContext: JsConversionContext?
 ) {
    @HostAccess.Export
    @JvmField
@@ -25,12 +27,12 @@ class JsCraftingRecipe(
 
    @HostAccess.Export
    @JvmField
-   val costEntries: JsArray<JsItemCostEntry> = this.craftingRecipe.cost.entries.map {
+   val costEntries: Any = this.craftingRecipe.cost.entries.map {
       JsItemCostEntry(
          itemTypeId = it.itemConfigKey,
          amount = it.amount
       )
-   }.toJs()
+   }.toJs(jsConversionContext)
 
    @HostAccess.Export
    fun craft(reason: String?) {

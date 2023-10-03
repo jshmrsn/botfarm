@@ -90,17 +90,24 @@ function buildDivForProfileIconLayers(
 }
 
 
-export function ActivityStreamList(props: Props): JSX.Element {
+export function ActivityStreamList(props: Props): JSX.Element | null {
   const activityStream = props.activityStream
   const dynamicState = props.dynamicState
   const simulation = dynamicState.simulation!
 
   let lastEntryRef: HTMLElement | null = null
 
+  const phaserScene = props.dynamicState.phaserScene
+
+
   const [wasScrolledToBottom, setWasScrolledToBottom] = useState(true)
   const [isScrolledFarFromBottom, setIsScrolledFarFromBottom] = useState(false)
   const [previousEntryCount, setPreviousEntryCount] = useState(activityStream.length)
   const [shouldShowNewMessagesBadge, setShouldShowNewMessagesBadge] = useState(false)
+
+  if (phaserScene == null) {
+    return null
+  }
 
   function scrollToBottom() {
     setShouldShowNewMessagesBadge(false)
@@ -112,8 +119,6 @@ export function ActivityStreamList(props: Props): JSX.Element {
   }
 
   const content = activityStream.map((activityStreamEntry, activityStreamIndex) => {
-    const phaserScene = props.dynamicState.phaserScene!
-
     const sourceProfileIconDiv = buildDivForProfileIconLayers(
       activityStreamEntry.sourceEntityId,
       simulation,
@@ -145,17 +150,16 @@ export function ActivityStreamList(props: Props): JSX.Element {
       onClick={(event) => {
         event.stopPropagation()
 
-        if (activityStreamEntry.sourceEntityId != null) {
+        if (activityStreamEntry.sourceLocation != null) {
+          props.dynamicState.phaserScene?.centerCameraOnLocation(activityStreamEntry.sourceLocation)
+        } else if (activityStreamEntry.sourceEntityId != null) {
           const sourceEntity = simulation.getEntityOrNull(activityStreamEntry.sourceEntityId)
 
           if (sourceEntity != null) {
             const sourceEntityPosition = resolveEntityPositionForCurrentTime(sourceEntity)
             props.dynamicState.phaserScene?.centerCameraOnLocation(sourceEntityPosition)
           }
-        } else if (activityStreamEntry.sourceLocation != null) {
-          props.dynamicState.phaserScene?.centerCameraOnLocation(activityStreamEntry.sourceLocation)
         }
-
       }}
       style={{
         display: "flex",
