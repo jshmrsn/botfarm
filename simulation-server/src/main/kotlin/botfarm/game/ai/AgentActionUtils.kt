@@ -8,41 +8,14 @@ import botfarm.game.GameSimulation
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.isDead
 import botfarm.game.systems.AgentState
-import botfarmshared.engine.apidata.EntityId
-import botfarmshared.game.apidata.MovementRecord
 import botfarmshared.game.apidata.SelfSpokenMessage
-import botfarmshared.misc.Vector2
 
-class AgentApi(
+class AgentActionUtils(
    val entity: Entity,
    val state: AgentState,
    val simulation: GameSimulation,
    val debugInfo: String
 ) {
-   fun getEntity(
-      entityId: EntityId,
-      debugReason: String
-   ): Entity {
-      val simulation = this.simulation
-
-      synchronized(simulation) {
-         val targetEntity = simulation.getEntityOrNull(entityId)
-
-         if (targetEntity == null) {
-            val destroyedTargetEntity = simulation.getDestroyedEntityOrNull(entityId)
-            if (destroyedTargetEntity != null) {
-               simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI (but did exist before) ($debugInfo): $debugReason, targetEntityId = $entityId")
-            } else {
-               simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI ($debugInfo): $debugReason, targetEntityId = $entityId")
-            }
-
-            throw Exception("Entity not found: $entityId")
-         } else {
-            return targetEntity
-         }
-      }
-   }
-
    fun waitForMovement(
       positionComponent: EntityComponent<PositionComponentData>,
       movementResult: GameSimulation.MoveToResult.Success,
@@ -104,29 +77,6 @@ class AgentApi(
          simulation.addCharacterMessage(
             entity = this.entity,
             message = whatToSay
-         )
-      }
-   }
-
-   fun walk(
-      endPoint: Vector2,
-      reason: String
-   ) {
-      val simulation = this.simulation
-
-      synchronized(simulation) {
-         this.state.newObservations.movementRecords.add(
-            MovementRecord(
-               startedAtTime = simulation.getCurrentSimulationTime(),
-               startPoint = this.entity.resolvePosition(),
-               endPoint = endPoint,
-               reason = reason
-            )
-         )
-
-         simulation.moveEntityToPoint(
-            entity = entity,
-            endPoint = endPoint
          )
       }
    }

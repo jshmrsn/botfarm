@@ -92,3 +92,4 @@ declare function getTotalInventoryAmountForItemTypeId(itemTypeId: string): numbe
 declare function walkTo(location: Vector2, reason?: string | null);
 declare function speak(wordsToSay: string);
 declare function recordThought(thought: string);
+declare function setFacialExpressionEmoji(singleEmoji: string);

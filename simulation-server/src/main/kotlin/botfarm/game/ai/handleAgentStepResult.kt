@@ -10,7 +10,6 @@ import botfarm.game.components.InventoryComponentData
 import botfarmshared.game.apidata.*
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
-import botfarm.game.components.isDead
 import botfarm.game.systems.AgentState
 
 fun handleAgentStepResult(
@@ -27,7 +26,7 @@ fun handleAgentStepResult(
    val agentType = agentComponent.data.agentType
    val debugInfo = "$agentType, syncId = $syncId"
 
-   val agentApi = AgentApi(
+   val agentActionUtils = AgentActionUtils(
       entity = entity,
       state = state,
       simulation = simulation,
@@ -98,7 +97,7 @@ fun handleAgentStepResult(
       }
 
       if (speak != null) {
-         agentApi.speak(speak)
+         agentActionUtils.speak(speak)
          addActionResult()
       }
 
@@ -125,7 +124,7 @@ fun handleAgentStepResult(
             )
 
             if (movementResult is GameSimulation.MoveToResult.Success) {
-               agentApi.waitForMovement(
+               agentActionUtils.waitForMovement(
                   positionComponent = positionComponent,
                   movementResult = movementResult
                ) {
@@ -296,10 +295,10 @@ fun handleAgentStepResult(
             actionIdKey == "plantItem" ||
             actionIdKey == "interact"
          ) {
-            val movementResult = agentApi.interactWithEntity(targetEntity)
+            val movementResult = agentActionUtils.interactWithEntity(targetEntity)
 
             if (movementResult is GameSimulation.MoveToResult.Success) {
-               agentApi.waitForMovement(
+               agentActionUtils.waitForMovement(
                   positionComponent = positionComponent,
                   movementResult = movementResult
                ) {

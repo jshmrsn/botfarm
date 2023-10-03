@@ -365,5 +365,16 @@ class AgentJavaScriptApi(
          )
       )
    }
+
+   @HostAccess.Export
+   fun setFacialExpressionEmoji(
+      emoji: String
+   ) {
+      this.performActionAndWaitForResult(
+         Actions(
+            facialExpressionEmoji = emoji
+         )
+      )
+   }
 }
 

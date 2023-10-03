@@ -3,6 +3,7 @@
 declare const api: any
 
 const speak = api.speak
+const setFacialExpressionEmoji = api.setFacialExpressionEmoji
 
 declare class JsArray {
   getLength(): number
