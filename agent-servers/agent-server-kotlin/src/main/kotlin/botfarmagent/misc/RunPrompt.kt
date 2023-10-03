@@ -17,6 +17,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import java.text.DecimalFormat
 import kotlin.math.roundToInt
 
 
@@ -52,6 +53,12 @@ suspend fun runPrompt(
    println("Running prompt using model ${modelInfo.modelId}, ${debugInfo}:\n$prompt")
    println("Prompt token usage summary ${modelInfo.modelId}, ${debugInfo}:\n${promptBuilder.buildTokenUsageSummary()}")
 
+   val totalTokensInPrompt = promptBuilder.totalTokens
+   val totalTokensInPromptCost = modelInfo.costPer1kInput * (totalTokensInPrompt / 1000.0)
+   val decimalFormat = DecimalFormat("#,###.##")
+
+   println("Prompt input token cost cents: ${decimalFormat.format(totalTokensInPromptCost * 100)}")
+
    println("All-time total token count: $totalTokenCount")
    println("All-time total token count duration ms: ${totalTokenCountDurationMs.roundToInt()}")
    println("All-time average ms per 1k tokens: ${totalTokenCountDurationMs.roundToInt() / (totalTokenCount / 1000.0).roundToInt()}")
@@ -61,7 +68,7 @@ suspend fun runPrompt(
    val responseText: String
 
    if (modelInfo.isCompletionModel) {
-      val maxTokens = completionMaxTokens ?: (modelInfo.maxTokenCount - promptBuilder.approximateTotalTokens)
+      val maxTokens = completionMaxTokens ?: (modelInfo.maxTokenCount - promptBuilder.totalTokens)
 
       val completionRequest = CompletionRequest(
          model = ModelId(modelInfo.modelId),
@@ -96,7 +103,7 @@ suspend fun runPrompt(
       if (completion.choices.first().finishReason == FinishReason.Length) {
          val errorId = buildShortRandomString()
 
-         println("Completion ended from max length (errorId = $errorId, $debugInfo, approximate input tokens = ${promptBuilder.approximateTotalTokens}, modelInfo.maxTokenCount = ${modelInfo.maxTokenCount}, promptTokens = ${promptUsage.promptTokens}, completionTokens = ${promptUsage.completionTokens}):\n" + completion.choices.first().text)
+         println("Completion ended from max length (errorId = $errorId, $debugInfo, approximate input tokens = ${promptBuilder.totalTokens}, modelInfo.maxTokenCount = ${modelInfo.maxTokenCount}, promptTokens = ${promptUsage.promptTokens}, completionTokens = ${promptUsage.completionTokens}):\n" + completion.choices.first().text)
 
          return RunPromptResult.LengthLimit(errorId = errorId, usage = promptUsage)
       }
@@ -159,7 +166,7 @@ suspend fun runPrompt(
       if (completion.choices.first().finishReason == FinishReason.Length) {
          val errorId = buildShortRandomString()
 
-         println("Chat completion ended from max length (errorId = $errorId, $debugInfo, approximate input tokens = ${promptBuilder.approximateTotalTokens}, modelInfo.maxTokenCount = ${modelInfo.maxTokenCount}, promptTokens = ${promptUsage.promptTokens}, completionTokens = ${promptUsage.completionTokens}):\n${completion.choices.first().message}")
+         println("Chat completion ended from max length (errorId = $errorId, $debugInfo, approximate input tokens = ${promptBuilder.totalTokens}, modelInfo.maxTokenCount = ${modelInfo.maxTokenCount}, promptTokens = ${promptUsage.promptTokens}, completionTokens = ${promptUsage.completionTokens}):\n${completion.choices.first().message}")
          return RunPromptResult.LengthLimit(errorId = errorId, usage = promptUsage)
       }
 

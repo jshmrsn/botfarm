@@ -15,6 +15,7 @@ import kotlinx.serialization.json.*
 import org.graalvm.polyglot.Context
 import kotlin.math.roundToInt
 import org.graalvm.polyglot.*
+import kotlin.concurrent.thread
 
 
 class ScriptedAgent(
@@ -32,6 +33,8 @@ class ScriptedAgent(
          .option("js.strict", "true")
          .build()
 
+   private var activeScriptThread: Thread? = null
+
    val agentJavaScriptApi: AgentJavaScriptApi
 
    init {
@@ -47,11 +50,11 @@ class ScriptedAgent(
       val sourceName = "helpers"
 
       run {
-         val helpersSource =
+         val runtimeSource =
             ScriptedAgent::class.java.getResource("/scripted-agent-runtime.js")?.readText()
                ?: throw Exception("Scripted agent runtime JavaScript resource not found")
 
-         val javaScriptSource = Source.newBuilder("js", helpersSource, sourceName).build()
+         val javaScriptSource = Source.newBuilder("js", runtimeSource, sourceName).build()
          this.javaScriptContext.eval(javaScriptSource)
       }
 
@@ -184,7 +187,7 @@ class ScriptedAgent(
       inputs: AgentSyncInputs
    ) {
       val simulationTimeForStep = inputs.simulationTime
-      val bindings = this.javaScriptContext.getBindings("js")
+      val bindingsToAdd = mutableListOf<Pair<String, Any>>()
 
       val modelInfo = if (this.useGpt4) {
          ModelInfo.gpt_4
@@ -371,10 +374,10 @@ class ScriptedAgent(
          it.addLine("```ts")
       }
 
-      val typesSection = builder.addSection("types")
+      val interfacesSection = builder.addSection("interfaces")
       val entityListSection = builder.addSection(
          "entityListSection",
-         reserveTokens = 2500
+         reserveTokens = (modelInfo.maxTokenCount * 0.333).roundToInt()
       )
 
       val afterEntityListSection = builder.addSection("afterEntityListSection")
@@ -459,7 +462,7 @@ class ScriptedAgent(
                   break
                }
 
-               bindings.putMember(itemStackVariableName, jsInventoryItemStackInfo)
+               bindingsToAdd.add(itemStackVariableName to jsInventoryItemStackInfo)
             }
 
             it.addLine("")
@@ -467,15 +470,15 @@ class ScriptedAgent(
       }
 
       val interfacesSource = ScriptedAgent::class.java.getResource("/scripted-agent-interfaces.ts")?.readText()
-         ?: throw Exception("got null from scripted-agent-interfaces.ts")
+         ?: throw Exception("Scripted agent interfaces resource not found")
 
-      typesSection.addLine(interfacesSource)
+      interfacesSection.addLine(interfacesSource)
 
       val selfJsEntity = this.agentJavaScriptApi.buildJsEntity(selfInfo.entityInfo)
       selfSection.addLine("// Your own entity state")
       selfSection.addLine("const self: Entity = ${JavaScriptSerialization.serialize(selfJsEntity)}")
 
-      bindings.putMember("self", selfJsEntity)
+      bindingsToAdd.add("self" to selfJsEntity)
 
       val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
 
@@ -503,7 +506,7 @@ class ScriptedAgent(
             break
          }
 
-         bindings.putMember(entityVariableName, jsEntity)
+         bindingsToAdd.add(entityVariableName to jsEntity)
 
          ++nextEntityIndex
       }
@@ -634,17 +637,44 @@ class ScriptedAgent(
 
       val wrappedResponseScript = """
          (function() {
-         
          $responseScript
          })()
       """.trimIndent()
 
-      val sourceName = "agent"
-      val javaScriptSource = Source.newBuilder("js", wrappedResponseScript, sourceName).build()
-      try {
-         this.javaScriptContext.eval(javaScriptSource)
-      } catch (exception: Exception) {
-         println("Exception evaluating agent JavaScript: " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
+      synchronized(this) {
+         val previousThread = this.activeScriptThread
+
+         if (previousThread != null) {
+            if (previousThread.isAlive) {
+               println("Agent script thread exists and is active, so interrupting now ($promptId)")
+               previousThread.interrupt()
+            } else {
+               println("Agent script thread exists, but is not active, so not interrupting ($promptId)")
+            }
+         }
+
+         this.activeScriptThread = thread {
+            val bindings = this.javaScriptContext.getBindings("js")
+            bindingsToAdd.forEach {
+               bindings.putMember(it.first, it.second)
+            }
+
+            val sourceName = "agent"
+            val javaScriptSource = Source.newBuilder("js", wrappedResponseScript, sourceName).build()
+
+            try {
+               this.javaScriptContext.eval(javaScriptSource)
+               println("Agent script thread complete: $promptId")
+            } catch (unwindScriptThreadThrowable: UnwindScriptThreadThrowable) {
+               println("Got unwind agent script thread throwable ($promptId): ${unwindScriptThreadThrowable.reason}")
+            } catch (exception: Exception) {
+               println("Exception evaluating agent JavaScript ($promptId): " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
+            }
+         }
       }
    }
 }
+
+class UnwindScriptThreadThrowable(
+   val reason: String = "default"
+) : Throwable()

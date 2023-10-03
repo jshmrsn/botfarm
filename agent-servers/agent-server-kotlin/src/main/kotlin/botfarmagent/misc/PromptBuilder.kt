@@ -52,7 +52,7 @@ class PromptBuilder(
    val entries = this.mutableEntries
 
    private var selfAndRecursiveChildrenTokenCount = 0
-   val approximateTotalTokens: Int
+   val totalTokens: Int
       get() = this.selfAndRecursiveChildrenTokenCount
 
    fun getRecursiveReservedOrAllocatedTokens(): Int {
@@ -130,7 +130,11 @@ class PromptBuilder(
          }
       }
 
-      stringBuilder.appendLine("${this.debugName}: $selfTokenCount")
+      val reservedSuffix = this.reservedTokens?.let {
+         " (reserved $it)"
+      } ?: ""
+
+      stringBuilder.appendLine("${this.debugName}: $selfTokenCount$reservedSuffix")
 
       this.entries.forEach {
          if (it is SectionOrEntry.Section) {
@@ -224,15 +228,16 @@ class PromptBuilder(
          val reservedOutputTokens = this.rootBuilder.reservedOutputTokens
 
          throw Exception(
-            """Added text does not fit:
+            """Added text does not fit (${this.debugName}):
                currentRootRecursiveTokenCount = $currentRootRecursiveTokenCount
+               currentSelfRecursiveTokenCount = ${this.selfAndRecursiveChildrenTokenCount}
                addingTokenCount = $addingTokenCount
                previousRemainingTokens = $previousAvailableTokens,
                newAvailableTokens = $newAvailableTokens
                reservedOutputTokens = $reservedOutputTokens
                modelInfo.maxTokenCount = ${this.modelInfo.maxTokenCount}
                Token usage summary:
-               ${this.buildTokenUsageSummary()}
+               ${this.rootBuilder.buildTokenUsageSummary()}
                Text to add:
                $text
                Previous text:

@@ -15,6 +15,7 @@ class AgentJavaScriptApi(
             speak = message
          )
       )
+      this.sleep(1000)
    }
 
    @HostAccess.Export
@@ -54,7 +55,9 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun sleep(millis: Long) {
+      println("Sleeping $millis")
       Thread.sleep(millis)
+      println("Done sleeping $millis")
    }
 
    fun addActions(actions: Actions) {
@@ -76,6 +79,7 @@ class AgentJavaScriptApi(
             )
          )
       )
+      this.sleep(1000)
    }
 
 
@@ -90,6 +94,7 @@ class AgentJavaScriptApi(
             )
          )
       )
+      this.sleep(1000)
    }
 
    @HostAccess.Export
@@ -108,6 +113,7 @@ class AgentJavaScriptApi(
             )
          )
       )
+      this.sleep(1000)
    }
 
    @HostAccess.Export
@@ -121,6 +127,7 @@ class AgentJavaScriptApi(
             )
          )
       )
+      this.sleep(1000)
    }
 
    @HostAccess.Export
@@ -141,6 +148,7 @@ class AgentJavaScriptApi(
             )
          )
       )
+      this.sleep(1000)
    }
 
    @HostAccess.Export
@@ -155,6 +163,7 @@ class AgentJavaScriptApi(
             )
          )
       )
+      this.sleep(1000)
 //      val state = this.agentAPI.state
 //      val simulation = this.agentAPI.simulation
 //      val entity = this.agentAPI.entity
