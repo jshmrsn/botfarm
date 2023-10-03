@@ -244,7 +244,7 @@ suspend fun updateMemory(
       modelInfo = modelInfo,
       openAI = openAI,
       promptBuilder = builder,
-      debugInfo = "${inputs.agentType} (Update Memory) (simulationId = $simulationId agentId = $agentId, syncId = $syncId, promptId = $promptId)"
+      debugInfo = "${inputs.agentType} (Update Memory) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)"
    )
 
    when (promptResult) {

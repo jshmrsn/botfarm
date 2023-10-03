@@ -35,5 +35,17 @@ function getCurrentNearbyEntities() {
 function getCurrentInventoryItemStacks() {
     return convertJsArray(api.getCurrentInventoryItemStacks());
 }
+function getAllCraftingRecipes() {
+    return convertJsArray(api.getAllCraftingRecipes()).map(it => {
+        return {
+            canCurrentlyAfford: it.canCurrentlyAfford,
+            itemTypeId: it.itemTypeId,
+            description: it.description,
+            costEntries: convertJsArray(it.costEntries),
+            craft: it.craft
+        };
+    });
+}
+const getTotalInventoryAmountForItemTypeId = api.getTotalInventoryAmountForItemTypeId;
 const recordThought = api.recordThought;
 const walkTo = api.walkTo;

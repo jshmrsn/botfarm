@@ -67,7 +67,7 @@ abstract class GameScenario(
          spriteBaseScale: Vector2 = Vector2.one,
          spriteBaseOffset: Vector2 = Vector2.zero,
          useCustomAnimationBaseName: String? = null,
-         killableConfig: KillableConfig? = null,
+         damageableConfig: DamageableConfig? = null,
          storableConfig: StorableConfig? = null,
          craftableConfig: CraftableConfig? = null,
          equippableConfig: EquippableConfig? = null,
@@ -95,7 +95,7 @@ abstract class GameScenario(
             description = description,
             spriteConfigKey = spriteConfigKey,
             iconUrl = iconUrl ?: textureUrl,
-            damageableConfig = killableConfig,
+            damageableConfig = damageableConfig,
             storableConfig = storableConfig,
             equippableConfig = equippableConfig,
             craftableConfig = craftableConfig,
@@ -278,7 +278,7 @@ abstract class GameScenario(
                amountPerStack = RandomConfig.range(10, 30)
             )
          ),
-         killableConfig = KillableConfig(
+         damageableConfig = DamageableConfig(
             damageableByEquippedToolItemConfigKey = "axe",
             maxHp = 100
          )
@@ -298,7 +298,7 @@ abstract class GameScenario(
             )
          ),
          spriteBaseScale = Vector2.uniform(0.35),
-         killableConfig = KillableConfig(
+         damageableConfig = DamageableConfig(
             damageableByEquippedToolItemConfigKey = "pickaxe",
             maxHp = 100
          )

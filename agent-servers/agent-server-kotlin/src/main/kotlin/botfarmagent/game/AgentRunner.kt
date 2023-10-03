@@ -84,7 +84,7 @@ class AgentRunner(
                   } catch (exception: Exception) {
                      val syncId = lastInput.syncId
                      val errorId = buildShortRandomString()
-                     println("RemoteAgentServer: Exception while running agent step (simulationId = $simulationId agentId = $agentId, syncId = $syncId, errorId = $errorId):\n${exception.stackTraceToString()}")
+                     println("RemoteAgentServer: Exception while running agent step ($simulationId, $agentId, syncId = $syncId, errorId = $errorId):\n${exception.stackTraceToString()}")
 
                      agent.addPendingResult(
                         AgentStepResult(

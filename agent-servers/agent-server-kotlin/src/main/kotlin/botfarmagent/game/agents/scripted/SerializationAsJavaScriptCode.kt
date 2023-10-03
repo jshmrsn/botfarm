@@ -8,14 +8,13 @@ import org.graalvm.polyglot.HostAccess
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.declaredMemberProperties
-import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.jvm.javaField
 
 // jshmrsn: The purpose of this class is to generate JavaScript code that represents an
 // instance of a class that was already designed to be used with the JavaScript runtime
 // using Polyglot (specifically, it by default  excluded fields unless they have the HostAccess.Export annotation).
 // The code representation will not include quotes around object keys.
-object JavaScriptSerialization {
+object SerializationAsJavaScriptCode {
    inline fun <reified T> serialize(
       value: T?,
       baseClassTypeArguments: List<KClass<*>> = emptyList(),
@@ -72,8 +71,12 @@ object JavaScriptSerialization {
 
       val newClass = value::class
 
-      val resolvedValue =
+      val resolvedValue = if (value is JsArray<*>) {
+         value.values
+      } else {
          DynamicSerialization.resolvePossibleInlineValueClassInstance(value = value, valueClass = newClass)
+      }
+
       if (resolvedValue == null) {
          builder.append("null")
          return

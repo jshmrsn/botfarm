@@ -954,9 +954,9 @@ export class SimulationScene extends Phaser.Scene {
                 actionTitle: "Pick-up",
                 actionIcon: <IconHandGrab/>
               }
-            } else if (targetItemConfig.killableConfig && targetItemConfig.killableConfig.canBeDamagedByToolItemConfigKey != null &&
+            } else if (targetItemConfig.damageableConfig && targetItemConfig.damageableConfig.damageableByEquippedToolItemConfigKey != null &&
               equippedToolItemConfig != null &&
-              equippedToolItemConfig.key === targetItemConfig.killableConfig.canBeDamagedByToolItemConfigKey) {
+              equippedToolItemConfig.key === targetItemConfig.damageableConfig.damageableByEquippedToolItemConfigKey) {
 
               interaction = {
                 type: AutoInteractActionType.UseToolToDamageEntity,

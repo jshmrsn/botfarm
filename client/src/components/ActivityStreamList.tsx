@@ -144,15 +144,15 @@ export function ActivityStreamList(props: Props): JSX.Element {
       onClick={(event) => {
         event.stopPropagation()
 
-        if (activityStreamEntry.sourceLocation != null) {
-          props.dynamicState.phaserScene?.centerCameraOnLocation(activityStreamEntry.sourceLocation)
-        } else if (activityStreamEntry.sourceEntityId != null) {
+        if (activityStreamEntry.sourceEntityId != null) {
           const sourceEntity = simulation.getEntityOrNull(activityStreamEntry.sourceEntityId)
 
           if (sourceEntity != null) {
             const sourceEntityPosition = resolveEntityPositionForCurrentTime(sourceEntity)
             props.dynamicState.phaserScene?.centerCameraOnLocation(sourceEntityPosition)
           }
+        } else if (activityStreamEntry.sourceLocation != null) {
+          props.dynamicState.phaserScene?.centerCameraOnLocation(activityStreamEntry.sourceLocation)
         }
 
       }}

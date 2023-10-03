@@ -502,7 +502,7 @@ class DefaultAgent(
          functionName = constants.functionName,
          functionSchema = constants.functionSchema,
          functionDescription = null,
-         debugInfo = "${inputs.agentType} (step) (simulationId = $simulationId agentId = $agentId, syncId = $syncId, promptId = $promptId)",
+         debugInfo = "${inputs.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
          completionPrefix = completionPrefix,
          completionMaxTokens = completionMaxTokens,
          useFunctionCalling = this.useFunctionCalling

@@ -6,12 +6,13 @@ import botfarmagent.game.AgentContext
 import botfarmagent.game.agents.common.*
 import botfarmagent.game.agents.default.UpdateMemoryResult
 import botfarmagent.game.agents.default.updateMemory
+import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.AgentStepResult
 import botfarmshared.game.apidata.AgentSyncInputs
+import botfarmshared.game.apidata.EntityInfo
 import botfarmshared.misc.buildShortRandomString
 import botfarmshared.misc.getCurrentUnixTimeSeconds
-import kotlinx.serialization.json.*
 import org.graalvm.polyglot.Context
 import kotlin.math.roundToInt
 import org.graalvm.polyglot.*
@@ -341,24 +342,6 @@ class ScriptedAgent(
          it.addLine("")
       }
 
-      builder.addSection("craftingRecipes") {
-         it.addLine("## ITEM_CRAFTING_RECIPES")
-         inputs.craftingRecipes.forEach { craftingRecipe ->
-            it.addJsonLine(buildJsonObject {
-               put("itemConfigKey", craftingRecipe.itemConfigKey)
-               put("itemName", craftingRecipe.itemName)
-               putJsonArray("craftingCost") {
-                  craftingRecipe.cost.entries.forEach {
-                     addJsonObject {
-                        put("costItemAmount", it.amount)
-                        put("costItemConfigKey", it.itemConfigKey)
-                     }
-                  }
-               }
-            })
-         }
-         it.addLine("")
-      }
 
       builder.addSection("shortTermMemory") {
          it.addLine("## YOUR_ACTIVE_MEMORY")
@@ -375,15 +358,57 @@ class ScriptedAgent(
       }
 
       val interfacesSection = builder.addSection("interfaces")
-      val entityListSection = builder.addSection(
-         "entityListSection",
+
+      val craftingRecipesSection = builder.addSection(
+         "craftingRecipesSection"
+      ).also {
+         it.addLine("// Crafting recipes:")
+      }
+
+      builder.addSection(
+         "after craftingRecipesSection"
+      ).also {
+         it.addLine("")
+         it.addLine("")
+      }
+
+      val uniqueEntityListSection = builder.addSection(
+         "uniqueEntityListSection",
          reserveTokens = (modelInfo.maxTokenCount * 0.333).roundToInt()
       )
 
-      val afterEntityListSection = builder.addSection("afterEntityListSection")
+      val nonUniqueEntityListSection = builder.addSection(
+         "nonUniqueEntityListSection",
+         reserveTokens = 300
+      )
+
+      val omittedEntityIntroSection = builder.addSection(
+         "omittedEntityIntroSection",
+         reserveTokens = 50
+      )
+
+      val omittedEntitySummarySection = builder.addSection(
+         "omittedEntitySummarySection"
+      )
+
+      builder.addSection("afterEntityListSection").also {
+         it.addLine("")
+         it.addLine("")
+      }
 
       val inventoryListSection = builder.addSection("inventoryListSection")
-      val selfSection = builder.addSection("selfSection")
+      builder.addSection("after inventoryListSection").also {
+         it.addLine("")
+         it.addLine("")
+      }
+
+      val selfSection = builder.addSection("selfSection").also {
+         it.addLine("// Your own entity state:")
+      }
+
+      builder.addSection("after selfSection").also {
+         it.addLine("")
+      }
 
       builder.addSection("codeBlockEndSection").also {
          it.addLine("```")
@@ -432,6 +457,34 @@ class ScriptedAgent(
          }
       }
 
+
+      craftingRecipesSection.also {
+         for (craftingRecipe in inputs.craftingRecipes) {
+            val jsCraftingRecipe = this.agentJavaScriptApi.buildJsCraftingRecipe(
+               craftingRecipe = craftingRecipe
+            )
+
+            val variableName = "crafting_recipe_${craftingRecipe.itemConfigKey.replace("-", "_")}"
+
+            val serializedAsCode = SerializationAsJavaScriptCode.serialize(jsCraftingRecipe)
+
+            val variableDeclarationAsCode =
+               "const $variableName: CraftingRecipe = $serializedAsCode"
+
+            val addLineResult = it.addLine(
+               variableDeclarationAsCode,
+               optional = true
+            ).didFit
+
+            if (!addLineResult) {
+               println("Crafting item did not fit")
+               break
+            }
+
+            bindingsToAdd.add(variableName to jsCraftingRecipe)
+         }
+      }
+
       inventoryListSection.also {
          val inventory = selfInfo.inventoryInfo
 
@@ -447,7 +500,7 @@ class ScriptedAgent(
                )
 
                val itemStackVariableName = "inventory_item_${stackIndex}"
-               val serializedAsJavaScript = JavaScriptSerialization.serialize(jsInventoryItemStackInfo)
+               val serializedAsJavaScript = SerializationAsJavaScriptCode.serialize(jsInventoryItemStackInfo)
 
                val inventoryItemStackAsCode =
                   "const $itemStackVariableName: InventoryItemStack = $serializedAsJavaScript"
@@ -464,8 +517,6 @@ class ScriptedAgent(
 
                bindingsToAdd.add(itemStackVariableName to jsInventoryItemStackInfo)
             }
-
-            it.addLine("")
          }
       }
 
@@ -475,47 +526,94 @@ class ScriptedAgent(
       interfacesSection.addLine(interfacesSource)
 
       val selfJsEntity = this.agentJavaScriptApi.buildJsEntity(selfInfo.entityInfo)
-      selfSection.addLine("// Your own entity state")
-      selfSection.addLine("const self: Entity = ${JavaScriptSerialization.serialize(selfJsEntity)}")
+
+      selfSection.addLine("const self: Entity = ${SerializationAsJavaScriptCode.serialize(selfJsEntity)}")
 
       bindingsToAdd.add("self" to selfJsEntity)
 
-      val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
+      val groupedSortedEntities = getGroupedSortedObservedEntities(inputs, selfInfo)
 
-      entityListSection.addLine("// Entities in the world")
+      uniqueEntityListSection.addLine("// Nearby entities in the world:")
       var nextEntityIndex = 0
-      for (entityInfo in sortedEntities) {
-         val jsEntity = this.agentJavaScriptApi.buildJsEntity(entityInfo)
+      val addedEntityIds = mutableSetOf<EntityId>()
 
-         val entityVariableName = "entity_${entityInfo.entityId.value}"
-         val serializedAsJavaScript = JavaScriptSerialization.serialize(jsEntity)
+      fun addEntitiesFromList(
+         section: PromptBuilder,
+         entities: List<EntityInfo>
+      ) {
+         for (entityInfo in entities) {
+            val jsEntity = this.agentJavaScriptApi.buildJsEntity(entityInfo)
 
-         val entityAsCode = "const $entityVariableName: Entity = $serializedAsJavaScript"
+            val variableTypeName = if (entityInfo.characterInfo != null) {
+               "character"
+            } else if (entityInfo.itemInfo != null) {
+               entityInfo.itemInfo.itemConfigKey.replace("-", "_")
+            } else {
+               ""
+            }
 
-         val addLineResult = entityListSection.addLine(
-            entityAsCode,
-            optional = true
-         ).didFit
+            val entityVariableName = "${variableTypeName}_entity_${nextEntityIndex}"
+            val serializedAsJavaScript = SerializationAsJavaScriptCode.serialize(jsEntity)
 
-         if (!addLineResult) {
-            println(
-               "Entity did not fit (${nextEntityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
-                  selfInfo.entityInfo.location
-               )
-            )
-            break
+            val entityAsCode = "const $entityVariableName: Entity = $serializedAsJavaScript"
+
+            val addLineResult = section.addLine(
+               entityAsCode,
+               optional = true
+            ).didFit
+
+            if (!addLineResult) {
+               break
+            }
+
+            addedEntityIds.add(entityInfo.entityId)
+
+            bindingsToAdd.add(entityVariableName to jsEntity)
+
+            ++nextEntityIndex
          }
-
-         bindingsToAdd.add(entityVariableName to jsEntity)
-
-         ++nextEntityIndex
       }
 
-      entityListSection.addLine("", optional = true)
+      addEntitiesFromList(
+         section = uniqueEntityListSection,
+         entities = groupedSortedEntities.uniqueEntities
+      )
 
-      val remainingEntities = sortedEntities.size - nextEntityIndex
-      if (remainingEntities > 0) {
-         afterEntityListSection.addLine("// NOTE: $remainingEntities entities were omitted from the above list to reduce prompt size, you can use getCurrentNearbyEntities() in your response to get the full list")
+      addEntitiesFromList(
+         section = nonUniqueEntityListSection,
+         entities = groupedSortedEntities.nonUniqueEntities
+      )
+
+      val remainingEntities = (groupedSortedEntities.uniqueEntities + groupedSortedEntities.nonUniqueEntities).filter {
+         it.entityId !in addedEntityIds
+      }
+
+      if (remainingEntities.isNotEmpty()) {
+         omittedEntityIntroSection.addLine("// NOTE: ${remainingEntities.size} entities were omitted from the above list to reduce prompt size.")
+         omittedEntityIntroSection.addLine("// You can use getCurrentNearbyEntities() in your response script to get the full list")
+
+         omittedEntityIntroSection.addLine("//   Summary of omitted entities:")
+
+         val characterEntities = remainingEntities.filter { it.characterInfo != null }
+
+         if (characterEntities.isNotEmpty()) {
+            omittedEntitySummarySection.addLine("//     ${characterEntities.size} were other character entities", optional = true)
+         }
+
+         val itemInfos = remainingEntities.mapNotNull { it.itemInfo }
+
+         val itemEntityCounts: Map<String, Int> = mutableMapOf<String, Int>().also {
+            itemInfos.forEach { itemInfo ->
+               it[itemInfo.itemConfigKey] = (it[itemInfo.itemConfigKey] ?: 0) + 1
+            }
+         }
+
+         itemEntityCounts
+            .entries
+            .sortedBy { it.key }
+            .forEach {
+               omittedEntitySummarySection.addLine("//     ${it.value} were '${it.key}' item entities", optional = true)
+            }
       }
 
       val text = builder.buildText()
@@ -545,7 +643,7 @@ class ScriptedAgent(
          functionName = AgentResponseSchema_v1.functionName,
          functionSchema = AgentResponseSchema_v1.functionSchema,
          functionDescription = null,
-         debugInfo = "${inputs.agentType} (step) (simulationId = $simulationId agentId = $agentId, syncId = $syncId, promptId = $promptId)",
+         debugInfo = "${inputs.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
          completionPrefix = completionPrefix,
          completionMaxTokens = completionMaxTokens,
          useFunctionCalling = this.useFunctionCalling

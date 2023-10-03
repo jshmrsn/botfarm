@@ -254,13 +254,14 @@ fun handleAgentStepResult(
          if (targetEntity == null) {
             val destroyedTargetEntity = simulation.getDestroyedEntityOrNull(targetEntityId)
             if (destroyedTargetEntity != null) {
-               val destroyedAtTime = destroyedTargetEntity.destroyedAtTime ?: 0.0
-
-               if (destroyedAtTime > simulationTimeForStep) {
-                  simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI (but was destroyed AFTER prompt was generated) ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
-               } else {
-                  simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI (but was destroyed BEFORE prompt was generated) ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
-               }
+//               val destroyedAtTime = destroyedTargetEntity.destroyedAtTime ?: 0.0
+               println("Can't find entity for action from AI (but was destroyed AFTER prompt was generated) ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
+               // jshmrsn: This check would require more careful tracking of simulation time of most recent received observed entities at the time the prompt was generated
+//               if (destroyedAtTime > simulationTimeForStep) {
+//
+//               } else {
+//                  simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI (but was destroyed BEFORE prompt was generated) ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
+//               }
             } else {
                simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI ($debugInfo): $actionIdKey, targetEntityId = $targetEntityId")
             }

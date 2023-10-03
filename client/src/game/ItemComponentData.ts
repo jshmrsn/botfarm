@@ -61,9 +61,9 @@ export interface EquippableConfig {
   equippedCompositeAnimation?: CompositeAnimationSelection | null;
 }
 
-export interface KillableConfig {
+export interface DamageableConfig {
   maxHp: number
-  canBeDamagedByToolItemConfigKey: string | null
+  damageableByEquippedToolItemConfigKey: string | null
 }
 
 export interface StorableConfig {
@@ -78,7 +78,7 @@ export interface ItemConfig extends Config {
   iconUrl: string
   useCustomAnimationBaseName: string | null,
   equippableConfig: EquippableConfig | null
-  killableConfig: KillableConfig | null
+  damageableConfig: DamageableConfig | null
   blocksPathfinding: boolean,
   blocksPlacement: boolean,
   craftableConfig: CraftableConfig | null;
@@ -96,12 +96,12 @@ export interface ItemComponentData extends EntityComponentData {
 
 export const ItemComponent = new EntityComponentGetter<ItemComponentData>("ItemComponentData")
 
-export interface KillableComponentData extends EntityComponentData {
+export interface DamageableComponentData extends EntityComponentData {
   hp: number
   killedAtTime: number | null
 }
 
-export const KillableComponent = new EntityComponentGetter<KillableComponentData>("KillableComponentData")
+export const KillableComponent = new EntityComponentGetter<DamageableComponentData>("DamageableComponentData")
 
 export interface ActiveGrowth {
   startTime: number,

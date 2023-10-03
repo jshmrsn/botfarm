@@ -1,25 +1,78 @@
 package botfarmagent.game.agents.common
 
 import botfarmshared.game.apidata.AgentSyncInputs
+import botfarmshared.game.apidata.EntityInfo
 import botfarmshared.game.apidata.SelfInfo
+
+class SortedEntitiesResult(
+   val uniqueEntities: List<EntityInfo>,
+   val nonUniqueEntities: List<EntityInfo>
+)
+
+fun getGroupedSortedObservedEntities(
+   inputs: AgentSyncInputs,
+   selfInfo: SelfInfo
+): SortedEntitiesResult {
+   // jshmrsn: Sort order:
+   // All characters, by distance
+   // Nearest entity of each item type, by distance
+   // All other entities, by distance
+
+   val entitiesSortedByDistance = inputs.newObservations.entitiesById.values
+      .sortedBy {
+         it.location.distance(selfInfo.entityInfo.location)
+      }
+
+   val characters = entitiesSortedByDistance.filter { it.characterInfo != null }
+
+   val hasAddedItemCategories = mutableSetOf<String>()
+   val uniqueCategoryEntities = mutableListOf<EntityInfo>()
+   val nonUniqueEntities = mutableListOf<EntityInfo>()
+
+   entitiesSortedByDistance.forEach { entityInfo ->
+      if (entityInfo.itemInfo != null && entityInfo.characterInfo == null) {
+         val categoryComponents = mutableListOf(entityInfo.itemInfo.itemConfigKey)
+
+         val hasActiveGrowth = entityInfo.growerInfo?.activeGrowthInfo != null
+         if (hasActiveGrowth) {
+            categoryComponents.add("active-growth")
+         }
+
+         val category = categoryComponents.joinToString(":")
+
+         if (!hasAddedItemCategories.contains(category)) {
+            hasAddedItemCategories.add(category)
+            uniqueCategoryEntities.add(entityInfo)
+         } else {
+            nonUniqueEntities.add(entityInfo)
+         }
+      }
+   }
+
+   val groupedResult = SortedEntitiesResult(
+      uniqueEntities = characters + uniqueCategoryEntities,
+      nonUniqueEntities = nonUniqueEntities
+   )
+
+   val combinedResult = groupedResult.uniqueEntities + groupedResult.nonUniqueEntities
+
+   if (combinedResult.size < entitiesSortedByDistance.size) {
+      throw Exception("getSortedObservedEntities: Expected all entities to be included in result")
+   } else if (combinedResult.size > entitiesSortedByDistance.size) {
+      throw Exception("getSortedObservedEntities: Expected entities to only be included once in result")
+   }
+
+   return groupedResult
+}
 
 fun getSortedObservedEntities(
    inputs: AgentSyncInputs,
    selfInfo: SelfInfo
-) = inputs.newObservations.entitiesById
-   .values
-   .sortedWith { a, b ->
-      val isCharacterA = a.characterInfo != null
-      val isCharacterB = b.characterInfo != null
-      if (isCharacterA != isCharacterB) {
-         if (isCharacterA) {
-            -1
-         } else {
-            1
-         }
-      } else {
-         val distanceA = a.location.distance(selfInfo.entityInfo.location)
-         val distanceB = b.location.distance(selfInfo.entityInfo.location)
-         distanceA.compareTo(distanceB)
-      }
-   }
+): List<EntityInfo> {
+   val grouped = getGroupedSortedObservedEntities(
+      inputs = inputs,
+      selfInfo = selfInfo
+   )
+
+   return grouped.uniqueEntities + grouped.nonUniqueEntities
+}

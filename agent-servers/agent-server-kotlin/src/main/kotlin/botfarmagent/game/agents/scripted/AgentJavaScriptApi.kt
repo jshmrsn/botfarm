@@ -34,6 +34,44 @@ class AgentJavaScriptApi(
       )
    }
 
+   @HostAccess.Export
+   fun getTotalInventoryAmountForItemTypeId(itemTypeId: String): Int {
+      val inventory = this.agent.mostRecentInputs.selfInfo.inventoryInfo
+      var total = 0
+      inventory.itemStacks.forEach {
+         if (it.itemConfigKey == itemTypeId) {
+            total += it.amount
+         }
+      }
+      return total
+   }
+
+   fun buildJsCraftingRecipe(
+      craftingRecipe: CraftingRecipe
+   ): JsCraftingRecipe {
+      var canCurrentlyAfford = true
+
+      craftingRecipe.cost.entries.forEach {
+         val currentAmount = this.getTotalInventoryAmountForItemTypeId(itemTypeId = it.itemConfigKey)
+         if (it.amount < currentAmount) {
+            canCurrentlyAfford = false
+         }
+      }
+
+      return JsCraftingRecipe(
+         api = this,
+         craftingRecipe = craftingRecipe,
+         canCurrentlyAfford = canCurrentlyAfford
+      )
+   }
+
+   @HostAccess.Export
+   fun getAllCraftingRecipes(): JsArray<JsCraftingRecipe> {
+      return this.agent.mostRecentInputs.craftingRecipes.map {
+         this.buildJsCraftingRecipe(it)
+      }.toJs()
+   }
+
    fun buildJsEntity(entityInfo: EntityInfo): JsEntity {
       return JsEntity(
          api = this,
@@ -43,7 +81,15 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun getCurrentInventoryItemStacks(): JsArray<JsInventoryItemStackInfo> {
-      return listOf<JsInventoryItemStackInfo>().toJs()
+      val inventory = this.agent.mostRecentInputs.selfInfo.inventoryInfo
+
+      return inventory.itemStacks.mapIndexed { stackIndex, itemStackInfo ->
+         JsInventoryItemStackInfo(
+            api = this,
+            stackIndex = stackIndex,
+            itemStackInfo = itemStackInfo
+         )
+      }.toJs()
    }
 
    @HostAccess.Export
@@ -91,6 +137,22 @@ class AgentJavaScriptApi(
                actionId = "interact",
                reason = "JavaScript",
                targetEntityId = EntityId(entityId)
+            )
+         )
+      )
+      this.sleep(1000)
+   }
+
+   @HostAccess.Export
+   fun craftItem(
+      itemConfigKey: String,
+      reason: String? = null
+   ) {
+      this.addActions(
+         Actions(
+            craftItemAction = CraftItemAction(
+               reason = reason ?: "JavaScript",
+               itemConfigKey = itemConfigKey
             )
          )
       )

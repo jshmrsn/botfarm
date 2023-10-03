@@ -3,6 +3,8 @@ package botfarmagent.game.agents.scripted
 import botfarmshared.game.apidata.ItemStackInfo
 import org.graalvm.polyglot.HostAccess
 
+
+
 class JsInventoryItemStackInfo(
    val api: AgentJavaScriptApi,
    val itemStackInfo: ItemStackInfo,
@@ -68,7 +70,6 @@ class JsInventoryItemStackInfo(
          reason = null
       )
    }
-
 
    @HostAccess.Export
    fun use() {

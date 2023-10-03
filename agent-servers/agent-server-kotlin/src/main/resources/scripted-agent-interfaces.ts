@@ -68,9 +68,25 @@ interface InventoryItemStack {
   use() // NOTE: Must be equipped before using, and requires canBeUsedWhenEquipped
 }
 
+interface ItemCostEntry {
+  itemTypeId: string
+  amount: number
+}
+
+interface CraftingRecipe {
+  canCurrentlyAfford: boolean
+  itemTypeId: string
+  description: string
+  costEntries: ItemCostEntry[]
+
+  craft(reason?: string | null) // Can only craft if you can afford it using items in your inventory
+}
+
 // Functions to query current world state
 declare function getCurrentInventoryItemStacks(): InventoryItemStack[];
 declare function getCurrentNearbyEntities(): Entity[];
+declare function getAllCraftingRecipes(): CraftingRecipe[];
+declare function getTotalInventoryAmountForItemTypeId(itemTypeId: string): number
 
 // General actions you can take
 declare function walkTo(location: Vector2);

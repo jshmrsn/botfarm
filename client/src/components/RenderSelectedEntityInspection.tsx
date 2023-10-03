@@ -43,7 +43,6 @@ export function renderSelectedEntityInspection(
       {agentComponentData.statusDuration != null ? <Text>Status Duration: <b>{agentComponentData.statusDuration.toFixed(1)}</b></Text> : null}
       <Text>Agent Integration Status: <b>{agentComponentData.agentIntegrationStatus}</b></Text>
 
-
       {agentComponentData.agentError != null ? <div
         style={{
           backgroundColor: "rgba(255, 0, 0, 0.2)",

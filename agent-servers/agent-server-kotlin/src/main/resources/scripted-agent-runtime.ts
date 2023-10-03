@@ -9,8 +9,8 @@ declare class JsArray {
   get(index: number): any
 }
 
-function convertJsArray(jsArray: JsArray): any[] {
-  const result: any[] = []
+function convertJsArray<T>(jsArray: JsArray): T[] {
+  const result: T[] = []
   const length = jsArray.getLength()
   for (let i = 0; i < length; i++) {
     result.push(jsArray.get(i))
@@ -73,8 +73,21 @@ function getCurrentNearbyEntities() {
 }
 
 function getCurrentInventoryItemStacks() {
-  return convertJsArray(api.getCurrentInventoryItemStacks())
+  return convertJsArray<any>(api.getCurrentInventoryItemStacks())
 }
 
+function getAllCraftingRecipes(): any[]  {
+  return convertJsArray<any>(api.getAllCraftingRecipes()).map(it => {
+    return {
+      canCurrentlyAfford: it.canCurrentlyAfford,
+      itemTypeId: it.itemTypeId,
+      description: it.description,
+      costEntries: convertJsArray(it.costEntries),
+      craft: it.craft
+    }
+  })
+}
+
+const getTotalInventoryAmountForItemTypeId = api.getTotalInventoryAmountForItemTypeId
 const recordThought = api.recordThought
 const walkTo = api.walkTo
