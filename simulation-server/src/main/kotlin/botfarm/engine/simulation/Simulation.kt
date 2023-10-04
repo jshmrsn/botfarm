@@ -25,6 +25,7 @@ import java.nio.file.Paths
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.writeText
+import kotlin.math.roundToInt
 
 @JvmInline
 @Serializable
@@ -43,7 +44,22 @@ class Client(
    val clientId: ClientId,
    val userId: UserId,
    val userSecret: UserSecret
-)
+) {
+   var lastReceivedMessageUnixTime = getCurrentUnixTimeSeconds()
+      private set
+
+   var lastReceivedInteractionUnixTime = getCurrentUnixTimeSeconds()
+      private set
+
+   fun notifyMessageReceived() {
+      this.lastReceivedMessageUnixTime = getCurrentUnixTimeSeconds()
+   }
+
+
+   fun notifyInteractionReceived() {
+      this.lastReceivedInteractionUnixTime = getCurrentUnixTimeSeconds()
+   }
+}
 
 @Serializable
 class ReplaySentMessage(
@@ -78,6 +94,9 @@ class PendingReplayData {
 }
 
 class SimulationContext(
+   val clientReceiveInteractionTimeoutSeconds: Double? = 60.0,
+   val clientReceiveMessageTimeoutSeconds: Double? = 60.0,
+   val noClientsConnectedTerminationTimeoutSeconds: Double? = 120.0,
    val wasCreatedByAdmin: Boolean,
    val simulationContainer: SimulationContainer,
    val createdByUserSecret: UserSecret,
@@ -89,6 +108,8 @@ open class Simulation(
    val systems: Systems = Systems.default,
    val data: SimulationData
 ) {
+   private var lastAnyClientsConnectedUnixTime = getCurrentSimulationTime()
+
    companion object {
       val replayS3UploadBucket = System.getenv()["BOTFARM_S3_REPLAY_BUCKET"]
       val replayS3UploadRegion = System.getenv()["BOTFARM_S3_REPLAY_REGION"] ?: "us-west-2"
@@ -535,9 +556,63 @@ open class Simulation(
          coroutineSystem.cleanUp()
       }
 
+      val context = this.context
+
+      for (client in this.clients.toList()) {
+         if (context.clientReceiveInteractionTimeoutSeconds != null) {
+            val timeSinceInteraction = getCurrentUnixTimeSeconds() - client.lastReceivedInteractionUnixTime
+
+            if (timeSinceInteraction > context.clientReceiveInteractionTimeoutSeconds) {
+               this.sendAlertMessage(client, "Disconnecting for inactivity.")
+               this.queueCallbackWithoutDelay {
+                  this.disconnectClient(client, reason = "Interaction timeout: ${timeSinceInteraction.roundToInt()}")
+               }
+               continue
+            }
+         }
+
+         if (context.clientReceiveMessageTimeoutSeconds != null) {
+            val timeSinceMessage = getCurrentUnixTimeSeconds() - client.lastReceivedMessageUnixTime
+
+            if (timeSinceMessage > context.clientReceiveMessageTimeoutSeconds) {
+               this.sendAlertMessage(client, "Disconnecting for not receiving message.")
+               this.queueCallbackWithoutDelay {
+                  this.disconnectClient(client, reason = "Message timeout: ${timeSinceMessage.roundToInt()}")
+               }
+               continue
+            }
+         }
+      }
+
+      if (this.clients.isNotEmpty()) {
+         this.lastAnyClientsConnectedUnixTime = getCurrentUnixTimeSeconds()
+      } else {
+         val timeSinceAnyClientsConnected = getCurrentUnixTimeSeconds() - this.lastAnyClientsConnectedUnixTime
+
+         if (context.noClientsConnectedTerminationTimeoutSeconds != null &&
+            timeSinceAnyClientsConnected > context.noClientsConnectedTerminationTimeoutSeconds) {
+            println("Terminating simulation because not clients connected for ${timeSinceAnyClientsConnected.roundToInt()} seconds")
+
+            return TickResult(
+               shouldTerminate = true
+            )
+         }
+      }
+
       return TickResult(
          shouldTerminate = false
       )
+   }
+
+   fun disconnectClient(client: Client, reason: String) {
+      println("Disconnecting client ${client.clientId} for reason '$reason'")
+      try {
+         client.webSocketSession.outgoing.close()
+      } catch (exception: Exception) {
+         println("disconnectClient: Exception while trying to close socket of client: " + exception.stackTraceToString())
+      }
+
+      this.clients.remove(client)
    }
 
    fun buildClientData(): ClientSimulationData {
@@ -637,6 +712,8 @@ open class Simulation(
          println("handleWebSocketMessage: $messageType: Client not found")
          return
       }
+
+      client.notifyMessageReceived()
 
 //      println("handleWebSocketMessage: $messageType: From client ${client.clientId}")
 

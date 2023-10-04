@@ -351,8 +351,8 @@ class SimulationContainer {
             simulations = this.simulations
                .filter { it.context.createdByUserSecret == userSecret || isAdmin }
                .map {
-               it.buildInfo(checkBelongsToUserSecret = userSecret)
-            },
+                  it.buildInfo(checkBelongsToUserSecret = userSecret)
+               },
             terminatedSimulations = this.terminatedSimulations
                .filter { it.context.createdByUserSecret == userSecret || isAdmin }
                .map { it.buildInfo(checkBelongsToUserSecret = userSecret) },
@@ -365,8 +365,8 @@ class SimulationContainer {
 
    fun getSimulation(simulationId: SimulationId): Simulation? {
       synchronized(this) {
-         return this.simulations.find { it.simulationId == simulationId } ?:
-                 this.terminatedSimulations.find { it.simulationId == simulationId }
+         return this.simulations.find { it.simulationId == simulationId }
+            ?: this.terminatedSimulations.find { it.simulationId == simulationId }
       }
    }
 

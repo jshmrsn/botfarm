@@ -1357,41 +1357,49 @@ class GameSimulation(
 
       when (messageType) {
          "MoveToPointRequest" -> {
+            client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<MoveToPointRequest>(messageData)
             this.handleMoveToPointRequest(client, request)
          }
 
          "UseEquippedToolItemRequest" -> {
+            client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<UseEquippedToolItemRequest>(messageData)
             this.handleUseEquippedItemRequest(client, request)
          }
 
          "EquipItemRequest" -> {
+            client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<EquipItemRequest>(messageData)
             this.handleEquipItemRequest(client, request)
          }
 
          "UnequipItemRequest" -> {
+            client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<UnequipItemRequest>(messageData)
             this.handleUnequipItemRequest(client, request)
          }
 
          "CraftItemRequest" -> {
+            client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<CraftItemRequest>(messageData)
             this.handleCraftItemRequest(client, request)
          }
 
          "ClearPendingInteractionTargetRequest" -> {
+            client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<ClearPendingInteractionTargetRequest>(messageData)
             this.handleClearPendingInteractionRequest(client, request)
          }
 
          "DropItemRequest" -> {
+            client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<DropItemRequest>(messageData)
             this.handleDropItemRequest(client, request)
          }
 
          "AddCharacterMessageRequest" -> {
+            client.notifyInteractionReceived()
             this.handleAddCharacterMessageRequest(
                messageData = messageData,
                client = client,

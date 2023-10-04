@@ -63,7 +63,25 @@ export function MenuPanel(props: MenuPanelProps) {
       : null}
 
     {(props.wasDisconnected && simulationInfo != null && !simulationInfo.isTerminated)
-      ? <Text color={"red"}>Lost connection</Text>
+      ? <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+          width: "100%"
+        }}
+      >
+          <Text color={"red"}>Lost connection</Text>
+          <Button
+            style={{}}
+            variant={"filled"}
+            onClick={() => {
+              window.location.reload()
+            }}
+          >
+            Reconnect
+          </Button>
+        </div>
       : null}
 
     {props.loadReplayError != null
@@ -87,7 +105,7 @@ export function MenuPanel(props: MenuPanelProps) {
       : null}
 
 
-    <div key={"spacer"} style={{flexGrow: 1.0}} />
+    <div key={"spacer"} style={{flexGrow: 1.0}}/>
 
     {simulationInfo != null &&
     !simulationInfo.isTerminated
@@ -101,7 +119,7 @@ export function MenuPanel(props: MenuPanelProps) {
       >
         Terminate Simulation
       </Button>
-    : null}
+      : null}
 
     {(simulationInfo == null || simulationInfo.isTerminated) && !props.isViewingReplay
       ?
@@ -117,7 +135,6 @@ export function MenuPanel(props: MenuPanelProps) {
 
     <Button
       style={{}}
-      // color={"red"}
       variant={"filled"}
       onClick={() => {
         props.exitSimulation()
