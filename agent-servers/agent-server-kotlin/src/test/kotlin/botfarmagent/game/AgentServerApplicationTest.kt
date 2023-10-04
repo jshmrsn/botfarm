@@ -39,15 +39,15 @@ suspend fun ApplicationTestBuilder.sendSyncRequest(
 
    assertEquals(HttpStatusCode.OK, response.status)
 
-   val agentResponseText = response.bodyAsText()
-   val agentResponse = Json.decodeFromString<AgentSyncResponse>(agentResponseText)
+   val responseText = response.bodyAsText()
+   val syncResponse = Json.decodeFromString<AgentSyncResponse>(responseText)
    val pretty = Json {
       prettyPrint = true
    }
 
-   println("response: " + pretty.encodeToString(agentResponse))
+   println("syncResponse: " + pretty.encodeToString(syncResponse))
 
-   return agentResponse
+   return syncResponse
 }
 
 
