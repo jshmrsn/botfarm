@@ -1,6 +1,6 @@
-package botfarmagent.game.agents.common
+package botfarmagent.game.common
 
-import botfarmshared.game.apidata.AgentSyncInputs
+import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.EntityInfo
 import botfarmshared.game.apidata.SelfInfo
 
@@ -10,7 +10,7 @@ class SortedEntitiesResult(
 )
 
 fun getGroupedSortedObservedEntities(
-   inputs: AgentSyncInputs,
+   inputs: AgentSyncInput,
    selfInfo: SelfInfo
 ): SortedEntitiesResult {
    // jshmrsn: Sort order:
@@ -66,7 +66,7 @@ fun getGroupedSortedObservedEntities(
 }
 
 fun getSortedObservedEntities(
-   inputs: AgentSyncInputs,
+   inputs: AgentSyncInput,
    selfInfo: SelfInfo
 ): List<EntityInfo> {
    val grouped = getGroupedSortedObservedEntities(

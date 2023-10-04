@@ -1,9 +1,9 @@
-package botfarmagent.game.agents.scripted
+package botfarmagent.game.common
 
 import botfarmshared.game.apidata.EntityInfo
 import kotlinx.serialization.json.*
 
-fun buildStateForEntity(
+fun buildEntityInfoJsonForModel(
    entityInfo: EntityInfo
 ): JsonObject {
    val characterInfo = entityInfo.characterInfo

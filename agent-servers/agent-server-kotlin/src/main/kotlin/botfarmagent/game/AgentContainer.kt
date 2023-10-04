@@ -1,8 +1,8 @@
 package botfarmagent.game
 
 import botfarmshared.game.apidata.AgentId
-import botfarmshared.game.apidata.AgentSyncInputs
-import botfarmshared.game.apidata.AgentStepResult
+import botfarmshared.game.apidata.AgentSyncInput
+import botfarmshared.game.apidata.AgentSyncOutput
 import botfarmshared.engine.apidata.SimulationId
 import com.aallam.openai.api.http.Timeout
 import com.aallam.openai.api.logging.LogLevel
@@ -27,7 +27,7 @@ class AgentContainer {
 
    private val agentRunnersByKey = mutableMapOf<String, AgentRunner>()
 
-   fun addPendingInputs(inputs: AgentSyncInputs) {
+   fun addPendingInput(inputs: AgentSyncInput) {
       synchronized(this) {
          val agentId = inputs.selfInfo.agentId
          val simulationId = inputs.simulationId
@@ -44,7 +44,7 @@ class AgentContainer {
             agentContainer = this,
             agentId = inputs.selfInfo.agentId,
             openAI = this.openAI,
-            initialInputs = inputs
+            initialSyncInput = inputs
          )
 
          val agentRunner = this.agentRunnersByKey.getOrPut(agentKey) {
@@ -71,11 +71,11 @@ class AgentContainer {
       agentType: String
    ) = "$simulationId:$agentId:$agentType"
 
-   fun consumePendingResults(
+   fun consumePendingOutputs(
       simulationId: SimulationId,
       agentId: AgentId,
       agentType: String
-   ): List<AgentStepResult> {
+   ): List<AgentSyncOutput> {
       val agentKey = this.buildAgentKey(
          simulationId = simulationId,
          agentId = agentId,

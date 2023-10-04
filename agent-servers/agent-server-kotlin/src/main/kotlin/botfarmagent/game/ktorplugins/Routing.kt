@@ -3,11 +3,9 @@ package botfarmagent.game.ktorplugins
 import botfarmagent.game.AgentContainer
 import botfarmshared.game.apidata.AgentSyncRequest
 import botfarmshared.game.apidata.AgentSyncResponse
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.application.install
-import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.receiveText
 import io.ktor.server.resources.Resources
 import io.ktor.server.response.respond
@@ -20,12 +18,6 @@ import io.ktor.server.routing.post as routingPost
 
 
 fun Application.configureRouting(remoteAgentContainer: AgentContainer) {
-//   install(StatusPages) {
-//      exception<Throwable> { call, cause ->
-//         call.respondText(text = "500: $cause", status = HttpStatusCode.InternalServerError)
-//      }
-//   }
-
    install(Resources)
    val apiPrefix = "/api/"
 
@@ -41,17 +33,17 @@ fun Application.configureRouting(remoteAgentContainer: AgentContainer) {
 
          val request = Json.decodeFromString<AgentSyncRequest>(requestJsonString)
 
-         val results = synchronized(remoteAgentContainer) {
-            remoteAgentContainer.addPendingInputs(request.inputs)
-            remoteAgentContainer.consumePendingResults(
-               agentType = request.inputs.agentType,
-               simulationId = request.inputs.simulationId,
-               agentId = request.inputs.selfInfo.agentId
+         val outputs = synchronized(remoteAgentContainer) {
+            remoteAgentContainer.addPendingInput(request.input)
+            remoteAgentContainer.consumePendingOutputs(
+               agentType = request.input.agentType,
+               simulationId = request.input.simulationId,
+               agentId = request.input.selfInfo.agentId
             )
          }
 
          val response = AgentSyncResponse(
-            stepResults = results
+            outputs = outputs
          )
 
          call.respond(response)

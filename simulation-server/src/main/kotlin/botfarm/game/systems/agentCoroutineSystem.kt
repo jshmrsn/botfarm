@@ -9,7 +9,7 @@ import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.InventoryComponentData
 import botfarm.game.config.ItemConfig
 import botfarmshared.game.apidata.*
-import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.buildShortRandomIdentifier
 import kotlinx.coroutines.delay
 import java.net.ConnectException
 
@@ -44,7 +44,7 @@ suspend fun agentCoroutineSystem(
 
    while (true) {
       try {
-         val syncId = buildShortRandomString()
+         val syncId = buildShortRandomIdentifier()
 
          sync(
             context = context,
@@ -67,7 +67,7 @@ suspend fun agentCoroutineSystem(
 
          delay(3000)
       } catch (exception: Exception) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
          simulation.broadcastAlertAsGameMessage("Exception in character agent logic (errorId = $errorId)")
          println("Exception in character agent logic (errorId = $errorId):\n${exception.stackTraceToString()}")
 
@@ -254,7 +254,7 @@ private suspend fun sync(
    )
 
    val newObservationsForInput = state.newObservations
-   val agentSyncInputs = AgentSyncInputs(
+   val agentSyncInputs = AgentSyncInput(
       syncId = syncId,
       agentType = agentComponent.data.agentType,
       simulationId = simulation.simulationId,
@@ -303,7 +303,7 @@ private suspend fun sync(
                syncId = syncId
             )
          } catch (exception: Exception) {
-            val errorId = buildShortRandomString()
+            val errorId = buildShortRandomIdentifier()
             println("Exception while handling agent step result (errorId = $errorId, agentId = $agentId, stepId = $syncId): ${exception.stackTraceToString()}")
 
             context.synchronize {

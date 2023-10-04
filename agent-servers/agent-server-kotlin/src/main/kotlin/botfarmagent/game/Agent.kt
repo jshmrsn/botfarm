@@ -1,13 +1,13 @@
 package botfarmagent.game
 
 import botfarmshared.game.apidata.AgentId
-import botfarmshared.game.apidata.AgentSyncInputs
-import botfarmshared.game.apidata.AgentStepResult
+import botfarmshared.game.apidata.AgentSyncInput
+import botfarmshared.game.apidata.AgentSyncOutput
 import com.aallam.openai.client.OpenAI
 
 class AgentContext(
    val agentContainer: AgentContainer,
-   val initialInputs: AgentSyncInputs,
+   val initialSyncInput: AgentSyncInput,
    val agentId: AgentId,
    val openAI: OpenAI,
    val agentType: String
@@ -17,53 +17,54 @@ abstract class Agent(
    val context: AgentContext
 ) {
    val agentContainer = this.context.agentContainer
-   val initialInputs = this.context.initialInputs
-   var mostRecentInputs = this.context.initialInputs
+   val initialSyncInput = this.context.initialSyncInput
+   var mostRecentSyncInput = this.context.initialSyncInput
       private set
+
    val agentId = this.context.agentId
 
-   private val pendingInputsList = mutableListOf<AgentSyncInputs>()
-   private val pendingResultsList = mutableListOf<AgentStepResult>()
+   private val pendingInputs = mutableListOf<AgentSyncInput>()
+   private val pendingOutputs = mutableListOf<AgentSyncOutput>()
 
-   fun addPendingInput(inputs: AgentSyncInputs) {
+   fun addPendingInput(input: AgentSyncInput) {
       synchronized(this) {
-         this.pendingInputsList.add(inputs)
+         this.pendingInputs.add(input)
       }
    }
 
-   fun consumePendingInputs(): List<AgentSyncInputs> {
+   fun consumePendingInputs(): List<AgentSyncInput> {
       synchronized(this) {
-         val copy = this.pendingInputsList.toList()
-         this.pendingInputsList.clear()
+         val copy = this.pendingInputs.toList()
+         this.pendingInputs.clear()
          return copy
       }
    }
 
-   fun consumePendingResults(): List<AgentStepResult> {
+   fun consumePendingOutputs(): List<AgentSyncOutput> {
       return synchronized(this) {
-         val copy = this.pendingResultsList.toList()
-         this.pendingResultsList.clear()
+         val copy = this.pendingOutputs.toList()
+         this.pendingOutputs.clear()
          copy
       }
    }
 
-   fun notifyWillConsumeInputs(
-      inputs: AgentSyncInputs
+   fun notifyWillConsumeInput(
+      input: AgentSyncInput
    ) {
-      this.mostRecentInputs = inputs
+      this.mostRecentSyncInput = input
    }
 
-   abstract fun consumeInputs(
-      inputs: AgentSyncInputs
+   abstract fun consumeInput(
+      input: AgentSyncInput
    )
 
    abstract suspend fun step(
-      inputs: AgentSyncInputs
+      input: AgentSyncInput
    )
 
-   fun addPendingResult(stepResult: AgentStepResult) {
+   fun addPendingOutput(output: AgentSyncOutput) {
       synchronized(this) {
-         this.pendingResultsList.add(stepResult)
+         this.pendingOutputs.add(output)
       }
    }
 }

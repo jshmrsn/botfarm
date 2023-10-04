@@ -1,5 +1,6 @@
-package botfarmagent.game.agents.scripted
+package botfarmagent.game.agents.codeexecution.jsdata
 
+import botfarmagent.game.agents.codeexecution.AgentJavaScriptApi
 import botfarmshared.game.apidata.ActiveGrowthInfo
 import botfarmshared.game.apidata.EntityInfo
 import botfarmshared.game.apidata.ItemInfo
@@ -11,7 +12,7 @@ class JsEntity(
 ) {
    @HostAccess.Export
    @JvmField
-   val location: JsVector2 = entityInfo.location.toJs()
+   val location: JsVector2 = entityInfo.location.roundedToJs()
 
    @HostAccess.Export
    @JvmField

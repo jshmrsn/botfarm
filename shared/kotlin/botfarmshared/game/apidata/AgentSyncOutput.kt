@@ -3,35 +3,34 @@ package botfarmshared.game.apidata
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.misc.Vector2
-import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.buildShortRandomIdentifier
 import kotlinx.serialization.Serializable
-
 
 @Serializable
 class AgentSyncResponse(
-   val stepResults: List<AgentStepResult>
+   val outputs: List<AgentSyncOutput>
 )
 
 @Serializable
 class AgentSyncRequest(
-   val inputs: AgentSyncInputs
+   val input: AgentSyncInput
 )
 
 @Serializable
-class AgentStepResult(
+class AgentSyncOutput(
    val statusStartUnixTime: Double? = null,
    val statusDuration: Double? = null,
    val agentStatus: String? = null,
-   val newDebugInfo: String? = null,
-   val actions: Actions? = null,
+   val debugInfo: String? = null,
+   val actions: List<Action>? = null,
    val error: String? = null,
    val wasRateLimited: Boolean = false,
    val promptUsages: List<PromptUsageInfo> = listOf()
 )
 
 @Serializable
-class Actions(
-   val actionUniqueId: String = buildShortRandomString(),
+class Action(
+   val actionUniqueId: String = buildShortRandomIdentifier(),
    val walk: WalkAction? = null,
    val actionOnEntity: ActionOnEntity? = null,
    val useEquippedToolItem: UseEquippedToolItem? = null,

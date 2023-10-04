@@ -3,7 +3,7 @@ package botfarm.agentserver
 import botfarm.agentserver.utils.extractJsonFromPromptResponse
 import botfarmshared.engine.apidata.PromptUsage
 import botfarmshared.misc.JsonSchema
-import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.buildShortRandomIdentifier
 import com.aallam.openai.api.LegacyOpenAI
 import com.aallam.openai.api.chat.*
 import com.aallam.openai.api.completion.CompletionRequest
@@ -80,15 +80,15 @@ suspend fun runPrompt(
       val completion = try {
          openAI.completion(completionRequest)
       } catch (exception: RateLimitException) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
          println("Got rate limit exception running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
          return RunPromptResult.RateLimitError(errorId = errorId)
       } catch (exception: GenericIOException) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
          println("Got connection error running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
          return RunPromptResult.ConnectionError(errorId = errorId)
       } catch (exception: Exception) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
          println("Got unknown error running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
          return RunPromptResult.UnknownApiError(errorId = errorId, exception = exception)
       }
@@ -101,7 +101,7 @@ suspend fun runPrompt(
       )
 
       if (completion.choices.first().finishReason == FinishReason.Length) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
 
          println("Completion ended from max length (errorId = $errorId, $debugInfo, approximate input tokens = ${promptBuilder.totalTokens}, modelInfo.maxTokenCount = ${modelInfo.maxTokenCount}, promptTokens = ${promptUsage.promptTokens}, completionTokens = ${promptUsage.completionTokens}):\n" + completion.choices.first().text)
 
@@ -143,15 +143,15 @@ suspend fun runPrompt(
       val completion = try {
          openAI.chatCompletion(chatCompletionRequest)
       } catch (exception: RateLimitException) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
          println("Got rate limit exception running prompt (errorId = $errorId, $debugInfo, ${modelInfo.modelId}):\n" + exception.stackTraceToString())
          return RunPromptResult.RateLimitError(errorId = errorId)
       } catch (exception: GenericIOException) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
          println("Got connection error running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
          return RunPromptResult.ConnectionError(errorId = errorId)
       } catch (exception: Exception) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
          println("Got unknown error running prompt (errorId = $errorId, $debugInfo, ${modelInfo.modelId}):\n" + exception.stackTraceToString())
          return RunPromptResult.UnknownApiError(errorId = errorId, exception = exception)
       }
@@ -164,7 +164,7 @@ suspend fun runPrompt(
       )
 
       if (completion.choices.first().finishReason == FinishReason.Length) {
-         val errorId = buildShortRandomString()
+         val errorId = buildShortRandomIdentifier()
 
          println("Chat completion ended from max length (errorId = $errorId, $debugInfo, approximate input tokens = ${promptBuilder.totalTokens}, modelInfo.maxTokenCount = ${modelInfo.maxTokenCount}, promptTokens = ${promptUsage.promptTokens}, completionTokens = ${promptUsage.completionTokens}):\n${completion.choices.first().message}")
          return RunPromptResult.LengthLimit(errorId = errorId, usage = promptUsage)
@@ -249,7 +249,7 @@ suspend fun runPromptWithJsonOutput(
                debugInfo = "($debugInfo, ${modelInfo.modelId})"
             )
          } catch (exception: Exception) {
-            val errorId = buildShortRandomString()
+            val errorId = buildShortRandomIdentifier()
             println("Exception while extracting/parsing JSON from prompt response: (errorId = $errorId, $debugInfo, ${modelInfo.modelId})\n${exception.stackTraceToString()}\nresponseText = $responseText")
 
             return RunJsonPromptResult.JsonParseFailed(

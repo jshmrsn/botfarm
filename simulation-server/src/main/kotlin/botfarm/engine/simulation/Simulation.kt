@@ -6,7 +6,7 @@ import aws.smithy.kotlin.runtime.content.ByteStream
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.DynamicSerialization
-import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.websocket.Frame
@@ -277,7 +277,7 @@ open class Simulation(
 
    fun createEntity(
       components: List<EntityComponentData>,
-      entityId: EntityId = EntityId(buildShortRandomString())
+      entityId: EntityId = EntityId(buildShortRandomIdentifier())
    ) {
       synchronized(this) {
          if (this.mutableEntitiesById.containsKey(entityId)) {
@@ -648,7 +648,7 @@ open class Simulation(
             isAdminRequest = isAdminRequest
          )
       } catch (exception: Exception) {
-         val errorId = buildShortRandomString().substring(0, 6)
+         val errorId = buildShortRandomIdentifier().substring(0, 6)
 
          println("Exception while handling client message ($errorId): ${exception.stackTraceToString()}")
          sendAlertMessage(client, "Server error while handling client request ($errorId)")

@@ -1,5 +1,6 @@
-package botfarmagent.game.agents.scripted
+package botfarmagent.game.agents.codeexecution.jsdata
 
+import botfarmagent.game.agents.codeexecution.AgentJavaScriptApi
 import botfarmshared.game.apidata.ItemStackInfo
 import org.graalvm.polyglot.HostAccess
 

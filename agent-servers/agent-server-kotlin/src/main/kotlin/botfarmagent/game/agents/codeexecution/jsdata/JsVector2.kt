@@ -1,4 +1,4 @@
-package botfarmagent.game.agents.scripted
+package botfarmagent.game.agents.codeexecution.jsdata
 
 import botfarmshared.misc.Vector2
 import org.graalvm.polyglot.HostAccess
@@ -44,5 +44,9 @@ val JsVector2.asVector2: Vector2
 
 fun Vector2.toJs(): JsVector2 {
    return JsVector2(this)
+}
+
+fun Vector2.roundedToJs(): JsVector2 {
+   return JsVector2(this.rounded)
 }
 

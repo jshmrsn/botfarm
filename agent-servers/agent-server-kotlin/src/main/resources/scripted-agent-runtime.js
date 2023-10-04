@@ -1,5 +1,6 @@
 // import {ItemOnGroundComponent} from "./scripted-agent-interfaces"
 const speak = api.speak;
+const setFacialExpressionEmoji = api.setFacialExpressionEmoji;
 function convertJsArray(jsArray) {
     const result = [];
     const length = jsArray.getLength();

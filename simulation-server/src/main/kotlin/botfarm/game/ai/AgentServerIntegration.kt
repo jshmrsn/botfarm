@@ -1,7 +1,7 @@
 package botfarm.game.ai
 
-import botfarmshared.game.apidata.AgentStepResult
-import botfarmshared.game.apidata.AgentSyncInputs
+import botfarmshared.game.apidata.AgentSyncOutput
+import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.AgentSyncRequest
 import botfarmshared.game.apidata.AgentSyncResponse
 import io.ktor.client.HttpClient
@@ -20,9 +20,9 @@ import kotlinx.serialization.json.Json
 class AgentServerIntegration {
    val agentServerEndpoint = System.getenv()["BOTFARM_AGENT_SERVER_ENDPOINT"] ?: "http://localhost:5002"
 
-   suspend fun sendSyncRequest(inputs: AgentSyncInputs): List<AgentStepResult> {
+   suspend fun sendSyncRequest(inputs: AgentSyncInput): List<AgentSyncOutput> {
       val request = AgentSyncRequest(
-         inputs = inputs
+         input = inputs
       )
 
       val agentServerEndpoint = this.agentServerEndpoint
@@ -51,7 +51,7 @@ class AgentServerIntegration {
          throw Exception("Exception getting parsed HTTP body:${httpResponse.bodyAsText()}\n", exception)
       }
 
-      return response.stepResults
+      return response.outputs
    }
 }
 

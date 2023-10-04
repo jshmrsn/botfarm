@@ -10,6 +10,12 @@ import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.jvm.javaField
 
+// jshmrsn: DynamicSerialization provides a serialization system that relies on runtime reflection and provides no
+// deserialization capabilities. It is intended to be used when serializing out for other runtime environments.
+// It is therefore not concerned with constructors and has fewer constraints compare to e.g. kotlinx.serialization.
+// Additionally, DynamicSerialization provides a diff serialization system, where you can provide a known previous
+// value and a new value, and a JSON diff will convey the difference from the previous to the new value.
+// The deserialization of this diff output is implemented in the client TypeScript codebase.
 object DynamicSerialization {
    @Serializable
    data class Diff(

@@ -1139,7 +1139,7 @@ class GameSimulation(
          )
       }
 
-      val movementId = buildShortRandomString()
+      val movementId = buildShortRandomIdentifier()
 
       positionComponent.modifyData {
          it.copy(
@@ -1284,7 +1284,7 @@ class GameSimulation(
       this.createEntity(
          listOf(
             AgentComponentData(
-               agentId = AgentId(buildShortRandomString()),
+               agentId = AgentId(buildShortRandomIdentifier()),
                corePersonality = corePersonality,
                initialMemories = initialMemories,
                agentType = agentType

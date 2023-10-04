@@ -1,8 +1,8 @@
 package botfarmagent.game
 
-import botfarmshared.game.apidata.AgentSyncInputs
-import botfarmshared.game.apidata.AgentStepResult
-import botfarmshared.misc.buildShortRandomString
+import botfarmshared.game.apidata.AgentSyncInput
+import botfarmshared.game.apidata.AgentSyncOutput
+import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.*
 
@@ -11,7 +11,7 @@ class AgentRunner(
    val agentContainer: AgentContainer,
    val coroutineDispatcher: CoroutineDispatcher
 ) {
-   val simulationId = this.agent.initialInputs
+   val simulationId = this.agent.initialSyncInput
    val agentId = this.agent.agentId
 
    private var job: Job? = null
@@ -22,7 +22,7 @@ class AgentRunner(
       val unusedAgentCleanupMinutes = 15
    }
 
-   fun addPendingInput(inputs: AgentSyncInputs) {
+   fun addPendingInput(inputs: AgentSyncInput) {
       synchronized(this) {
          this.lastSyncUnixTimeSeconds = getCurrentUnixTimeSeconds()
          this.agent.addPendingInput(inputs)
@@ -67,9 +67,9 @@ class AgentRunner(
 
                inputsList.forEach { inputs ->
                   synchronized(agent) {
-                     agent.notifyWillConsumeInputs(inputs)
-                     agent.consumeInputs(
-                        inputs = inputs
+                     agent.notifyWillConsumeInput(inputs)
+                     agent.consumeInput(
+                        input = inputs
                      )
                   }
                }
@@ -79,15 +79,15 @@ class AgentRunner(
                if (lastInput != null) {
                   try {
                      agent.step(
-                        inputs = lastInput
+                        input = lastInput
                      )
                   } catch (exception: Exception) {
                      val syncId = lastInput.syncId
-                     val errorId = buildShortRandomString()
+                     val errorId = buildShortRandomIdentifier()
                      println("RemoteAgentServer: Exception while running agent step ($simulationId, $agentId, syncId = $syncId, errorId = $errorId):\n${exception.stackTraceToString()}")
 
-                     agent.addPendingResult(
-                        AgentStepResult(
+                     agent.addPendingOutput(
+                        AgentSyncOutput(
                            error = "Error on agent server: $errorId"
                         )
                      )
@@ -104,7 +104,7 @@ class AgentRunner(
       }
    }
 
-   fun consumePendingResults(): List<AgentStepResult> {
-      return this.agent.consumePendingResults()
+   fun consumePendingResults(): List<AgentSyncOutput> {
+      return this.agent.consumePendingOutputs()
    }
 }

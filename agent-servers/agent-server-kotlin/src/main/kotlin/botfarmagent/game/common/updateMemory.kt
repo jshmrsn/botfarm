@@ -1,12 +1,11 @@
-package botfarmagent.game.agents.common
+package botfarmagent.game.common
 
 import botfarm.agentserver.*
-import botfarmagent.game.agents.legacy.buildStateForEntity
 import botfarmshared.engine.apidata.PromptUsageInfo
-import botfarmshared.game.apidata.AgentSyncInputs
-import botfarmshared.game.apidata.AgentStepResult
+import botfarmshared.game.apidata.AgentSyncInput
+import botfarmshared.game.apidata.AgentSyncOutput
 import botfarmshared.game.apidata.SelfInfo
-import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import com.aallam.openai.client.OpenAI
 import kotlinx.serialization.json.buildJsonArray
@@ -39,13 +38,13 @@ sealed class UpdateMemoryResult {
 }
 
 suspend fun updateMemory(
-   inputs: AgentSyncInputs,
+   inputs: AgentSyncInput,
    selfInfo: SelfInfo,
    simulationTime: Double,
    memoryState: MemoryState,
    openAI: OpenAI,
    modelInfo: ModelInfo,
-   provideResult: (AgentStepResult) -> Unit
+   provideResult: (AgentSyncOutput) -> Unit
 ): UpdateMemoryResult {
    val activityTokensToTriggerMemoryUpdate = 1000
    val maxProtectedActivityTokensAfterMemoryUpdate = 500
@@ -181,7 +180,7 @@ suspend fun updateMemory(
    builder.addSection("yourOwnState") {
       it.addLine("## YOUR OWN STATE")
       it.addJsonLine(
-         buildStateForEntity(
+         buildEntityInfoJsonForModel(
             entityInfo = selfInfo.entityInfo
          )
       )
@@ -196,7 +195,7 @@ suspend fun updateMemory(
 
          sortedEntities.forEach { entityInfo ->
             add(
-               buildStateForEntity(
+               buildEntityInfoJsonForModel(
                   entityInfo = entityInfo
                )
             )
@@ -221,7 +220,7 @@ suspend fun updateMemory(
       it.addLine("My new summarized short-term memory is:")
    }
 
-   val promptId = buildShortRandomString()
+   val promptId = buildShortRandomIdentifier()
    val agentId = inputs.selfInfo.agentId
    val simulationId = inputs.simulationId
    val syncId = inputs.syncId
@@ -229,7 +228,7 @@ suspend fun updateMemory(
    builder.getRecursiveReservedOrAllocatedTokens()
 
    provideResult(
-      AgentStepResult(
+      AgentSyncOutput(
          agentStatus = "updating-memory",
          statusStartUnixTime = getCurrentUnixTimeSeconds(),
          statusDuration = null
@@ -282,7 +281,7 @@ suspend fun updateMemory(
          println("updateMemory: previous short term memory:\n${memoryState.shortTermMemory}")
          println("updateMemory: updatedShortTermMemory:\n$updatedShortTermMemory")
          provideResult(
-            AgentStepResult(
+            AgentSyncOutput(
                agentStatus = "update-memory-success",
                statusDuration = getCurrentUnixTimeSeconds() - startTime
             )

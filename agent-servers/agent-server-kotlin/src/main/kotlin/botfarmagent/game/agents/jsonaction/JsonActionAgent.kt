@@ -1,23 +1,23 @@
-package botfarmagent.game.agents.legacy
+package botfarmagent.game.agents.jsonaction
 
 import botfarm.agentserver.*
 import botfarm.agentserver.ModelInfo
 import botfarm.agentserver.PromptBuilder
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
-import botfarmagent.game.agents.common.*
+import botfarmagent.game.common.*
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
-import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import kotlin.math.roundToInt
 
-private val constants = AgentResponseSchema_v1
+private val constants = ModelResponseSchema
 
-class LegacyAgent(
+class JsonActionAgent(
    agentContext: AgentContext,
    val useGpt4: Boolean,
    val useFunctionCalling: Boolean
@@ -28,7 +28,7 @@ class LegacyAgent(
    val memoryState = MemoryState()
 
    init {
-      val initialInputs = this.initialInputs
+      val initialInputs = this.initialSyncInput
       val simulationTime = initialInputs.simulationTime
       val selfInfo = initialInputs.selfInfo
 
@@ -54,13 +54,13 @@ class LegacyAgent(
       this.memoryState.longTermMemories.addAll(initialLongTermMemories)
    }
 
-   override fun consumeInputs(inputs: AgentSyncInputs) {
-      val pendingEvents = inputs.newObservations
+   override fun consumeInput(input: AgentSyncInput) {
+      val pendingEvents = input.newObservations
 
       val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
          .also { newAutomaticShortTermMemories ->
             pendingEvents.activityStreamEntries.forEach { activityStreamEntry ->
-               if (activityStreamEntry.sourceEntityId != inputs.selfInfo.entityInfo.entityId) {
+               if (activityStreamEntry.sourceEntityId != input.selfInfo.entityInfo.entityId) {
                   newAutomaticShortTermMemories.add(
                      AutomaticShortTermMemory(
                         time = activityStreamEntry.time,
@@ -158,10 +158,10 @@ class LegacyAgent(
    }
 
    override suspend fun step(
-      inputs: AgentSyncInputs
+      input: AgentSyncInput
    ) {
       val openAI = this.context.openAI
-      val simulationTimeForStep = inputs.simulationTime
+      val simulationTimeForStep = input.simulationTime
 
       val modelInfo = if (this.useGpt4) {
          ModelInfo.gpt_4
@@ -173,8 +173,8 @@ class LegacyAgent(
          }
       }
 
-      val simulationId = inputs.simulationId
-      val syncId = inputs.syncId
+      val simulationId = input.simulationId
+      val syncId = input.syncId
 
       var wasRateLimited = false
       val errors = mutableListOf<String>()
@@ -183,14 +183,14 @@ class LegacyAgent(
 
       while (true) {
          val updateMemoryResult = updateMemory(
-            inputs = inputs,
+            inputs = input,
             openAI = openAI,
             memoryState = this.memoryState,
             modelInfo = modelInfo,
-            simulationTime = inputs.simulationTime,
-            selfInfo = inputs.selfInfo,
+            simulationTime = input.simulationTime,
+            selfInfo = input.selfInfo,
             provideResult = {
-               this.addPendingResult(it)
+               this.addPendingOutput(it)
             }
          )
 
@@ -238,8 +238,8 @@ class LegacyAgent(
          return
       }
 
-      this.addPendingResult(
-         AgentStepResult(
+      this.addPendingOutput(
+         AgentSyncOutput(
             agentStatus = "running-prompt",
             statusStartUnixTime = getCurrentUnixTimeSeconds(),
             statusDuration = null
@@ -248,7 +248,7 @@ class LegacyAgent(
 
       println("Preparing to run prompt...")
 
-      val selfInfo = inputs.selfInfo
+      val selfInfo = input.selfInfo
       val currentLocation = selfInfo.entityInfo.location
       val observationDistance = selfInfo.observationDistance
 
@@ -280,25 +280,19 @@ class LegacyAgent(
          it.addLine("")
       }
 
-//      Note: If people ask you about the date or time, format it as normal human readable text using the CST time zone
-
       val worldWidth = 3500
       val worldHeight = 3500
-
-//      it.addLine("Check the activity stream to check if you've recently covered a topic to avoid repeating yourself.")
-//      it.addLine("If you've recently asked someone a question and they haven't yet responded, don't ask them another question immediately. Give them ample time to respond. Don't say anything if there's nothing appropriate to say yet.")
-//      it.addLine("If other people have said something since the last time you spoke, or if you meet someone new, you will often want to say something using the ${AgentResponseSchema_v1.iWantToSayKey} key.")
 
       builder.addSection("tips") {
          it.addLine("## TIPS")
          it.addText(
             """
-            All time units will be in seconds, all locations will be [x,y] values in ${inputs.distanceUnit}.
+            All time units will be in seconds, all locations will be [x,y] values in ${input.distanceUnit}.
             If other people have said something since the last time you spoke, or if you meet someone new, you will often want to say something using the iWantToSay key.
             If you've recently asked someone a question and they haven't yet responded, don't ask them another question immediately. Give them ample time to respond. Don't say anything if there's nothing appropriate to say yet.
             Avoid repeating yourself. You don't need to say something every prompt. If you've spoken recently, you can wait awhile. Especially if no one has said anything to you since the last time you talked. 
-            People occupy about ${inputs.peopleSize} ${inputs.distanceUnit} of space, try to avoid walking to the exact same location of other people, instead walk to their side to politely chat.
-            You will only be able observe entities within $observationDistance ${inputs.distanceUnit} from your current location. If an entity disappears, it may be because they moved outside your observation radius.
+            People occupy about ${input.peopleSize} ${input.distanceUnit} of space, try to avoid walking to the exact same location of other people, instead walk to their side to politely chat.
+            You will only be able observe entities within $observationDistance ${input.distanceUnit} from your current location. If an entity disappears, it may be because they moved outside your observation radius.
             Current date and time as Unix timestamp: ${simulationTimeForStep.roundToInt()}
             Seconds since your previous prompt: ${secondsSinceLastPrompt.roundToInt()}
             The available location to move to are between [0,0] and [$worldWidth,$worldHeight]
@@ -337,7 +331,7 @@ class LegacyAgent(
 
       builder.addSection("craftingRecipes") {
          it.addLine("## ITEM_CRAFTING_RECIPES")
-         inputs.craftingRecipes.forEach { craftingRecipe ->
+         input.craftingRecipes.forEach { craftingRecipe ->
             it.addJsonLine(buildJsonObject {
                put("itemConfigKey", craftingRecipe.itemConfigKey)
                put("itemName", craftingRecipe.itemName)
@@ -386,7 +380,7 @@ class LegacyAgent(
       builder.addSection("yourOwnState") {
          it.addLine("## YOUR_OWN_STATE")
          it.addJsonLine(
-            buildStateForEntity(
+            buildEntityInfoJsonForModel(
                entityInfo = selfInfo.entityInfo
             )
          )
@@ -397,12 +391,12 @@ class LegacyAgent(
       builder.addSection("observedEntities", reserveTokens = 1000) {
          it.addLine("## OBSERVED_ENTITIES")
 
-         val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
+         val sortedEntities = getSortedObservedEntities(input, selfInfo)
 
          var entityIndex = 0
          for (entityInfo in sortedEntities) {
             val result = it.addJsonLine(
-               buildStateForEntity(
+               buildEntityInfoJsonForModel(
                   entityInfo = entityInfo
                ),
                optional = true
@@ -462,7 +456,7 @@ class LegacyAgent(
                it.addLine("<none>")
             } else {
                for (entry in newActivity) {
-                  val secondsAgo = (inputs.simulationTime - entry.time).roundToInt()
+                  val secondsAgo = (input.simulationTime - entry.time).roundToInt()
                   val didFit =
                      it.addLine(entry.summary.replace("\n", " ") + " ($secondsAgo seconds ago)", optional = true).didFit
 
@@ -482,7 +476,7 @@ class LegacyAgent(
 
             if (headerDidFit) {
                for (entry in previousActivity) {
-                  val secondsAgo = (inputs.simulationTime - entry.time).roundToInt()
+                  val secondsAgo = (input.simulationTime - entry.time).roundToInt()
                   it.addLine(entry.summary.replace("\n", " ") + " ($secondsAgo seconds ago)", optional = true)
                }
 
@@ -492,7 +486,7 @@ class LegacyAgent(
       }
 
 
-      val promptId = buildShortRandomString()
+      val promptId = buildShortRandomIdentifier()
 
       val promptSendTime = getCurrentUnixTimeSeconds()
 
@@ -503,7 +497,7 @@ class LegacyAgent(
          functionName = constants.functionName,
          functionSchema = constants.functionSchema,
          functionDescription = null,
-         debugInfo = "${inputs.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
+         debugInfo = "${input.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
          completionPrefix = completionPrefix,
          completionMaxTokens = completionMaxTokens,
          useFunctionCalling = this.useFunctionCalling
@@ -514,8 +508,8 @@ class LegacyAgent(
             promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
          }
          is RunJsonPromptResult.RateLimitError -> {
-            return this.addPendingResult(
-               AgentStepResult(
+            return this.addPendingOutput(
+               AgentSyncOutput(
                   error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
                   wasRateLimited = true
                )
@@ -523,8 +517,8 @@ class LegacyAgent(
          }
 
          is RunJsonPromptResult.ConnectionError -> {
-            return this.addPendingResult(
-               AgentStepResult(
+            return this.addPendingOutput(
+               AgentSyncOutput(
                   error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
                   wasRateLimited = true
                )
@@ -534,8 +528,8 @@ class LegacyAgent(
          is RunJsonPromptResult.JsonParseFailed -> {
             promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
 
-            return this.addPendingResult(
-               AgentStepResult(
+            return this.addPendingOutput(
+               AgentSyncOutput(
                   error = "Failed to parse json of prompt output (errorId = ${promptResult.errorId})",
                   wasRateLimited = true,
                   promptUsages = promptUsages
@@ -544,8 +538,8 @@ class LegacyAgent(
          }
 
          is RunJsonPromptResult.UnknownApiError -> {
-            return this.addPendingResult(
-               AgentStepResult(
+            return this.addPendingOutput(
+               AgentSyncOutput(
                   error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName
                )
             )
@@ -554,8 +548,8 @@ class LegacyAgent(
          is RunJsonPromptResult.LengthLimit -> {
             promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
 
-            return this.addPendingResult(
-               AgentStepResult(
+            return this.addPendingOutput(
+               AgentSyncOutput(
                   error = "Prompt exceeded max length (errorId = ${promptResult.errorId})",
                   promptUsages = promptUsages
                )
@@ -569,7 +563,7 @@ class LegacyAgent(
       val textBeforeJson = promptResult.textBeforeJson
 
       val response = try {
-         Json.decodeFromJsonElement<AgentResponseSchema_v1.AgentResponseFunctionInputs>(responseData)
+         Json.decodeFromJsonElement<ModelResponseSchema.AgentResponseFunctionInputs>(responseData)
       } catch (exception: Exception) {
          val prettyJson = Json { prettyPrint = true }
          throw Exception(
@@ -636,7 +630,7 @@ class LegacyAgent(
          null
       }
 
-      val actions = Actions(
+      val action = Action(
          walk = walk,
          actionOnEntity = actionOnEntity,
          actionOnInventoryItem = actionOnInventoryItem,
@@ -644,7 +638,7 @@ class LegacyAgent(
          facialExpressionEmoji = facialExpressionEmoji,
          craftItemAction = craftItemAction,
          useEquippedToolItem = useEquippedToolItem,
-         actionUniqueId = buildShortRandomString()
+         actionUniqueId = buildShortRandomIdentifier()
       )
 
       val newDebugInfoLines = mutableListOf<String>()
@@ -669,10 +663,10 @@ class LegacyAgent(
          newDebugInfoLines.add(it.summary)
       }
 
-      this.addPendingResult(
-         AgentStepResult(
-            actions = actions,
-            newDebugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
+      this.addPendingOutput(
+         AgentSyncOutput(
+            actions = listOf(action),
+            debugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",
             promptUsages = promptUsages,
@@ -687,36 +681,3 @@ class LegacyAgent(
    }
 }
 
-fun buildStateForEntity(
-   entityInfo: EntityInfo
-): JsonObject {
-   val characterInfo = entityInfo.characterInfo
-
-   return buildJsonObject {
-      put("entityId", entityInfo.entityId.value)
-
-      if (characterInfo != null) {
-         put("description", characterInfo.description)
-         put("name", characterInfo.name)
-         put("age", characterInfo.age)
-         put("gender", characterInfo.gender)
-      }
-
-      val itemInfo = entityInfo.itemInfo
-
-      if (itemInfo != null) {
-         put("itemName", itemInfo.itemName)
-         put("description", itemInfo.description)
-      }
-
-      if (entityInfo.availableActionIds != null) {
-         putJsonArray("availableActionIds") {
-            entityInfo.availableActionIds.forEach {
-               add(it)
-            }
-         }
-      }
-
-      put("location", entityInfo.location.asJsonArrayRounded)
-   }
-}

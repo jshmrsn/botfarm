@@ -1,6 +1,6 @@
-package botfarmagent.game.agents.scripted
+package botfarmagent.game.agents.codeexecution
 
-import botfarmagent.game.agents.common.LongTermMemory
+import botfarmagent.game.agents.codeexecution.jsdata.*
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
@@ -18,7 +18,7 @@ class JsConversionContext(
 
 
 class AgentJavaScriptApi(
-   val agent: ScriptedAgent
+   val agent: CodeExecutionAgent
 ) {
    var shouldEndScript = false
 
@@ -32,7 +32,7 @@ class AgentJavaScriptApi(
    fun speak(message: String) {
       this.endIfRequested()
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             speak = message
          )
       )
@@ -60,7 +60,7 @@ class AgentJavaScriptApi(
    @HostAccess.Export
    fun getTotalInventoryAmountForItemTypeId(itemTypeId: String): Int {
       this.endIfRequested()
-      val inventory = this.agent.mostRecentInputs.selfInfo.inventoryInfo
+      val inventory = this.agent.mostRecentSyncInput.selfInfo.inventoryInfo
       var total = 0
       inventory.itemStacks.forEach {
          if (it.itemConfigKey == itemTypeId) {
@@ -95,7 +95,7 @@ class AgentJavaScriptApi(
    fun getAllCraftingRecipes(): JsArray<JsCraftingRecipe> {
       this.endIfRequested()
 
-      return this.agent.mostRecentInputs.craftingRecipes.map {
+      return this.agent.mostRecentSyncInput.craftingRecipes.map {
          this.buildJsCraftingRecipe(it)
       }.toJs()
    }
@@ -110,7 +110,7 @@ class AgentJavaScriptApi(
    @HostAccess.Export
    fun getCurrentInventoryItemStacks(): JsArray<JsInventoryItemStackInfo> {
       this.endIfRequested()
-      val inventory = this.agent.mostRecentInputs.selfInfo.inventoryInfo
+      val inventory = this.agent.mostRecentSyncInput.selfInfo.inventoryInfo
 
       return inventory.itemStacks.mapIndexed { stackIndex, itemStackInfo ->
          JsInventoryItemStackInfo(
@@ -124,7 +124,7 @@ class AgentJavaScriptApi(
    @HostAccess.Export
    fun getCurrentNearbyEntities(): JsArray<JsEntity> {
       this.endIfRequested()
-      return this.agent.mostRecentInputs.newObservations.entitiesById.values.map { entityInfo ->
+      return this.agent.mostRecentSyncInput.newObservations.entitiesById.values.map { entityInfo ->
          this.buildJsEntity(entityInfo)
       }.toList().toJs()
    }
@@ -136,27 +136,27 @@ class AgentJavaScriptApi(
       this.endIfRequested()
    }
 
-   fun performActionAndWaitForResult(actions: Actions): ActionResult {
+   fun performActionAndWaitForResult(action: Action): ActionResult {
       this.endIfRequested()
 
-      val actionUniqueId = actions.actionUniqueId
+      val actionUniqueId = action.actionUniqueId
 
       val json = Json {
          prettyPrint = true
       }
 
-      val actionJsonString = json.encodeToString(actions)
+      val actionJsonString = json.encodeToString(action)
 
       println("Added action: ($actionUniqueId)\n${actionJsonString}")
 
-      this.agent.addPendingResult(
-         AgentStepResult(
-            actions = actions,
+      this.agent.addPendingOutput(
+         AgentSyncOutput(
+            actions = listOf(action),
             agentStatus = "waiting-for-action",
             statusStartUnixTime = getCurrentUnixTimeSeconds()
          )
       )
-
+      
       run {
          var waitingCounter = 0
          while (true) {
@@ -173,8 +173,8 @@ class AgentJavaScriptApi(
             val actionResult = this.agent.receivedActionResultById[actionUniqueId]
 
             if (actionResult != null) {
-               this.agent.addPendingResult(
-                  AgentStepResult(
+               this.agent.addPendingOutput(
+                  AgentSyncOutput(
                      agentStatus = "action-done",
                      statusStartUnixTime = getCurrentUnixTimeSeconds()
                   )
@@ -199,7 +199,7 @@ class AgentJavaScriptApi(
    @HostAccess.Export
    fun pickUpItem(entityId: String, reason: String?) {
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             actionOnEntity = ActionOnEntity(
                actionId = "pickupItem",
                reason = reason,
@@ -221,7 +221,7 @@ class AgentJavaScriptApi(
    @HostAccess.Export
    fun interactWithEntity(entityId: String, reason: String?) {
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             actionOnEntity = ActionOnEntity(
                actionId = "interact",
                reason = reason,
@@ -244,7 +244,7 @@ class AgentJavaScriptApi(
       reason: String?
    ) {
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             craftItemAction = CraftItemAction(
                reason = reason,
                itemConfigKey = itemConfigKey
@@ -272,7 +272,7 @@ class AgentJavaScriptApi(
       reason: String?
    ) {
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             actionOnInventoryItem = ActionOnInventoryItem(
                actionId = "equipItem",
                reason = reason,
@@ -295,7 +295,7 @@ class AgentJavaScriptApi(
       reason: String?
    ) {
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             useEquippedToolItem = UseEquippedToolItem(
                reason = reason
             )
@@ -325,7 +325,7 @@ class AgentJavaScriptApi(
       reason: String?
    ) {
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             actionOnInventoryItem = ActionOnInventoryItem(
                actionId = "dropItem",
                reason = reason,
@@ -357,7 +357,7 @@ class AgentJavaScriptApi(
       reason: String?
    ) {
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             walk = WalkAction(
                reason = reason,
                location = destination.asVector2
@@ -371,7 +371,7 @@ class AgentJavaScriptApi(
       emoji: String
    ) {
       this.performActionAndWaitForResult(
-         Actions(
+         Action(
             facialExpressionEmoji = emoji
          )
       )

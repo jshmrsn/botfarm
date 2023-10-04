@@ -1,4 +1,4 @@
-package botfarmagent.game.agents.common
+package botfarmagent.game.common
 
 class AutomaticShortTermMemory(
    val time: Double,

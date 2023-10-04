@@ -3,7 +3,7 @@ package botfarm.engine.simulation
 import botfarm.engine.ktorplugins.AdminRequest
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
-import botfarmshared.misc.buildShortRandomString
+import botfarmshared.misc.buildShortRandomIdentifier
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.serialization.Serializable
@@ -250,7 +250,7 @@ abstract class EntityComponentData
 
 @Serializable
 data class EntityData(
-   val entityId: EntityId = EntityId(buildShortRandomString()),
+   val entityId: EntityId = EntityId(buildShortRandomIdentifier()),
    val components: List<EntityComponentData>
 ) {
    fun <T : EntityComponentData> getComponentOrNull(componentType: KClass<T>): T? {

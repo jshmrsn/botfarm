@@ -1,4 +1,4 @@
-package botfarmagent.game.agents.scripted
+package botfarmagent.game.agents.codeexecution
 
 class UnwindScriptThreadThrowable(
    val reason: String = "default"

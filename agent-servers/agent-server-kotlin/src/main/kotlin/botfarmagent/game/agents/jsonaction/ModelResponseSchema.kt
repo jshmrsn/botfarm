@@ -1,4 +1,4 @@
-package botfarmagent.game.agents.common
+package botfarmagent.game.agents.jsonaction
 
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.JsonArraySchema
@@ -7,7 +7,7 @@ import botfarmshared.misc.JsonObjectSchema
 import botfarmshared.misc.JsonStringSchema
 import kotlinx.serialization.Serializable
 
-object AgentResponseSchema_v1 {
+object ModelResponseSchema {
    val reasonKey = "reason"
    val locationToWalkToAndReasonKey = "locationToWalkToAndReason"
    val destinationKey = "location"

@@ -1,5 +1,6 @@
-package botfarmagent.game.agents.scripted
+package botfarmagent.game.agents.codeexecution
 
+import botfarmagent.game.agents.codeexecution.jsdata.JsArray
 import botfarmshared.misc.DynamicSerialization
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -14,7 +15,7 @@ import kotlin.reflect.jvm.javaField
 // instance of a class that was already designed to be used with the JavaScript runtime
 // using Polyglot (specifically, it by default  excluded fields unless they have the HostAccess.Export annotation).
 // The code representation will not include quotes around object keys.
-object SerializationAsJavaScriptCode {
+object JavaScriptCodeSerialization {
    inline fun <reified T> serialize(
       value: T?,
       baseClassTypeArguments: List<KClass<*>> = emptyList(),
