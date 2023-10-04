@@ -1,6 +1,6 @@
-package botfarm.agentserver
+package botfarmagent.game
 
-import botfarm.agentserver.utils.extractJsonFromPromptResponse
+import botfarmagent.game.utils.extractJsonFromPromptResponse
 import botfarmshared.engine.apidata.PromptUsage
 import botfarmshared.misc.JsonSchema
 import botfarmshared.misc.buildShortRandomIdentifier
@@ -12,7 +12,6 @@ import com.aallam.openai.api.core.Usage
 import com.aallam.openai.api.exception.GenericIOException
 import com.aallam.openai.api.exception.RateLimitException
 import com.aallam.openai.api.model.ModelId
-import com.aallam.openai.client.OpenAI
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -36,7 +35,7 @@ sealed class RunPromptResult {
 @OptIn(LegacyOpenAI::class)
 suspend fun runPrompt(
    debugInfo: String,
-   openAI: OpenAI,
+   languageModelService: LanguageModelService,
    modelInfo: ModelInfo,
    promptBuilder: PromptBuilder,
    useFunctionCalling: Boolean = false,
@@ -78,7 +77,7 @@ suspend fun runPrompt(
       )
 
       val completion = try {
-         openAI.completion(completionRequest)
+         languageModelService.completion(completionRequest)
       } catch (exception: RateLimitException) {
          val errorId = buildShortRandomIdentifier()
          println("Got rate limit exception running prompt (errorId = $errorId, $debugInfo):\n" + exception.stackTraceToString())
@@ -141,7 +140,7 @@ suspend fun runPrompt(
       )
 
       val completion = try {
-         openAI.chatCompletion(chatCompletionRequest)
+         languageModelService.chatCompletion(chatCompletionRequest)
       } catch (exception: RateLimitException) {
          val errorId = buildShortRandomIdentifier()
          println("Got rate limit exception running prompt (errorId = $errorId, $debugInfo, ${modelInfo.modelId}):\n" + exception.stackTraceToString())
@@ -211,7 +210,7 @@ sealed class RunJsonPromptResult {
 
 suspend fun runPromptWithJsonOutput(
    debugInfo: String,
-   openAI: OpenAI,
+   languageModelService: LanguageModelService,
    modelInfo: ModelInfo,
    promptBuilder: PromptBuilder,
    useFunctionCalling: Boolean = false,
@@ -225,7 +224,7 @@ suspend fun runPromptWithJsonOutput(
 ): RunJsonPromptResult {
    val result = runPrompt(
       debugInfo = debugInfo,
-      openAI = openAI,
+      languageModelService = languageModelService,
       modelInfo = modelInfo,
       promptBuilder = promptBuilder,
       useFunctionCalling = useFunctionCalling,
@@ -291,3 +290,5 @@ suspend fun runPromptWithJsonOutput(
       }
    }
 }
+
+

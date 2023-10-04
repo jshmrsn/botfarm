@@ -1,7 +1,6 @@
-package botfarm.agentserver.utils
+package botfarmagent.game.utils
 
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 

@@ -3,13 +3,12 @@ package botfarmagent.game
 import botfarmshared.game.apidata.AgentId
 import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.AgentSyncOutput
-import com.aallam.openai.client.OpenAI
 
 class AgentContext(
    val agentContainer: AgentContainer,
    val initialSyncInput: AgentSyncInput,
    val agentId: AgentId,
-   val openAI: OpenAI,
+   val languageModelService: LanguageModelService,
    val agentType: String
 )
 

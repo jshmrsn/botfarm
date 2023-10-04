@@ -1,4 +1,4 @@
-package botfarm.agentserver
+package botfarmagent.game
 
 import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.EncodingRegistry

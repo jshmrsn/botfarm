@@ -17,7 +17,7 @@ import java.io.File
 import io.ktor.server.routing.post as routingPost
 
 
-fun Application.configureRouting(remoteAgentContainer: AgentContainer) {
+fun Application.configureRouting(agentContainer: AgentContainer) {
    install(Resources)
    val apiPrefix = "/api/"
 
@@ -33,9 +33,9 @@ fun Application.configureRouting(remoteAgentContainer: AgentContainer) {
 
          val request = Json.decodeFromString<AgentSyncRequest>(requestJsonString)
 
-         val outputs = synchronized(remoteAgentContainer) {
-            remoteAgentContainer.addPendingInput(request.input)
-            remoteAgentContainer.consumePendingOutputs(
+         val outputs = synchronized(agentContainer) {
+            agentContainer.addPendingInput(request.input)
+            agentContainer.consumePendingOutputs(
                agentType = request.input.agentType,
                simulationId = request.input.simulationId,
                agentId = request.input.agentId

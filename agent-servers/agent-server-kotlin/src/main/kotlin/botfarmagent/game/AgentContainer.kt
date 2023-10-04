@@ -4,24 +4,13 @@ import botfarmshared.game.apidata.AgentId
 import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.AgentSyncOutput
 import botfarmshared.engine.apidata.SimulationId
-import com.aallam.openai.api.http.Timeout
-import com.aallam.openai.api.logging.LogLevel
-import com.aallam.openai.client.LoggingConfig
-import com.aallam.openai.client.OpenAI
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.util.concurrent.Executors
-import kotlin.time.Duration.Companion.seconds
 
-class AgentContainer {
-   val openAI = OpenAI(
-      token = System.getenv("BOTFARM_OPENAI_API_KEY"),
-      timeout = Timeout(socket = 120.seconds),
-      logging = LoggingConfig(
-         logLevel = LogLevel.None
-      )
-   )
-
+class AgentContainer(
+   val languageModelService: LanguageModelService
+) {
    private val threadPool = Executors.newCachedThreadPool()
    private val coroutineDispatcher: ExecutorCoroutineDispatcher = this.threadPool.asCoroutineDispatcher()
 
@@ -43,7 +32,7 @@ class AgentContainer {
             agentType = agentType,
             agentContainer = this,
             agentId = inputs.agentId,
-            openAI = this.openAI,
+            languageModelService = this.languageModelService,
             initialSyncInput = inputs
          )
 

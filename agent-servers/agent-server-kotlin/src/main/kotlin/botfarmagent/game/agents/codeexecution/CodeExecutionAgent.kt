@@ -1,6 +1,6 @@
 package botfarmagent.game.agents.codeexecution
 
-import botfarm.agentserver.*
+import botfarmagent.game.*
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
 import botfarmagent.game.common.*
@@ -232,7 +232,7 @@ class CodeExecutionAgent(
       while (true) {
          val updateMemoryResult = updateMemory(
             inputs = input,
-            openAI = this.context.openAI,
+            languageModelService = this.context.languageModelService,
             memoryState = this.memoryState,
             modelInfo = modelInfo,
             simulationTime = input.simulationTime,
@@ -712,7 +712,7 @@ class CodeExecutionAgent(
          responseOverride
       } else {
          val promptResult = runPrompt(
-            openAI = this.context.openAI,
+            languageModelService = this.context.languageModelService,
             modelInfo = modelInfo,
             promptBuilder = builder,
             debugInfo = "${input.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
@@ -779,14 +779,15 @@ class CodeExecutionAgent(
 
       val codeBlockStartIndex = responseText.indexOf("```")
       val responseScript = if (codeBlockStartIndex >= 0) {
-         val newlineIndex = responseText.indexOf("\n")
-         val textAfterBlockStart = responseText.substring(newlineIndex + 1)
-         val blockEndIndex = textAfterBlockStart.indexOf("```")
+         val textAfterBlockStart = responseText.substring(codeBlockStartIndex + 1)
+         val newlineIndex = textAfterBlockStart.indexOf("\n")
+         val textAfterBlockStartLine = textAfterBlockStart.substring(newlineIndex + 1)
+         val blockEndIndex = textAfterBlockStartLine.indexOf("```")
 
          if (blockEndIndex < 0) {
-            throw Exception("Script block end not found:\n$textAfterBlockStart")
+            throw Exception("Script block end not found:\n$textAfterBlockStartLine")
          } else {
-            textAfterBlockStart.substring(0, blockEndIndex)
+            textAfterBlockStartLine.substring(0, blockEndIndex)
          }
       } else {
          responseText

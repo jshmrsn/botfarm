@@ -1,14 +1,12 @@
 package botfarmagent.game.common
 
-import botfarm.agentserver.*
+import botfarmagent.game.*
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.AgentSyncOutput
 import botfarmshared.game.apidata.SelfInfo
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
-import com.aallam.openai.client.OpenAI
-import kotlinx.serialization.json.buildJsonArray
 import kotlin.math.roundToInt
 
 
@@ -42,7 +40,7 @@ suspend fun updateMemory(
    selfInfo: SelfInfo,
    simulationTime: Double,
    memoryState: MemoryState,
-   openAI: OpenAI,
+   languageModelService: LanguageModelService,
    modelInfo: ModelInfo,
    provideResult: (AgentSyncOutput) -> Unit
 ): UpdateMemoryResult {
@@ -239,7 +237,7 @@ suspend fun updateMemory(
 
    val promptResult = runPrompt(
       modelInfo = modelInfo,
-      openAI = openAI,
+      languageModelService = languageModelService,
       promptBuilder = builder,
       debugInfo = "${inputs.agentType} (Update Memory) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)"
    )

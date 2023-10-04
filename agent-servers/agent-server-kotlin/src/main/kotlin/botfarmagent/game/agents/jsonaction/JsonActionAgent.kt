@@ -1,6 +1,6 @@
 package botfarmagent.game.agents.jsonaction
 
-import botfarm.agentserver.*
+import botfarmagent.game.*
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
 import botfarmagent.game.common.*
@@ -158,7 +158,7 @@ class JsonActionAgent(
    override suspend fun step(
       input: AgentSyncInput
    ) {
-      val openAI = this.context.openAI
+      val languageModelService = this.context.languageModelService
       val simulationTimeForStep = input.simulationTime
       val gameConstants = input.gameConstants
       val gameSimulationInfo = input.gameSimulationInfo
@@ -185,7 +185,7 @@ class JsonActionAgent(
       while (true) {
          val updateMemoryResult = updateMemory(
             inputs = input,
-            openAI = openAI,
+            languageModelService = languageModelService,
             memoryState = this.memoryState,
             modelInfo = modelInfo,
             simulationTime = input.simulationTime,
@@ -504,7 +504,7 @@ class JsonActionAgent(
       val promptSendTime = getCurrentUnixTimeSeconds()
 
       val promptResult = runPromptWithJsonOutput(
-         openAI = openAI,
+         languageModelService = languageModelService,
          modelInfo = modelInfo,
          promptBuilder = builder,
          functionName = constants.functionName,

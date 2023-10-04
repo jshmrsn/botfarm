@@ -1,4 +1,4 @@
-package botfarm.agentserver
+package botfarmagent.game
 
 import botfarmshared.engine.apidata.ModelUsagePricing
 import botfarmshared.engine.apidata.PromptUsage
