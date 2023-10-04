@@ -15,7 +15,7 @@ import {
 import {RenderContext} from "../common/RenderContext";
 import {
   ActionTypes,
-  CharacterBodySelections,
+  CharacterBodySelections, CharacterComponent,
   CharacterComponentData,
   InventoryComponentData,
   UseEquippedToolItemRequest
@@ -1104,7 +1104,6 @@ export class SimulationScene extends Phaser.Scene {
     this.characterNameLayer = this.add.layer()
     this.chatBubbleLayer = this.add.layer()
 
-    const camera = this.cameras.main;
     const uiCamera = this.uiCamera!;
 
     const worldBounds = this.worldBounds
@@ -1113,20 +1112,22 @@ export class SimulationScene extends Phaser.Scene {
     uiCamera.ignore(this.children.list);
 
     const playerControlledEntity = this.simulation.entities.find(entity => {
-      const userControlledComponent = entity.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
+      const userControlledComponent = UserControlledComponent.getOrNull(entity)
       return userControlledComponent != null && userControlledComponent.data.userId === this.userId
+    })
+
+    const anyCharacterEntity = this.simulation.entities.find(entity => {
+      return CharacterComponent.getOrNull(entity) != null
     })
 
     console.log("playerControlledEntity", playerControlledEntity)
 
-    let mainCamera = this.cameras.main;
-
-    if (playerControlledEntity != null) {
-      const playerLocation = resolveEntityPositionForCurrentTime(playerControlledEntity)
-
-      mainCamera.centerOn(playerLocation.x, playerLocation.y)
+    const centerCameraOnEntity = playerControlledEntity ?? anyCharacterEntity
+    if (centerCameraOnEntity != null) {
+      const centerOnLocation = resolveEntityPositionForCurrentTime(centerCameraOnEntity)
+      this.centerCameraOnLocation(centerOnLocation)
     } else {
-      mainCamera.centerOn(this.worldBounds.x * 0.5, this.worldBounds.y * 0.5)
+      this.centerCameraOnLocation(new Vector2(worldBounds.x * 0.5, worldBounds.y * 0.5))
     }
 
     const backgroundGrass = this.add.tileSprite(
