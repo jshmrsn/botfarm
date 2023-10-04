@@ -47,7 +47,7 @@ class AgentActionUtils(
       synchronized(simulation) {
          val characterComponent = entity.getComponent<CharacterComponentData>()
 
-         val movementResult = simulation.moveEntityToPoint(
+         val movementResult = simulation.startEntityMovement(
             entity = entity,
             endPoint = targetEntity.resolvePosition()
          )

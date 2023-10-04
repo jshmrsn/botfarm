@@ -17,9 +17,9 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class AgentServerIntegration {
-   val agentServerEndpoint = System.getenv()["BOTFARM_AGENT_SERVER_ENDPOINT"] ?: "http://localhost:5002"
-
+class AgentServerIntegration(
+   val agentServerEndpoint: String
+) {
    suspend fun sendSyncRequest(inputs: AgentSyncInput): List<AgentSyncOutput> {
       val request = AgentSyncRequest(
          input = inputs

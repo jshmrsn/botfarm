@@ -4,6 +4,7 @@ import botfarm.engine.ktorplugins.AdminRequest
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.buildShortRandomIdentifier
+import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.serialization.Serializable
@@ -313,14 +314,16 @@ class SimulationContainer {
       }
    }
 
-   fun tick() {
+   fun tick(deltaTime: Double) {
       val simulations = synchronized(this) {
          this.simulations.toList()
       }
 
       val simulationsToTerminate = simulations.filter { simulation ->
          val tickResult = synchronized(simulation) {
-            simulation.tick()
+            simulation.tick(
+               deltaTime = deltaTime
+            )
          }
 
          tickResult.shouldTerminate

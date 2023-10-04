@@ -3,8 +3,8 @@ package botfarm
 import botfarm.engine.ktorplugins.*
 import botfarm.engine.simulation.SimulationContainer
 import botfarm.engine.simulation.UserSecret
+import botfarm.game.agentintegration.AgentServerIntegration
 import botfarm.game.setup.registerGameScenarios
-import botfarm.game.setup.registerGameSystems
 import botfarmshared.engine.apidata.SimulationId
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -71,17 +71,28 @@ suspend fun ApplicationTestBuilder.sendGetSimulationInfoRequest(
    return getSimulationInfoResponse
 }
 
+// jshmrsn TODO: Eventually, create a HTTP server in this process which provides a mock agent server
+fun createTestAgentServerIntegration(): AgentServerIntegration {
+   val testAgentServerPort = 0
+   return AgentServerIntegration(
+      agentServerEndpoint = "http://localhost:$testAgentServerPort"
+   )
+}
 
 class ApplicationTest {
    @Test
    fun testRoot() = testApplication {
       val simulationContainer = SimulationContainer()
 
+      val agentServerIntegration = createTestAgentServerIntegration()
+
       application {
-         registerGameSystems()
          registerGameScenarios()
          configureSerialization()
-         configureRouting(simulationContainer)
+         configureRouting(
+            simulationContainer = simulationContainer,
+            agentServerIntegration = agentServerIntegration
+         )
       }
 
       val scenarioIdentifier = "default-no-agent"

@@ -6,7 +6,6 @@ import botfarm.common.aStarPathfinding
 import botfarm.common.resolvePosition
 import botfarm.engine.ktorplugins.AdminRequest
 import botfarm.engine.simulation.*
-import botfarm.game.agentintegration.AgentServerIntegration
 import botfarm.game.components.*
 import botfarm.game.config.CharacterBodySelectionsConfig
 import botfarm.game.config.EquipmentSlot
@@ -72,7 +71,6 @@ class AddCharacterMessageRequest(
 )
 
 class GameSimulation(
-   val agentServerIntegration: AgentServerIntegration,
    context: SimulationContext,
    data: SimulationData
 ) : Simulation(
@@ -83,6 +81,8 @@ class GameSimulation(
    companion object {
       val activityStreamEntityId = EntityId("activity-stream")
    }
+
+   val agentServerIntegration = context.agentServerIntegration
 
    private val collisionMap: List<List<Boolean>>
    val collisionMapRowCount: Int
@@ -264,7 +264,7 @@ class GameSimulation(
    fun equipItem(
       entity: Entity,
       expectedItemConfigKey: String,
-      requestedStackIndex: Int?
+      requestedStackIndex: Int? = null
    ): EquipItemResult {
       val inventoryComponent = entity.getComponent<InventoryComponentData>()
       val characterComponent = entity.getComponent<CharacterComponentData>()
@@ -463,7 +463,7 @@ class GameSimulation(
          return
       }
 
-      val result = this.moveEntityToPoint(
+      val result = this.startEntityMovement(
          entity = entity,
          endPoint = message.point
       )
@@ -1042,7 +1042,7 @@ class GameSimulation(
    }
 
 
-   fun moveEntityToPoint(
+   fun startEntityMovement(
       entity: Entity,
       endPoint: Vector2,
       retryCount: Int = 0,
@@ -1086,7 +1086,7 @@ class GameSimulation(
          if (retryCount >= maxRetryCount) {
             return MoveToResult.PathNotFound
          } else {
-            return this.moveEntityToPoint(
+            return this.startEntityMovement(
                entity = entity,
                endPoint = clampedEndPoint,
                retryCount = retryCount + 1,
@@ -1164,10 +1164,10 @@ class GameSimulation(
       baseLocation: Vector2,
       randomLocationScale: Double = 0.0,
       randomLocationExponent: Double = 1.0,
-   ) {
+   ): List<Entity> {
       val stackAmounts = quantity.resolveStackAmountsForItemConfig(itemConfig)
 
-      stackAmounts.forEach { amount ->
+      return stackAmounts.map { amount ->
          this.spawnItem(
             itemConfig = itemConfig,
             amount = amount,
@@ -1186,10 +1186,10 @@ class GameSimulation(
       randomLocationScale: Double = 0.0,
       randomLocationExponent: Double = 1.0,
       quantity: RandomItemQuantity
-   ) {
+   ): List<Entity> {
       val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
 
-      this.spawnItems(
+      return this.spawnItems(
          itemConfig = itemConfig,
          quantity = quantity,
          baseLocation = baseLocation,
@@ -1202,10 +1202,10 @@ class GameSimulation(
       itemConfigKey: String,
       location: Vector2,
       amount: Int = 1
-   ) {
+   ): Entity {
       val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
 
-      this.spawnItem(
+      return this.spawnItem(
          itemConfig = itemConfig,
          location = location,
          amount = amount
@@ -1216,7 +1216,7 @@ class GameSimulation(
       itemConfig: ItemConfig,
       location: Vector2,
       amount: Int = 1
-   ) {
+   ): Entity {
       val components = mutableListOf(
          ItemComponentData(
             itemConfigKey = itemConfig.key,
@@ -1239,7 +1239,7 @@ class GameSimulation(
          components.add(GrowerComponentData())
       }
 
-      this.createEntity(components)
+      return this.createEntity(components)
    }
 
    fun buildRandomCharacterBodySelections(
@@ -1283,15 +1283,32 @@ class GameSimulation(
       age: Int = 25,
       bodySelections: CharacterBodySelections = this.buildRandomCharacterBodySelections(),
       location: Vector2
-   ) {
-      this.createEntity(
-         listOf(
+   ): Entity {
+      return this.spawnCharacter(
+         name = name,
+         age = age,
+         bodySelections = bodySelections,
+         location = location,
+         additionalComponents = listOf(
             AgentComponentData(
                agentId = AgentId(buildShortRandomIdentifier()),
                corePersonality = corePersonality,
                initialMemories = initialMemories,
                agentType = agentType
-            ),
+            )
+         )
+      )
+   }
+
+   fun spawnCharacter(
+      name: String = "Character",
+      age: Int = 25,
+      bodySelections: CharacterBodySelections = this.buildRandomCharacterBodySelections(),
+      location: Vector2,
+      additionalComponents: List<EntityComponentData> = listOf()
+   ): Entity {
+      return this.createEntity(
+         additionalComponents + listOf(
             CharacterComponentData(
                name = name,
                age = age,
@@ -1689,43 +1706,33 @@ class GameSimulation(
       )
    }
 
-   fun spawnPlayerCharacter(client: Client) {
+   fun spawnPlayerCharacterForUserIfNeeded(userId: UserId) {
       val existingControlledEntity = this.entities.find {
          val userControlled = it.getComponentOrNull<UserControlledComponentData>()
 
          if (userControlled != null) {
-            userControlled.data.userId == client.userId
+            userControlled.data.userId == userId
          } else {
             false
          }
       }
 
       if (existingControlledEntity != null) {
-         println("Controlled entity already exists for client: " + client.userId)
+         println("Controlled entity already exists for client: " + userId)
          return
       }
 
-      this.createEntity(
-         components = listOf(
+      this.spawnCharacter(
+         name = "Player",
+         age = 30,
+         bodySelections = this.buildRandomCharacterBodySelections(),
+         location = Vector2(
+            2500.0 + (this.entities.size % 8) * 50.0,
+            2500.0
+         ),
+         additionalComponents = listOf(
             UserControlledComponentData(
-               userId = client.userId
-            ),
-            CharacterComponentData(
-               name = "Player",
-               age = 30,
-               bodySelections = this.buildRandomCharacterBodySelections()
-            ),
-            DamageableComponentData(
-               hp = 100
-            ),
-            InventoryComponentData(),
-            PositionComponentData(
-               positionAnimation = Vector2Animation.static(
-                  Vector2(
-                     2500.0 + (this.entities.size % 8) * 50.0,
-                     2500.0
-                  )
-               )
+               userId = userId
             )
          )
       )
@@ -1741,7 +1748,7 @@ class GameSimulation(
       }
 
       if (shouldSpawnPlayerEntity) {
-         this.spawnPlayerCharacter(client)
+         this.spawnPlayerCharacterForUserIfNeeded(client.userId)
       }
    }
 

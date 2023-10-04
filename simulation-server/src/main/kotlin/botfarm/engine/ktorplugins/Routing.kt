@@ -1,6 +1,7 @@
 package botfarm.engine.ktorplugins
 
 import botfarm.engine.simulation.*
+import botfarm.game.agentintegration.AgentServerIntegration
 import botfarmshared.engine.apidata.SimulationId
 import io.ktor.http.HttpStatusCode
 import io.ktor.resources.Resource
@@ -25,7 +26,8 @@ import io.ktor.server.routing.post as routingPost
 
 
 fun Application.configureRouting(
-   simulationContainer: SimulationContainer
+   simulationContainer: SimulationContainer,
+   agentServerIntegration: AgentServerIntegration
 ) {
    install(StatusPages) {
       exception<Throwable> { call, cause ->
@@ -107,7 +109,8 @@ fun Application.configureRouting(
                wasCreatedByAdmin = isAdmin,
                simulationContainer = simulationContainer,
                createdByUserSecret = request.userSecret,
-               scenario = scenario
+               scenario = scenario,
+               agentServerIntegration = agentServerIntegration
             )
 
             val simulation = scenario.createSimulation(

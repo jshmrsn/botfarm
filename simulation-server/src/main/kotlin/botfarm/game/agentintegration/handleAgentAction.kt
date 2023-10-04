@@ -77,7 +77,7 @@ fun handleAgentAction(
       )
 
       println("starting move: " + endPoint)
-      val movementResult = simulation.moveEntityToPoint(
+      val movementResult = simulation.startEntityMovement(
          entity = entity,
          endPoint = endPoint
       )

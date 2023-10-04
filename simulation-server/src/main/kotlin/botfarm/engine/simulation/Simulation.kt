@@ -3,6 +3,7 @@ package botfarm.engine.simulation
 import aws.sdk.kotlin.services.s3.S3Client
 import aws.sdk.kotlin.services.s3.putObject
 import aws.smithy.kotlin.runtime.content.ByteStream
+import botfarm.game.agentintegration.AgentServerIntegration
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.DynamicSerialization
@@ -93,6 +94,8 @@ class PendingReplayData {
    val sentMessages = mutableListOf<ReplaySentMessage>()
 }
 
+
+
 class SimulationContext(
    val clientReceiveInteractionTimeoutSeconds: Double? = 60.0,
    val clientReceiveMessageTimeoutSeconds: Double? = 60.0,
@@ -100,7 +103,8 @@ class SimulationContext(
    val wasCreatedByAdmin: Boolean,
    val simulationContainer: SimulationContainer,
    val createdByUserSecret: UserSecret,
-   val scenario: Scenario
+   val scenario: Scenario,
+   val agentServerIntegration: AgentServerIntegration
 )
 
 open class Simulation(
@@ -108,7 +112,7 @@ open class Simulation(
    val systems: Systems = Systems.default,
    val data: SimulationData
 ) {
-   private var lastAnyClientsConnectedUnixTime = getCurrentSimulationTime()
+   private var lastAnyClientsConnectedUnixTime = getCurrentUnixTimeSeconds()
 
    companion object {
       val replayS3UploadBucket = System.getenv()["BOTFARM_S3_REPLAY_BUCKET"]
@@ -127,6 +131,8 @@ open class Simulation(
    var shouldPauseAi = false
 
    val startedAtUnixTime = data.simulationStartedAtUnixTime
+   var simulationTime = 0.0
+      private set
 
    var lastTickUnixTime = getCurrentUnixTimeSeconds()
 
@@ -299,7 +305,7 @@ open class Simulation(
    fun createEntity(
       components: List<EntityComponentData>,
       entityId: EntityId = EntityId(buildShortRandomIdentifier())
-   ) {
+   ): Entity {
       synchronized(this) {
          if (this.mutableEntitiesById.containsKey(entityId)) {
             throw Exception("Entity already exists for entityId: $entityId")
@@ -326,6 +332,8 @@ open class Simulation(
          this.mutableEntitiesById[entityId] = entity
 
          this.activateSystemsForEntity(entity)
+
+         return entity
       }
    }
 
@@ -407,7 +415,7 @@ open class Simulation(
    }
 
    fun getCurrentSimulationTime(): Double {
-      return getCurrentUnixTimeSeconds() - this.startedAtUnixTime
+      return this.simulationTime
    }
 
    fun handleNewWebSocketClient(
@@ -510,7 +518,7 @@ open class Simulation(
       }
    }
 
-   fun tick(): TickResult {
+   fun tick(deltaTime: Double): TickResult {
       if (this.isTerminated) {
          return TickResult(
             shouldTerminate = false
@@ -518,7 +526,7 @@ open class Simulation(
       }
 
       val currentUnixTimeSeconds = getCurrentUnixTimeSeconds()
-      val deltaTime = Math.max(currentUnixTimeSeconds - this.lastTickUnixTime, 0.00001)
+      this.simulationTime += deltaTime
       this.lastTickUnixTime = currentUnixTimeSeconds
 
       this.queuedCallbacks.update()

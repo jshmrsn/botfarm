@@ -25,7 +25,7 @@ suspend fun syncAgent(
    agentId: AgentId,
    syncId: String
 ) {
-   val remoteAgentIntegration = simulation.agentServerIntegration
+   val agentServerIntegration = simulation.agentServerIntegration
 
    val characterComponent = entity.getComponentOrNull<CharacterComponentData>() ?: return
    val positionComponent = entity.getComponentOrNull<PositionComponentData>() ?: return
@@ -129,7 +129,7 @@ suspend fun syncAgent(
       }
    }
 
-   val agentSyncOutputs = remoteAgentIntegration.sendSyncRequest(agentSyncInput)
+   val agentSyncOutputs = agentServerIntegration.sendSyncRequest(agentSyncInput)
    context.unwindIfNeeded()
 
    context.synchronizeSimulation {

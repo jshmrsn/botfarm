@@ -2,9 +2,9 @@ package botfarm.game.setup
 
 import botfarm.common.SpriteConfig
 import botfarm.engine.simulation.Config
-import botfarm.game.config.CharacterBodySelectionsConfig
 import botfarm.game.components.CompositeAnimationRegistryConfig
 import botfarm.game.components.RegisteredCompositeAnimation
+import botfarm.game.config.*
 
 fun addCharacterConfigs(configs: MutableList<Config>) {
    val includedSkinColors = listOf(
@@ -88,3 +88,4 @@ fun addCharacterConfigs(configs: MutableList<Config>) {
       ).flatten()
    )
 }
+
