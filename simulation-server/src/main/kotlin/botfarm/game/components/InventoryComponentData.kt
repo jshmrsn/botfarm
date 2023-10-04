@@ -59,7 +59,7 @@ fun Entity.getInventoryItemTotalAmount(itemConfigKey: String): Int {
 
 fun Entity.takeInventoryItemCollection(itemCollection: ItemCollection): Boolean {
    val canAfford = itemCollection.entries.all { costEntry ->
-      this.getInventoryItemTotalAmount(costEntry.itemConfigKey) > costEntry.amount
+      this.getInventoryItemTotalAmount(costEntry.itemConfigKey) >= costEntry.amount
    }
 
    if (!canAfford) {

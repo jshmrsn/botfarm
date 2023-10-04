@@ -105,7 +105,7 @@ fun handleAgentAction(
       )
 
       if (craftItemResult != GameSimulation.CraftItemResult.Success) {
-         simulation.broadcastAlertAsGameMessage("Unable to use craft item for agent ($debugInfo): actionUniqueId = $actionUniqueId, result ${craftItemResult.name}")
+         simulation.broadcastAlertAsGameMessage("Unable to use craft item for agent ${itemConfigKey} ($debugInfo): actionUniqueId = $actionUniqueId, result ${craftItemResult.name}")
       }
 
       state.mutableObservations.craftItemActionRecords.add(
