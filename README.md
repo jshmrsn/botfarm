@@ -15,7 +15,13 @@
 
 - Prioritize maintainability, code quality, and game development best practices of the game simulation code base, so that it can be extended or remixed for various research use cases.
 
-![screenshot](https://github.com/jshmrsn/botfarm/blob/main/docs/screenshots/screenshot-1.png)
+## Demo
+You can [play in the browser](https://botfarm.app) (with AI agents disabled due to high API costs).
+
+You can also [watch a replay in the browser](https://botfarm.app/simulation/744F5DA1) of an example interaction with a GPT-4 powered agent (Joe is an agent in this replay).
+
+
+![screenshot](https://github.com/jshmrsn/botfarm/blob/main/docs/screenshots/screenshot-1.png?raw=true)
 
 
 ## Motivations

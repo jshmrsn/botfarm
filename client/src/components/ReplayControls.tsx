@@ -50,7 +50,7 @@ export function ReplayControls(props: ReplayControlsProps): JSX.Element {
       color={"white"}
       style={{}}
     >
-      {formatSeconds(props.replayData.replayGeneratedAtSimulationTime)}
+      {formatSeconds(simulation.getCurrentSimulationTime())}
     </Text>
 
     <Slider
@@ -80,7 +80,7 @@ export function ReplayControls(props: ReplayControlsProps): JSX.Element {
       color={"white"}
       style={{}}
     >
-      {formatSeconds(simulation.getCurrentSimulationTime())}
+      {formatSeconds(props.replayData.replayGeneratedAtSimulationTime)}
     </Text>
   </div>
 }
