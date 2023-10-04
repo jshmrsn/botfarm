@@ -356,9 +356,11 @@ class SimulationContainer {
             terminatedSimulations = this.terminatedSimulations
                .filter { it.context.createdByUserSecret == userSecret || isAdmin }
                .map { it.buildInfo(checkBelongsToUserSecret = userSecret) },
-            scenarios = ScenarioRegistration.registeredScenarios.map {
-               it.buildInfo()
-            }
+            scenarios = ScenarioRegistration.registeredScenarios
+               .filter { !it.requiresAdmin || isAdmin }
+               .map {
+                  it.buildInfo()
+               }
          )
       }
    }

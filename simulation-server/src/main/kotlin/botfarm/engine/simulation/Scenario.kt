@@ -21,7 +21,8 @@ abstract class Scenario(
    val gameIdentifier: String,
    val name: String? = null,
    val description: String? = null,
-   val spawnPlayersEntityMode: SpawnPlayersMode = SpawnPlayersMode.All
+   val spawnPlayersEntityMode: SpawnPlayersMode = SpawnPlayersMode.All,
+   val requiresAdmin: Boolean = true
 ) {
    fun buildInfo(): ScenarioInfo = ScenarioInfo(
       identifier = identifier,

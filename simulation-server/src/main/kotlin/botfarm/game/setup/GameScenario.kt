@@ -18,13 +18,15 @@ abstract class GameScenario(
    identifier: String,
    name: String? = null,
    description: String? = null,
-   spawnPlayersMode: SpawnPlayersMode = SpawnPlayersMode.All
+   spawnPlayersMode: SpawnPlayersMode = SpawnPlayersMode.All,
+   requiresAdmin: Boolean = true
 ) : Scenario(
    identifier = identifier,
    gameIdentifier = "game",
    name = name,
    description = description,
-   spawnPlayersEntityMode = spawnPlayersMode
+   spawnPlayersEntityMode = spawnPlayersMode,
+   requiresAdmin = requiresAdmin
 ) {
    override fun createSimulation(
       context: SimulationContext

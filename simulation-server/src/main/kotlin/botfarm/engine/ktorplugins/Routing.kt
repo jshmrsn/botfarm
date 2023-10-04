@@ -100,6 +100,8 @@ fun Application.configureRouting(
 
          if (scenario == null) {
             throw Exception("Scenario not found for identifier: " + request.scenarioIdentifier)
+         } else if (scenario.requiresAdmin && !isAdmin) {
+            throw Exception("Scenario requires admin: " + request.scenarioIdentifier)
          } else {
             val simulationContext = SimulationContext(
                wasCreatedByAdmin = isAdmin,
