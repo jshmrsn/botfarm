@@ -1,4 +1,4 @@
-package botfarm.game.ai
+package botfarm.game.agentintegration
 
 import botfarmshared.game.apidata.AgentSyncOutput
 import botfarmshared.game.apidata.AgentSyncInput

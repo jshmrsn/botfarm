@@ -1,4 +1,4 @@
-package botfarm.game.ai
+package botfarm.game.agentintegration
 
 import botfarm.common.PositionComponentData
 import botfarm.common.resolvePosition
@@ -7,12 +7,11 @@ import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.isDead
-import botfarm.game.systems.AgentState
 import botfarmshared.game.apidata.SelfSpokenMessage
 
 class AgentActionUtils(
    val entity: Entity,
-   val state: AgentState,
+   val state: AgentSyncState,
    val simulation: GameSimulation,
    val debugInfo: String
 ) {
@@ -39,7 +38,7 @@ class AgentActionUtils(
       }
    }
 
-   fun interactWithEntity(
+   fun autoInteractWithEntity(
       targetEntity: Entity
    ): GameSimulation.MoveToResult {
       val simulation = this.simulation
@@ -67,7 +66,7 @@ class AgentActionUtils(
       val simulation = this.simulation
 
       synchronized(simulation) {
-         this.state.newObservations.selfSpokenMessages.add(
+         this.state.mutableObservations.selfSpokenMessages.add(
             SelfSpokenMessage(
                message = whatToSay,
                reason = "",

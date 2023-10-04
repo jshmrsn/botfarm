@@ -29,7 +29,7 @@ class AgentContainer {
 
    fun addPendingInput(inputs: AgentSyncInput) {
       synchronized(this) {
-         val agentId = inputs.selfInfo.agentId
+         val agentId = inputs.agentId
          val simulationId = inputs.simulationId
          val agentType = inputs.agentType
 
@@ -42,7 +42,7 @@ class AgentContainer {
          val agentContext = AgentContext(
             agentType = agentType,
             agentContainer = this,
-            agentId = inputs.selfInfo.agentId,
+            agentId = inputs.agentId,
             openAI = this.openAI,
             initialSyncInput = inputs
          )

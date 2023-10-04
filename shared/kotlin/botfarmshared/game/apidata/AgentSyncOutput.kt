@@ -31,11 +31,14 @@ class AgentSyncOutput(
 @Serializable
 class Action(
    val actionUniqueId: String = buildShortRandomIdentifier(),
+   val reason: String? = null,
    val walk: WalkAction? = null,
-   val actionOnEntity: ActionOnEntity? = null,
+   val pickUpEntity: ActionOnEntity? = null,
+   val useEquippedToolItemOnEntity: ActionOnEntity? = null,
    val useEquippedToolItem: UseEquippedToolItem? = null,
-   val actionOnInventoryItem: ActionOnInventoryItem? = null,
-   val craftItemAction: CraftItemAction? = null,
+   val dropInventoryItem: ActionOnInventoryItem? = null,
+   val equipInventoryItem: ActionOnInventoryItem? = null,
+   val craftItem: CraftItemAction? = null,
    val speak: String? = null,
    val facialExpressionEmoji: String? = null
 )
@@ -47,8 +50,7 @@ class ActionResult(
 
 @Serializable
 class WalkAction(
-   val location: Vector2,
-   val reason: String? = null
+   val location: Vector2
 )
 
 @Serializable
@@ -58,23 +60,18 @@ class UseEquippedToolItem(
 
 @Serializable
 class ActionOnEntity(
-   val actionId: String,
-   val targetEntityId: EntityId,
-   val reason: String? = null
+   val targetEntityId: EntityId
 )
 
 @Serializable
 class ActionOnInventoryItem(
-   val actionId: String,
    val itemConfigKey: String,
    val stackIndex: Int? = null,
-   val amount: Int? = null,
-   val reason: String? = null
+   val amount: Int? = null
 )
 
 @Serializable
 class CraftItemAction(
-   val itemConfigKey: String,
-   val reason: String? = null
+   val itemConfigKey: String
 )
 

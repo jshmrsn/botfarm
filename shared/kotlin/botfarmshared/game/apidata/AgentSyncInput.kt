@@ -2,6 +2,8 @@ package botfarmshared.game.apidata
 
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
+import botfarmshared.game.GameConstants
+import botfarmshared.game.GameSimulationInfo
 import botfarmshared.misc.Vector2
 import kotlinx.serialization.Serializable
 
@@ -103,7 +105,8 @@ class ActiveGrowthInfo(
 
 @Serializable
 class GrowerEntityInfo(
-   val activeGrowthInfo: ActiveGrowthInfo? = null
+   val activeGrowthInfo: ActiveGrowthInfo? = null,
+   val canReceiveGrowableItemConfigKeys: List<String>
 )
 
 @Serializable
@@ -111,7 +114,6 @@ class EntityInfo(
    val observedAtSimulationTime: Double,
    val entityId: EntityId,
    val location: Vector2,
-   val availableActionIds: List<String>? = null,
    val itemInfo: ItemEntityInfo?,
    val damageableInfo: DamageableEntityInfo?,
    val characterInfo: CharacterEntityInfo?,
@@ -175,12 +177,12 @@ value class AgentId(val value: String)
 
 @Serializable
 class SelfInfo(
-   val agentId: AgentId,
    val entityInfo: EntityInfo,
    val corePersonality: String,
    val initialMemories: List<String>,
    val observationDistance: Double,
-   val inventoryInfo: InventoryInfo
+   val inventoryInfo: InventoryInfo,
+   val equippedItemConfigKey: String?
 )
 
 @Serializable
@@ -196,11 +198,12 @@ class CraftingRecipe(
 class AgentSyncInput(
    val agentType: String,
    val syncId: String,
+   val agentId: AgentId,
    val simulationId: SimulationId,
    val simulationTime: Double,
-   val craftingRecipes: List<CraftingRecipe>,
    val selfInfo: SelfInfo,
    val newObservations: Observations,
-   val distanceUnit: String,
-   val peopleSize: Double
+   val gameConstants: GameConstants,
+   val gameSimulationInfo: GameSimulationInfo
 )
+

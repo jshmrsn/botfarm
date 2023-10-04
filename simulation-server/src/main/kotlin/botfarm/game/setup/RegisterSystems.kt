@@ -1,6 +1,6 @@
 package botfarm.game.setup
 
-import botfarm.game.systems.agentCoroutineSystem
+import botfarm.game.systems.syncAgentCoroutineSystem
 import botfarm.engine.simulation.Systems
 import botfarm.game.components.AgentComponentData
 import botfarm.game.systems.pendingInteractionTickSystem
@@ -13,6 +13,6 @@ fun registerGameSystems() {
    gameSystems.registerTickSystem2(::pendingInteractionTickSystem)
    gameSystems.registerTickSystem(::cleanupKilledEntitiesTickSystem)
    gameSystems.registerTickSystem(::updateGrowersTickSystem)
-   gameSystems.registerCoroutineSystem<AgentComponentData>(::agentCoroutineSystem)
+   gameSystems.registerCoroutineSystem<AgentComponentData>(::syncAgentCoroutineSystem)
 }
 

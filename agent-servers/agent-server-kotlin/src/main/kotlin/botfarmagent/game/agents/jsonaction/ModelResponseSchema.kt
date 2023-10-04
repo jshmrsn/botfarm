@@ -1,5 +1,6 @@
 package botfarmagent.game.agents.jsonaction
 
+import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.JsonArraySchema
 import botfarmshared.misc.JsonNumberSchema
@@ -9,8 +10,8 @@ import kotlinx.serialization.Serializable
 
 object ModelResponseSchema {
    val reasonKey = "reason"
-   val locationToWalkToAndReasonKey = "locationToWalkToAndReason"
-   val destinationKey = "location"
+
+   val locationToWalkToKey = "locationToWalkTo"
 
    val functionName = "response"
    val iWantToSayKey = "iWantToSay"
@@ -31,16 +32,26 @@ object ModelResponseSchema {
    val craftItemKey = "craftItem"
 
    @Serializable
-   class WalkToLocationAndReason(
-      val location: List<Double>,
+   class GenericActionOnEntity(
+      val targetEntityId: EntityId,
+      val actionId: String
+   )
+
+   @Serializable
+   class GenericActionOnInventoryItem(
+      val actionId: String,
+      val itemConfigKey: String,
+      val stackIndex: Int? = null,
+      val amount: Int? = null,
       val reason: String? = null
    )
 
    @Serializable
    class AgentResponseFunctionInputs(
-      val locationToWalkToAndReason: WalkToLocationAndReason? = null,
-      val actionOnEntity: ActionOnEntity? = null,
-      val actionOnInventoryItem: ActionOnInventoryItem? = null,
+      val reason: String? = null,
+      val locationToWalkTo: List<Double>? = null,
+      val actionOnEntity: GenericActionOnEntity? = null,
+      val actionOnInventoryItem: GenericActionOnInventoryItem? = null,
       val craftItem: CraftItemAction? = null,
       val iWantToSay: String? = null,
       val facialExpressionEmoji: String? = null,
@@ -50,21 +61,15 @@ object ModelResponseSchema {
 
    val functionSchema = JsonObjectSchema(
       properties = mapOf(
-         locationToWalkToAndReasonKey to JsonObjectSchema(
-            properties = mapOf(
-               destinationKey to JsonArraySchema(
-                  description = "Represented as an array of two numbers for x and y coordinates.",
-                  items = JsonNumberSchema()
-               ),
-               reasonKey to JsonStringSchema("Short reason of why you want to walk here")
-            ),
-            required = listOf(destinationKey)
+         reasonKey to JsonStringSchema("Reason why you are taking this action"),
+         locationToWalkToKey to JsonArraySchema(
+            description = "Represented as an array of two numbers for x and y coordinates.",
+            items = JsonNumberSchema()
          ),
          actionOnEntityKey to JsonObjectSchema(
             properties = mapOf(
                actionIdKey to JsonStringSchema("The actionId that you would like to take on the target entity"),
-               targetEntityIdKey to JsonStringSchema("The entityId of the entity that would like to take action on"),
-               reasonKey to JsonStringSchema("Reason why you are taking this action")
+               targetEntityIdKey to JsonStringSchema("The entityId of the entity that would like to take action on")
             ),
             required = listOf(targetEntityIdKey, actionIdKey)
          ),
@@ -72,23 +77,17 @@ object ModelResponseSchema {
             properties = mapOf(
                itemConfigKeyKey to JsonStringSchema("The itemConfigKey of the item you would like take an action on"),
                actionIdKey to JsonStringSchema("The actionId you would like to take on this item"),
-               reasonKey to JsonStringSchema("Reason why you are taking this action"),
                amountKey to JsonStringSchema("The amount of the items you would like to take this action on (not always relevant)")
             ),
             required = listOf(itemConfigKeyKey, actionIdKey)
          ),
          useEquippedToolItemKey to JsonObjectSchema(
-            properties = mapOf(
-               reasonKey to JsonStringSchema("Reason why you are taking this action")
-            ),
+            properties = mapOf(),
+            description = "Provided empty non-null object to use this action",
             required = listOf()
          ),
-         craftItemKey to JsonObjectSchema(
-            properties = mapOf(
-               itemConfigKeyKey to JsonStringSchema("The itemConfigKey of the item you would like take an action on"),
-               reasonKey to JsonStringSchema("Reason why you are taking this action")
-            ),
-            required = listOf(itemConfigKeyKey)
+         craftItemKey to JsonStringSchema(
+            description = "The itemConfigKey of the item you would like take an action on"
          ),
          iWantToSayKey to JsonStringSchema("Use this input when you would like to talk out loud to interact with other people"),
          facialExpressionEmojiKey to JsonStringSchema("Provide a single emoji to represent your current mood as a facial expression"),

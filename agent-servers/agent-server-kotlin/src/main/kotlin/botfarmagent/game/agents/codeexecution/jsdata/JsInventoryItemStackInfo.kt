@@ -93,7 +93,7 @@ class JsInventoryItemStackInfo(
 
    @HostAccess.Export
    fun use(reason: String?) {
-      this.api.useEquippedItem(
+      this.api.useEquippedToolItem(
          reason = reason
       )
    }

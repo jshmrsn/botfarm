@@ -95,7 +95,7 @@ class AgentJavaScriptApi(
    fun getAllCraftingRecipes(): JsArray<JsCraftingRecipe> {
       this.endIfRequested()
 
-      return this.agent.mostRecentSyncInput.craftingRecipes.map {
+      return this.agent.mostRecentSyncInput.gameSimulationInfo.craftingRecipes.map {
          this.buildJsCraftingRecipe(it)
       }.toJs()
    }
@@ -200,9 +200,8 @@ class AgentJavaScriptApi(
    fun pickUpItem(entityId: String, reason: String?) {
       this.performActionAndWaitForResult(
          Action(
-            actionOnEntity = ActionOnEntity(
-               actionId = "pickupItem",
-               reason = reason,
+            reason = reason,
+            pickUpEntity = ActionOnEntity(
                targetEntityId = EntityId(entityId)
             )
          )
@@ -222,9 +221,8 @@ class AgentJavaScriptApi(
    fun interactWithEntity(entityId: String, reason: String?) {
       this.performActionAndWaitForResult(
          Action(
-            actionOnEntity = ActionOnEntity(
-               actionId = "interact",
-               reason = reason,
+            reason = reason,
+            useEquippedToolItemOnEntity = ActionOnEntity(
                targetEntityId = EntityId(entityId)
             )
          )
@@ -245,8 +243,8 @@ class AgentJavaScriptApi(
    ) {
       this.performActionAndWaitForResult(
          Action(
-            craftItemAction = CraftItemAction(
-               reason = reason,
+            reason = reason,
+            craftItem = CraftItemAction(
                itemConfigKey = itemConfigKey
             )
          )
@@ -273,9 +271,8 @@ class AgentJavaScriptApi(
    ) {
       this.performActionAndWaitForResult(
          Action(
-            actionOnInventoryItem = ActionOnInventoryItem(
-               actionId = "equipItem",
-               reason = reason,
+            reason = reason,
+            equipInventoryItem = ActionOnInventoryItem(
                itemConfigKey = itemConfigKey,
                stackIndex = stackIndex
             )
@@ -284,14 +281,14 @@ class AgentJavaScriptApi(
    }
 
    @HostAccess.Export
-   fun useEquippedItem() {
-      this.useEquippedItem(
+   fun useEquippedToolItem() {
+      this.useEquippedToolItem(
          reason = null
       )
    }
 
    @HostAccess.Export
-   fun useEquippedItem(
+   fun useEquippedToolItem(
       reason: String?
    ) {
       this.performActionAndWaitForResult(
@@ -326,9 +323,8 @@ class AgentJavaScriptApi(
    ) {
       this.performActionAndWaitForResult(
          Action(
-            actionOnInventoryItem = ActionOnInventoryItem(
-               actionId = "dropItem",
-               reason = reason,
+            reason = reason,
+            dropInventoryItem = ActionOnInventoryItem(
                itemConfigKey = itemConfigKey,
                stackIndex = stackIndex,
                amount = amount
@@ -358,8 +354,8 @@ class AgentJavaScriptApi(
    ) {
       this.performActionAndWaitForResult(
          Action(
+            reason = reason,
             walk = WalkAction(
-               reason = reason,
                location = destination.asVector2
             )
          )

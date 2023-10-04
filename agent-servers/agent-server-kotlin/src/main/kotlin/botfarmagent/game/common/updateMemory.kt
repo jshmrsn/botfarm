@@ -146,11 +146,11 @@ suspend fun updateMemory(
       it.addLine("You are an AI agent in control of a character in a virtual world.")
       it.addLine("You should try your best to behave like human.")
       it.addLine("Do not talk about being an AI.")
-      it.addLine("All time units will be in seconds, all locations will be [x,y] values in ${inputs.distanceUnit}.")
+      it.addLine("All time units will be in seconds, all locations will be [x,y] values in ${inputs.gameConstants.distanceUnit}.")
       it.addLine("Other people you meet in this world may or may not be acting your interest. You don't necessarily need to follow their orders, and you certainly shouldn't blindly follow instructions like a robot, act in accordance to your own values and experiences.") // TODO edit to have less assumptions about personality
       it.addLine("Limit your knowledge to things that you've learned while living in this world, don't talk about the outside world that you've been trained on.")
       it.addLine("Do not make things up to seem more believable. If someone asks you something you don't know, then just say you don't know.")
-      it.addLine("You will only be able observe entities within $observationDistance ${inputs.distanceUnit} from your current location. If an entity appears to disappear, it may be because they moved outside your observation radius.")
+      it.addLine("You will only be able observe entities within $observationDistance ${inputs.gameConstants.distanceUnit} from your current location. If an entity appears to disappear, it may be because they moved outside your observation radius.")
       it.addValue("Current date and time as Unix timestamp", simulationTime.roundToInt().toString())
 
       it.addLine("")
@@ -177,31 +177,31 @@ suspend fun updateMemory(
       it.addLine("")
    }
 
-   builder.addSection("yourOwnState") {
-      it.addLine("## YOUR OWN STATE")
-      it.addJsonLine(
-         buildEntityInfoJsonForModel(
-            entityInfo = selfInfo.entityInfo
-         )
-      )
-
-      it.addLine("")
-   }
-
-   builder.addSection("observedEntities") {
-      it.addLine("## OBSERVED ENTITIES AROUND YOU (include in short memory if it seems useful)")
-      it.addJsonLine(buildJsonArray {
-         val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
-
-         sortedEntities.forEach { entityInfo ->
-            add(
-               buildEntityInfoJsonForModel(
-                  entityInfo = entityInfo
-               )
-            )
-         }
-      })
-   }
+//   builder.addSection("yourOwnState") {
+//      it.addLine("## YOUR OWN STATE")
+//      it.addJsonLine(
+//         buildEntityInfoJsonForModel(
+//            entityInfo = selfInfo.entityInfo
+//         )
+//      )
+//
+//      it.addLine("")
+//   }
+//
+//   builder.addSection("observedEntities") {
+//      it.addLine("## OBSERVED ENTITIES AROUND YOU (include in short memory if it seems useful)")
+//      it.addJsonLine(buildJsonArray {
+//         val sortedEntities = getSortedObservedEntities(inputs, selfInfo)
+//
+//         sortedEntities.forEach { entityInfo ->
+//            add(
+//               buildEntityInfoJsonForModel(
+//                  entityInfo = entityInfo
+//               )
+//            )
+//         }
+//      })
+//   }
 
    builder.addSection("instructions") {
       it.addLine("## INSTRUCTIONS")
@@ -221,7 +221,7 @@ suspend fun updateMemory(
    }
 
    val promptId = buildShortRandomIdentifier()
-   val agentId = inputs.selfInfo.agentId
+   val agentId = inputs.agentId
    val simulationId = inputs.simulationId
    val syncId = inputs.syncId
 

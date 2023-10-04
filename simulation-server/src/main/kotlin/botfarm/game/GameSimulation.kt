@@ -6,7 +6,7 @@ import botfarm.common.aStarPathfinding
 import botfarm.common.resolvePosition
 import botfarm.engine.ktorplugins.AdminRequest
 import botfarm.engine.simulation.*
-import botfarm.game.ai.AgentServerIntegration
+import botfarm.game.agentintegration.AgentServerIntegration
 import botfarm.game.components.*
 import botfarm.game.config.CharacterBodySelectionsConfig
 import botfarm.game.config.EquipmentSlot
@@ -87,8 +87,8 @@ class GameSimulation(
    private val collisionMap: List<List<Boolean>>
    val collisionMapRowCount: Int
    val collisionMapColumnCount: Int
-   private val collisionWorldWidth: Double
-   private val collisionWorldHeight: Double
+
+   val worldBounds: Vector2
 
    init {
       val rowCount = 200
@@ -106,8 +106,11 @@ class GameSimulation(
       this.collisionMap = collisionMap
       this.collisionMapRowCount = rowCount
       this.collisionMapColumnCount = columnCount
-      this.collisionWorldWidth = columnCount * tilewidth.toDouble()
-      this.collisionWorldHeight = rowCount * tileheight.toDouble()
+
+      this.worldBounds = Vector2(
+         columnCount * tilewidth.toDouble(),
+         rowCount * tileheight.toDouble()
+      )
 
       this.createEntity(
          components = listOf(ActivityStreamComponentData()),
@@ -1025,7 +1028,7 @@ class GameSimulation(
             title = "$name picked up a ${itemConfig.name}",
             sourceLocation = entityPosition,
             targetIconPath = itemConfig.iconUrl,
-            actionType = "pickup"
+            actionType = "pickUp"
          )
       )
 
@@ -1613,8 +1616,8 @@ class GameSimulation(
    }
 
    fun indexPairToPoint(indexPair: IndexPair): Vector2 {
-      val tileWidth = this.collisionWorldWidth / this.collisionMapColumnCount
-      val tileHeight = this.collisionWorldHeight / this.collisionMapRowCount
+      val tileWidth = this.worldBounds.x / this.collisionMapColumnCount
+      val tileHeight = this.worldBounds.y / this.collisionMapRowCount
 
       return Vector2(
          x = tileWidth * (indexPair.col + 0.5),
@@ -1624,8 +1627,8 @@ class GameSimulation(
 
    fun pointToIndexPair(point: Vector2): IndexPair {
       return IndexPair(
-         row = (point.y / this.collisionWorldHeight * this.collisionMapRowCount).toInt(),
-         col = (point.x / this.collisionWorldWidth * this.collisionMapColumnCount).toInt()
+         row = (point.y / this.worldBounds.y * this.collisionMapRowCount).toInt(),
+         col = (point.x / this.worldBounds.x * this.collisionMapColumnCount).toInt()
       )
    }
 
@@ -1635,8 +1638,8 @@ class GameSimulation(
 
    fun clampPoint(point: Vector2): Vector2 {
       return Vector2(
-         x = Math.min(Math.max(point.x, 0.0), this.collisionWorldWidth),
-         y = Math.min(Math.max(point.y, 0.0), this.collisionWorldWidth),
+         x = Math.min(Math.max(point.x, 0.0), this.worldBounds.x),
+         y = Math.min(Math.max(point.y, 0.0), this.worldBounds.y),
       )
    }
 

@@ -1,22 +1,16 @@
-package botfarm.game.ai
+package botfarm.game.agentintegration
 
 import botfarm.common.resolvePosition
 import botfarmshared.game.apidata.*
 import botfarm.engine.simulation.Entity
 import botfarm.game.components.*
-import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
 
 fun buildEntityInfoForAgent(
-   interactingEntity: Entity?,
    entity: Entity,
    simulationTime: Double
 ): EntityInfo {
    val simulation = entity.simulation
-
-   val interactingEquippedItemKey = interactingEntity?.getEquippedItemConfig(EquipmentSlot.Tool)?.key
-
-   var availableActionIds: MutableList<String>? = null
 
    val characterComponent = entity.getComponentOrNull<CharacterComponentData>()?.data
 
@@ -36,30 +30,6 @@ fun buildEntityInfoForAgent(
 
    val growerComponent = entity.getComponentOrNull<GrowerComponentData>()?.data
 
-   val growerEntityInfo = if (growerComponent != null) {
-      val activeGrowth = growerComponent.activeGrowth
-
-      val activeGrowthInfo = if (activeGrowth != null) {
-         val activeGrowthItemConfig = simulation.getConfig<ItemConfig>(activeGrowth.itemConfigKey)
-         val growableConfig = activeGrowthItemConfig.growableConfig ?:  throw Exception("growableConfig is null for active active growth")
-
-         ActiveGrowthInfo(
-            growableItemConfigKey = activeGrowth.itemConfigKey,
-            startTime = activeGrowth.startTime,
-            duration = growableConfig.timeToGrow,
-            growingIntoItemConfigKey = growableConfig.growsIntoItemConfigKey
-         )
-      } else {
-         null
-      }
-
-      GrowerEntityInfo(
-         activeGrowthInfo = activeGrowthInfo
-      )
-   } else {
-      null
-   }
-
    val damageableComponent = entity.getComponentOrNull<DamageableComponentData>()?.data
 
 
@@ -67,6 +37,7 @@ fun buildEntityInfoForAgent(
 
    val itemEntityInfo: ItemEntityInfo?
    val damageableEntityInfo: DamageableEntityInfo?
+   val growerEntityInfo: GrowerEntityInfo?
 
    if (itemComponent != null) {
       val itemConfig = simulation.getConfig<ItemConfig>(itemComponent.itemConfigKey)
@@ -79,6 +50,33 @@ fun buildEntityInfoForAgent(
          amount = itemComponent.amount
       )
 
+
+      growerEntityInfo = if (growerComponent != null &&
+         itemConfig.growerConfig != null) {
+         val activeGrowth = growerComponent.activeGrowth
+
+         val activeGrowthInfo = if (activeGrowth != null) {
+            val activeGrowthItemConfig = simulation.getConfig<ItemConfig>(activeGrowth.itemConfigKey)
+            val growableConfig = activeGrowthItemConfig.growableConfig ?:  throw Exception("growableConfig is null for active active growth")
+
+            ActiveGrowthInfo(
+               growableItemConfigKey = activeGrowth.itemConfigKey,
+               startTime = activeGrowth.startTime,
+               duration = growableConfig.timeToGrow,
+               growingIntoItemConfigKey = growableConfig.growsIntoItemConfigKey
+            )
+         } else {
+            null
+         }
+
+         GrowerEntityInfo(
+            activeGrowthInfo = activeGrowthInfo,
+            canReceiveGrowableItemConfigKeys = itemConfig.growerConfig.canReceiveGrowableItemConfigKeys
+         )
+      } else {
+         null
+      }
+
       damageableEntityInfo = if (damageableComponent != null) {
          DamageableEntityInfo(
             hp = damageableComponent.hp,
@@ -87,43 +85,16 @@ fun buildEntityInfoForAgent(
       } else {
          null
       }
-
-      if (interactingEntity != null) {
-         availableActionIds = mutableListOf()
-
-         if (itemConfig.storableConfig != null) {
-            availableActionIds.add("pickupItem")
-         }
-
-         if (itemConfig.damageableConfig?.damageableByEquippedToolItemConfigKey != null &&
-            itemConfig.damageableConfig.damageableByEquippedToolItemConfigKey == interactingEquippedItemKey
-         ) {
-            availableActionIds.add("harvestItem")
-         }
-
-         if (itemConfig.growerConfig != null &&
-            interactingEquippedItemKey != null &&
-            itemConfig.growerConfig.canReceiveGrowableItemConfigKeys.contains(interactingEquippedItemKey)) {
-
-            if (growerComponent != null && growerComponent.activeGrowth == null) {
-               availableActionIds.add("plantItem")
-            }
-         }
-      }
    } else {
       itemEntityInfo = null
       damageableEntityInfo = null
-   }
-
-   if (availableActionIds != null && availableActionIds.isEmpty()) {
-      availableActionIds = null
+      growerEntityInfo = null
    }
 
    return EntityInfo(
       observedAtSimulationTime = simulationTime,
       entityId = entity.entityId,
       location = entity.resolvePosition(simulationTime),
-      availableActionIds = availableActionIds,
       itemInfo = itemEntityInfo,
       characterInfo = characterEntityInfo,
       growerInfo = growerEntityInfo,

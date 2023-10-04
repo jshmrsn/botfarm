@@ -208,6 +208,10 @@ class CodeExecutionAgent(
    override suspend fun step(
       input: AgentSyncInput
    ) {
+      val gameConstants = input.gameConstants
+      val gameSimulationInfo = input.gameSimulationInfo
+      val worldBounds = gameSimulationInfo.worldBounds
+
       val simulationTimeForStep = input.simulationTime
       val bindingsToAdd = mutableListOf<Pair<String, (conversionContext: JsConversionContext) -> Any>>()
 
@@ -352,18 +356,18 @@ class CodeExecutionAgent(
          it.addLine("")
       }
 
-      val worldWidth = 3500
-      val worldHeight = 3500
+      val worldWidth = worldBounds.x
+      val worldHeight = worldBounds.y
 
       builder.addSection("tips") {
          it.addLine("## TIPS")
          it.addText(
             """
-            All time units will be in seconds, all locations will be [x,y] values in ${input.distanceUnit}.
+            All time units will be in seconds, all locations will be [x,y] values in ${gameConstants.distanceUnit}.
             If other people have said something since the last time you spoke, or if you meet someone new, you will often want to say something.
             If you've recently asked someone a question and they haven't yet responded, don't ask them another question immediately. Give them ample time to respond. Don't say anything if there's nothing appropriate to say yet.
-            People occupy about ${input.peopleSize} ${input.distanceUnit} of space, try to avoid walking to the exact same location of other people, instead walk to their side to politely chat.
-            You will only be able observe entities within $observationDistance ${input.distanceUnit} from your current location. If an entity disappears, it may be because they moved outside your observation radius.
+            People occupy about ${gameConstants.peopleSize} ${gameConstants.distanceUnit} of space, try to avoid walking to the exact same location of other people, instead walk to their side to politely chat.
+            You will only be able observe entities within $observationDistance ${gameConstants.distanceUnit} from your current location. If an entity disappears, it may be because they moved outside your observation radius.
             Current date and time as Unix timestamp: ${simulationTimeForStep.roundToInt()}
             Seconds since your previous prompt: ${secondsSinceLastPrompt.roundToInt()}
             The available location to move to are between [0,0] and [$worldWidth,$worldHeight]
@@ -515,7 +519,7 @@ class CodeExecutionAgent(
 
 
       craftingRecipesSection.also {
-         for (craftingRecipe in input.craftingRecipes) {
+         for (craftingRecipe in gameSimulationInfo.craftingRecipes) {
             val jsCraftingRecipe = this.agentJavaScriptApi.buildJsCraftingRecipe(
                craftingRecipe = craftingRecipe
             )

@@ -3,7 +3,7 @@ package botfarmagent.game.common
 import botfarmshared.game.apidata.EntityInfo
 import kotlinx.serialization.json.*
 
-fun buildEntityInfoJsonForModel(
+fun buildEntityInfoJsonForMemory(
    entityInfo: EntityInfo
 ): JsonObject {
    val characterInfo = entityInfo.characterInfo
@@ -25,14 +25,7 @@ fun buildEntityInfoJsonForModel(
          put("description", itemInfo.description)
       }
 
-      if (entityInfo.availableActionIds != null) {
-         putJsonArray("availableActionIds") {
-            entityInfo.availableActionIds.forEach {
-               add(it)
-            }
-         }
-      }
-
       put("location", entityInfo.location.asJsonArrayRounded)
    }
 }
+

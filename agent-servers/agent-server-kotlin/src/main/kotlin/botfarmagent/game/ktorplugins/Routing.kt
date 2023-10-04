@@ -38,7 +38,7 @@ fun Application.configureRouting(remoteAgentContainer: AgentContainer) {
             remoteAgentContainer.consumePendingOutputs(
                agentType = request.input.agentType,
                simulationId = request.input.simulationId,
-               agentId = request.input.selfInfo.agentId
+               agentId = request.input.agentId
             )
          }
 

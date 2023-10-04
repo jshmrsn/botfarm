@@ -3,7 +3,7 @@ package botfarm.game.setup
 import botfarm.common.SpriteConfig
 import botfarm.engine.simulation.*
 import botfarm.game.*
-import botfarm.game.ai.AgentServerIntegration
+import botfarm.game.agentintegration.AgentServerIntegration
 import botfarm.game.components.CompositeAnimationSelection
 import botfarm.game.config.*
 import botfarmshared.game.apidata.ItemCollection

@@ -1,4 +1,4 @@
-package botfarm.game.ai
+package botfarm.game.agentintegration
 
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*

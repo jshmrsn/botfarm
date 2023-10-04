@@ -1,8 +1,6 @@
 package botfarmagent.game.agents.jsonaction
 
 import botfarm.agentserver.*
-import botfarm.agentserver.ModelInfo
-import botfarm.agentserver.PromptBuilder
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
 import botfarmagent.game.common.*
@@ -162,6 +160,9 @@ class JsonActionAgent(
    ) {
       val openAI = this.context.openAI
       val simulationTimeForStep = input.simulationTime
+      val gameConstants = input.gameConstants
+      val gameSimulationInfo = input.gameSimulationInfo
+      val worldBounds = gameSimulationInfo.worldBounds
 
       val modelInfo = if (this.useGpt4) {
          ModelInfo.gpt_4
@@ -280,19 +281,19 @@ class JsonActionAgent(
          it.addLine("")
       }
 
-      val worldWidth = 3500
-      val worldHeight = 3500
+      val worldWidth = worldBounds.x
+      val worldHeight = worldBounds.y
 
       builder.addSection("tips") {
          it.addLine("## TIPS")
          it.addText(
             """
-            All time units will be in seconds, all locations will be [x,y] values in ${input.distanceUnit}.
+            All time units will be in seconds, all locations will be [x,y] values in ${gameConstants.distanceUnit}.
             If other people have said something since the last time you spoke, or if you meet someone new, you will often want to say something using the iWantToSay key.
             If you've recently asked someone a question and they haven't yet responded, don't ask them another question immediately. Give them ample time to respond. Don't say anything if there's nothing appropriate to say yet.
             Avoid repeating yourself. You don't need to say something every prompt. If you've spoken recently, you can wait awhile. Especially if no one has said anything to you since the last time you talked. 
-            People occupy about ${input.peopleSize} ${input.distanceUnit} of space, try to avoid walking to the exact same location of other people, instead walk to their side to politely chat.
-            You will only be able observe entities within $observationDistance ${input.distanceUnit} from your current location. If an entity disappears, it may be because they moved outside your observation radius.
+            People occupy about ${gameConstants.peopleSize} ${gameConstants.distanceUnit} of space, try to avoid walking to the exact same location of other people, instead walk to their side to politely chat.
+            You will only be able observe entities within $observationDistance ${gameConstants.distanceUnit} from your current location. If an entity disappears, it may be because they moved outside your observation radius.
             Current date and time as Unix timestamp: ${simulationTimeForStep.roundToInt()}
             Seconds since your previous prompt: ${secondsSinceLastPrompt.roundToInt()}
             The available location to move to are between [0,0] and [$worldWidth,$worldHeight]
@@ -308,14 +309,16 @@ class JsonActionAgent(
             """
             ## OUTPUT_SCHEMA
             Respond with a JSON object with the following top-level keys.
-            Use the optional ${constants.locationToWalkToAndReasonKey} top-level key to walk to different locations (expects a JSON object with the keys location, reason)
+            Use the optional ${constants.locationToWalkToKey} top-level key to walk to different locations (expects a JSON array of two numbers to represent location)
             Use the optional ${constants.newThoughtsKey} top-level key to store important thoughts so you can remember them later (expects a JSON array of strings)
             Use the optional ${constants.iWantToSayKey} top-level key if you want to say something (expects a string value)
-            Use the optional ${constants.actionOnEntityKey} top-level key when you want to use an action listed in availableActionIds of an OBSERVED_ENTITY (expects a JSON object with the keys targetEntityId, actionId, reason)
-            Use the optional ${constants.actionOnInventoryItemKey} top-level key when you use an action listed in availableActionIds of an item in YOUR_ITEM_INVENTORY (expects a JSON object with the keys actionId, itemConfigKey, reason)
-            Use the optional ${constants.craftItemKey} top-level key when you want to craft a new item (only if you have the needed cost items in your inventory) (expects a JSON object with the keys itemConfigKey, reason)
-            Use the optional ${constants.useEquippedToolItemKey} top-level key if you want to use your currently equipped tool item (expects a JSON object with the key reason. This JSON object doesn't need an actionId or anything because it just assumes your equipped item)
+            Use the optional ${constants.actionOnEntityKey} top-level key when you want to use an action listed in availableActionIds of an OBSERVED_ENTITY (expects a JSON object with the keys targetEntityId, actionId)
+            Use the optional ${constants.actionOnInventoryItemKey} top-level key when you use an action listed in availableActionIds of an item in YOUR_ITEM_INVENTORY (expects a JSON object with the keys actionId, itemConfigKey)
+            Use the optional ${constants.craftItemKey} top-level key when you want to craft a new item (only if you have the needed cost items in your inventory) (expects a string for a itemConfigKey)
+            Use the optional ${constants.useEquippedToolItemKey} top-level key if you want to use your currently equipped tool item (expects an empty JSON object. This JSON object doesn't need an actionId or anything because it just assumes your equipped item)
             Use the required ${constants.facialExpressionEmojiKey} top-level key to show your current emotions (expects a string containing a single emoji)
+            Use the optional ${constants.reasonKey} top-level key to provide a reason for taking your requested action.
+
             You can use multiple top-level key keys at once, for example if you want to talk and also move somewhere at the same time.
             Do not try to make up or guess an actionId, itemConfigKey, or targetEntityId. Only use the values that you see in this prompt. This is very important.
          """.trimIndent()
@@ -331,7 +334,7 @@ class JsonActionAgent(
 
       builder.addSection("craftingRecipes") {
          it.addLine("## ITEM_CRAFTING_RECIPES")
-         input.craftingRecipes.forEach { craftingRecipe ->
+         gameSimulationInfo.craftingRecipes.forEach { craftingRecipe ->
             it.addJsonLine(buildJsonObject {
                put("itemConfigKey", craftingRecipe.itemConfigKey)
                put("itemName", craftingRecipe.itemName)
@@ -380,7 +383,8 @@ class JsonActionAgent(
       builder.addSection("yourOwnState") {
          it.addLine("## YOUR_OWN_STATE")
          it.addJsonLine(
-            buildEntityInfoJsonForModel(
+            buildEntityInfoJson(
+               selfInfo = selfInfo,
                entityInfo = selfInfo.entityInfo
             )
          )
@@ -396,14 +400,19 @@ class JsonActionAgent(
          var entityIndex = 0
          for (entityInfo in sortedEntities) {
             val result = it.addJsonLine(
-               buildEntityInfoJsonForModel(
+               buildEntityInfoJson(
+                  selfInfo = selfInfo,
                   entityInfo = entityInfo
                ),
                optional = true
             ).didFit
 
             if (!result) {
-               println("Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(selfInfo.entityInfo.location))
+               println(
+                  "Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
+                     selfInfo.entityInfo.location
+                  )
+               )
                break
             }
 
@@ -449,7 +458,8 @@ class JsonActionAgent(
       }
 
       newActivitySection.also {
-         val headerDidFit = it.addLine("## NEW_OBSERVED_ACTIVITY (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
+         val headerDidFit =
+            it.addLine("## NEW_OBSERVED_ACTIVITY (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
 
          if (headerDidFit) {
             if (newActivity.isEmpty()) {
@@ -472,7 +482,10 @@ class JsonActionAgent(
 
       if (previousActivity.isNotEmpty()) {
          recentActivitySection.also {
-            val headerDidFit = it.addLine("## PREVIOUS_OBSERVED_ACTIVITY (YOU MAY HAVE ALREADY REACTED TO THESE)", optional = true).didFit
+            val headerDidFit = it.addLine(
+               "## PREVIOUS_OBSERVED_ACTIVITY (YOU MAY HAVE ALREADY REACTED TO THESE)",
+               optional = true
+            ).didFit
 
             if (headerDidFit) {
                for (entry in previousActivity) {
@@ -507,6 +520,7 @@ class JsonActionAgent(
          is RunJsonPromptResult.Success -> {
             promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
          }
+
          is RunJsonPromptResult.RateLimitError -> {
             return this.addPendingOutput(
                AgentSyncOutput(
@@ -579,13 +593,15 @@ class JsonActionAgent(
 
       val iWantToSay = response.iWantToSay
 
+      val reason = response.reason
+
       val facialExpressionEmoji = response.facialExpressionEmoji
 
-      val locationToWalkToAndReason = response.locationToWalkToAndReason
+      val locationToWalkTo = response.locationToWalkTo
 
-      val actionOnEntity = response.actionOnEntity
+      val genericActionOnEntity = response.actionOnEntity
 
-      val actionOnInventoryItem = response.actionOnInventoryItem
+      val genericActionOnInventoryItem = response.actionOnInventoryItem
       val craftItemAction = response.craftItem
       val useEquippedToolItem = response.useEquippedToolItem
 
@@ -612,15 +628,11 @@ class JsonActionAgent(
          )
       }
 
-      val walk = if (locationToWalkToAndReason != null) {
-         val locationToWalkTo = locationToWalkToAndReason.location
-         val reason = locationToWalkToAndReason.reason
-
+      val walk = if (locationToWalkTo != null) {
          if (locationToWalkTo.size == 2) {
             val endPoint = Vector2(locationToWalkTo.first(), locationToWalkTo.last())
 
             WalkAction(
-               reason = reason,
                location = endPoint
             )
          } else {
@@ -632,11 +644,50 @@ class JsonActionAgent(
 
       val action = Action(
          walk = walk,
-         actionOnEntity = actionOnEntity,
-         actionOnInventoryItem = actionOnInventoryItem,
+         reason = reason,
+         useEquippedToolItemOnEntity = genericActionOnEntity?.let {
+            if (it.actionId == "harvest") {
+               ActionOnEntity(
+                  targetEntityId = it.targetEntityId
+               )
+            } else {
+               null
+            }
+         },
+         pickUpEntity = genericActionOnEntity?.let {
+            if (it.actionId == "pickup") {
+               ActionOnEntity(
+                  targetEntityId = it.targetEntityId
+               )
+            } else {
+               null
+            }
+         },
+         dropInventoryItem = genericActionOnInventoryItem?.let {
+            if (genericActionOnInventoryItem.actionId == "dropItem") {
+               ActionOnInventoryItem(
+                  itemConfigKey = genericActionOnInventoryItem.itemConfigKey,
+                  stackIndex = genericActionOnInventoryItem.stackIndex,
+                  amount = genericActionOnInventoryItem.amount
+               )
+            } else {
+               null
+            }
+         },
+         equipInventoryItem = genericActionOnInventoryItem?.let {
+            if (genericActionOnInventoryItem.actionId == "equipItem") {
+               ActionOnInventoryItem(
+                  itemConfigKey = genericActionOnInventoryItem.itemConfigKey,
+                  stackIndex = genericActionOnInventoryItem.stackIndex,
+                  amount = genericActionOnInventoryItem.amount
+               )
+            } else {
+               null
+            }
+         },
          speak = iWantToSay,
          facialExpressionEmoji = facialExpressionEmoji,
-         craftItemAction = craftItemAction,
+         craftItem = craftItemAction,
          useEquippedToolItem = useEquippedToolItem,
          actionUniqueId = buildShortRandomIdentifier()
       )
@@ -679,5 +730,51 @@ class JsonActionAgent(
          )
       )
    }
-}
 
+   fun buildEntityInfoJson(
+      selfInfo: SelfInfo,
+      entityInfo: EntityInfo
+   ): JsonObject {
+      val characterInfo = entityInfo.characterInfo
+
+      return buildJsonObject {
+         put("entityId", entityInfo.entityId.value)
+
+         if (characterInfo != null) {
+            put("description", characterInfo.description)
+            put("name", characterInfo.name)
+            put("age", characterInfo.age)
+            put("gender", characterInfo.gender)
+         }
+
+         val itemInfo = entityInfo.itemInfo
+
+         if (itemInfo != null) {
+            put("itemName", itemInfo.itemName)
+            put("description", itemInfo.description)
+         }
+
+         putJsonArray("availableActionIds") {
+            if (entityInfo.itemInfo != null && entityInfo.itemInfo.canBePickedUp) {
+               add("pickup")
+            }
+
+            if (entityInfo.damageableInfo != null &&
+               entityInfo.damageableInfo.damageableByEquippedToolItemConfigKey == selfInfo.equippedItemConfigKey
+            ) {
+               add("harvest")
+            }
+
+            if (entityInfo.growerInfo != null &&
+               entityInfo.growerInfo.activeGrowthInfo == null &&
+               selfInfo.equippedItemConfigKey != null &&
+               entityInfo.growerInfo.canReceiveGrowableItemConfigKeys.contains(selfInfo.equippedItemConfigKey)
+            ) {
+               add("plantItem")
+            }
+         }
+
+         put("location", entityInfo.location.asJsonArrayRounded)
+      }
+   }
+}

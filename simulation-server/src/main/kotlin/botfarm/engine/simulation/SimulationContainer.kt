@@ -35,7 +35,7 @@ class CoroutineSystemContext(
       this.coroutineShouldStop = true
    }
 
-   fun synchronize(logic: () -> Unit) {
+   fun synchronizeSimulation(logic: () -> Unit) {
       this.unwindIfNeeded()
 
       synchronized(this.simulation) {
