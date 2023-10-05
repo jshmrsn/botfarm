@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 class MutableObservations {
    val spokenMessages: MutableList<ObservedSpokenMessage> = mutableListOf()
    val selfSpokenMessages: MutableList<SelfSpokenMessage> = mutableListOf()
+   val selfThoughts: MutableList<SelfThought> = mutableListOf()
    val entitiesById: MutableMap<EntityId, EntityInfo> = mutableMapOf()
    val movementRecords: MutableList<MovementRecord> = mutableListOf()
    val actionOnEntityRecords: MutableList<ActionOnEntityRecord> = mutableListOf()
@@ -28,6 +29,7 @@ class MutableObservations {
       craftItemActionRecords = this.craftItemActionRecords.toList(),
       activityStreamEntries = this.activityStreamEntries.toList(),
       actionResults = this.actionResults.toList(),
-      startedActionUniqueIds = this.startedActionUniqueIds.toList()
+      startedActionUniqueIds = this.startedActionUniqueIds.toList(),
+      selfThoughts = this.selfThoughts.toList()
    )
 }

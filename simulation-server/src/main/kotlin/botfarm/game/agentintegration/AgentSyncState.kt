@@ -5,22 +5,64 @@ import botfarm.common.resolvePosition
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
+import botfarm.game.codeexecution.jsdata.AgentJavaScriptApi
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.isDead
-import botfarmshared.game.apidata.Action
-import botfarmshared.game.apidata.SelfSpokenMessage
+import botfarmshared.game.apidata.*
+import org.graalvm.polyglot.Context
+import org.graalvm.polyglot.Source
 
 class AgentSyncState(
    val simulation: GameSimulation,
    val entity: Entity,
-   val agentType: String
+   val agentType: String,
+   val agentId: AgentId
 ) {
+   val startedActionUniqueIds = mutableSetOf<String>()
+   val actionResultsByActionUniqueId = mutableMapOf<String, ActionResult>()
+
+   var mostRecentSyncInput: AgentSyncInput? = null
+
    // Prevent new agents from seeing events from before they are started
    var previousNewEventCheckTime = this.simulation.getCurrentSimulationTime()
+
    var mutableObservations = MutableObservations()
 
    var activeAction: Action? = null
    val pendingActions = mutableListOf<Action>()
+
+   var activeScriptPromptId: String? = null
+   var activeScriptThread: Thread? = null
+   var mostRecentScript: String? = null
+
+
+   val javaScriptContext: Context =
+      Context.newBuilder("js")
+         .option("js.strict", "true")
+         .build()
+
+   val agentJavaScriptApi: AgentJavaScriptApi
+
+   val agentTypeScriptInterfaceString = this::class.java.getResource("/scripted-agent-interfaces.ts")?.readText()
+      ?: throw Exception("Scripted agent interfaces resource not found")
+
+   init {
+      val javaScriptBindings = this.javaScriptContext.getBindings("js")
+      val agentJavaScriptApi = AgentJavaScriptApi(this)
+      this.agentJavaScriptApi = agentJavaScriptApi
+      javaScriptBindings.putMember("api", agentJavaScriptApi)
+
+      val sourceName = "helpers"
+
+      run {
+         val runtimeSource =
+            this::class.java.getResource("/scripted-agent-runtime.js")?.readText()
+               ?: throw Exception("Scripted agent runtime JavaScript resource not found")
+
+         val javaScriptSource = Source.newBuilder("js", runtimeSource, sourceName).build()
+         this.javaScriptContext.eval(javaScriptSource)
+      }
+   }
 
    fun waitForMovement(
       positionComponent: EntityComponent<PositionComponentData>,
@@ -69,14 +111,14 @@ class AgentSyncState(
       }
    }
 
-   fun speak(whatToSay: String) {
+   fun speak(whatToSay: String, reason: String? = null) {
       val simulation = this.simulation
 
       synchronized(simulation) {
          this.mutableObservations.selfSpokenMessages.add(
             SelfSpokenMessage(
                message = whatToSay,
-               reason = "",
+               reason = reason,
                location = this.entity.resolvePosition(),
                time = simulation.getCurrentSimulationTime()
             )
@@ -85,6 +127,25 @@ class AgentSyncState(
          simulation.addCharacterMessage(
             entity = this.entity,
             message = whatToSay
+         )
+      }
+   }
+
+   fun recordThought(thought: String, reason: String? = null) {
+      val simulation = this.simulation
+
+      synchronized(simulation) {
+         this.mutableObservations.selfThoughts.add(
+            SelfThought(
+               thought = thought,
+               reason = reason,
+               location = this.entity.resolvePosition(),
+               time = simulation.getCurrentSimulationTime()
+            )
+         )
+
+         simulation.broadcastAlertAsGameMessage(
+            message = "Agent had thought: $thought"
          )
       }
    }

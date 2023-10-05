@@ -19,6 +19,9 @@ sourceSets {
       kotlin {
          srcDir("../shared/kotlin/")
       }
+      resources {
+
+      }
    }
 }
 
@@ -34,6 +37,7 @@ repositories {
 }
 
 dependencies {
+   implementation("org.graalvm.js:js:20.2.0")
    implementation("aws.sdk.kotlin:s3:0.25.0-beta")
    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.5")
    implementation("io.ktor:ktor-server-core-jvm")

@@ -1,4 +1,4 @@
-package botfarmagent.game.utils
+package botfarmagent.misc
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -35,3 +35,4 @@ fun extractJsonFromPromptResponse(
       throw Exception("Can't find JSON braces in message output ($debugInfo)")
    }
 }
+

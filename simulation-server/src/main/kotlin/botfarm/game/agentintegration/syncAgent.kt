@@ -46,22 +46,7 @@ suspend fun syncAgent(
          return
       }
 
-      val itemConfigs = simulation.configs
-         .mapNotNull { it as? ItemConfig }
-
-      val craftingRecipes = itemConfigs.mapNotNull {
-         if (it.craftableConfig != null) {
-            CraftingRecipe(
-               itemConfigKey = it.key,
-               itemName = it.name,
-               description = it.description,
-               cost = it.craftableConfig.craftingCost,
-               amount = it.craftableConfig.craftingAmount
-            )
-         } else {
-            null
-         }
-      }
+      val craftingRecipes = simulation.getCraftingRecipes()
 
       val selfEntityInfo = buildEntityInfoForAgent(
          entity = entity,
@@ -71,18 +56,12 @@ suspend fun syncAgent(
       val inventoryComponentData = entity.getComponent<InventoryComponentData>().data
 
       val inventoryInfo = InventoryInfo(
-         itemStacks = inventoryComponentData.inventory.itemStacks.map {
-            val itemConfig = simulation.getConfig<ItemConfig>(it.itemConfigKey)
+         itemStacks = inventoryComponentData.inventory.itemStacks.map { itemStack ->
+            val itemConfig = simulation.getConfig<ItemConfig>(itemStack.itemConfigKey)
 
-            ItemStackInfo(
-               itemConfigKey = it.itemConfigKey,
-               amount = it.amount,
-               itemName = itemConfig.name,
-               itemDescription = itemConfig.description,
-               canBeDropped = itemConfig.storableConfig?.canBeDropped ?: false,
-               canBeEquipped = itemConfig.equippableConfig != null,
-               isEquipped = it.isEquipped,
-               spawnItemOnUseConfigKey = itemConfig.spawnItemOnUseConfig?.spawnItemConfigKey
+            ItemStackInfo.build(
+               itemConfig = itemConfig,
+               itemStack = itemStack
             )
          }
       )
@@ -110,7 +89,8 @@ suspend fun syncAgent(
          ),
          gameConstants = GameConstants,
          selfInfo = selfInfo,
-         newObservations = newObservationsForInput
+         newObservations = newObservationsForInput,
+         agentTypeScriptInterfaceString = state.agentTypeScriptInterfaceString
       )
 
       agentComponent.modifyData {
@@ -122,35 +102,38 @@ suspend fun syncAgent(
       }
    }
 
+   state.mostRecentSyncInput = agentSyncInput
    val agentSyncOutputs = agentServerIntegration.sendSyncRequest(agentSyncInput)
    context.unwindIfNeeded()
 
-   context.synchronizeSimulation {
+   synchronized(simulation) {
       agentComponent.modifyData {
          it.copy(
             agentIntegrationStatus = "idle"
          )
       }
+   }
 
-      agentSyncOutputs.forEach { agentSyncOutput ->
-         try {
-            handleAgentSyncOutput(
-               agentSyncOutput = agentSyncOutput,
-               agentComponent = agentComponent,
-               simulation = simulation,
-               state = state,
-               entity = entity
-            )
-         } catch (exception: Exception) {
-            val errorId = buildShortRandomIdentifier()
-            println("Exception while handling agent step result (errorId = $errorId, agentId = $agentId, stepId = $syncId): ${exception.stackTraceToString()}")
+   agentSyncOutputs.forEach { agentSyncOutput ->
+      try {
+         handleAgentSyncOutput(
+            syncId = syncId,
+            agentSyncInput = agentSyncInput,
+            agentSyncOutput = agentSyncOutput,
+            agentComponent = agentComponent,
+            simulation = simulation,
+            state = state,
+            entity = entity
+         )
+      } catch (exception: Exception) {
+         val errorId = buildShortRandomIdentifier()
+         println("Exception while handling agent step result (errorId = $errorId, agentId = $agentId, stepId = $syncId): ${exception.stackTraceToString()}")
 
-            context.synchronizeSimulation {
-               agentComponent.modifyData {
-                  it.copy(
-                     agentError = "Exception while handling agent step result (errorId = $errorId)"
-                  )
-               }
+         synchronized(simulation) {
+            agentComponent.modifyData {
+               it.copy(
+                  agentError = "Exception while handling agent step result (errorId = $errorId)"
+               )
             }
          }
       }

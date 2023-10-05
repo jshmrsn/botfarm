@@ -1,6 +1,5 @@
-package botfarmagent.game
+package botfarmagent.misc
 
-import botfarmagent.game.utils.extractJsonFromPromptResponse
 import botfarmshared.engine.apidata.PromptUsage
 import botfarmshared.misc.JsonSchema
 import botfarmshared.misc.buildShortRandomIdentifier

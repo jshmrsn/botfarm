@@ -3,6 +3,7 @@ package botfarmagent.game
 import botfarmagent.game.ktorplugins.configureMonitoring
 import botfarmagent.game.ktorplugins.configureRouting
 import botfarmagent.game.ktorplugins.configureSerialization
+import botfarmagent.misc.OpenAiLanguageModelService
 import com.aallam.openai.api.http.Timeout
 import com.aallam.openai.api.logging.LogLevel
 import com.aallam.openai.client.LoggingConfig

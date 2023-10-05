@@ -13,12 +13,14 @@ fun updateAgentActions(
 
          if (nextAction != null) {
             state.activeAction = nextAction
+            state.startedActionUniqueIds.add(nextAction.actionUniqueId)
 
-            handleAgentAction(
+            performAgentAction(
                action = nextAction,
                state = state,
                entity = entity
             ) { actionResult ->
+               state.actionResultsByActionUniqueId[nextAction.actionUniqueId] = actionResult
                state.activeAction = null
             }
          }

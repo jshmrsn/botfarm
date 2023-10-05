@@ -1,5 +1,7 @@
 package botfarmshared.game.apidata
 
+import botfarm.game.components.ItemStack
+import botfarm.game.config.ItemConfig
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.game.GameConstants
@@ -136,7 +138,15 @@ class SelfSpokenMessage(
    val message: String,
    val location: Vector2,
    val time: Double,
-   val reason: String
+   val reason: String?
+)
+
+@Serializable
+class SelfThought(
+   val thought: String,
+   val location: Vector2,
+   val time: Double,
+   val reason: String?
 )
 
 @Serializable
@@ -150,7 +160,8 @@ class Observations(
    val craftItemActionRecords: List<CraftItemActionRecord>,
    val activityStreamEntries: List<ActivityStreamEntryRecord>,
    val actionResults: List<ActionResult>,
-   val startedActionUniqueIds: List<String>
+   val startedActionUniqueIds: List<String>,
+   val selfThoughts: List<SelfThought>
 )
 
 @Serializable
@@ -163,7 +174,23 @@ class ItemStackInfo(
    val canBeDropped: Boolean,
    val isEquipped: Boolean,
    val spawnItemOnUseConfigKey: String?
-)
+) {
+   companion object {
+      fun build(itemConfig: ItemConfig, itemStack: ItemStack): ItemStackInfo {
+         return ItemStackInfo(
+            itemConfigKey = itemStack.itemConfigKey,
+            amount = itemStack.amount,
+            itemName = itemConfig.name,
+            itemDescription = itemConfig.description,
+            canBeDropped = itemConfig.storableConfig?.canBeDropped ?: false,
+            canBeEquipped = itemConfig.equippableConfig != null,
+            isEquipped = itemStack.isEquipped,
+            spawnItemOnUseConfigKey = itemConfig.spawnItemOnUseConfig?.spawnItemConfigKey
+         )
+      }
+   }
+
+}
 
 @Serializable
 class InventoryInfo(
@@ -204,6 +231,7 @@ class AgentSyncInput(
    val selfInfo: SelfInfo,
    val newObservations: Observations,
    val gameConstants: GameConstants,
-   val gameSimulationInfo: GameSimulationInfo
+   val gameSimulationInfo: GameSimulationInfo,
+   val agentTypeScriptInterfaceString: String
 )
 

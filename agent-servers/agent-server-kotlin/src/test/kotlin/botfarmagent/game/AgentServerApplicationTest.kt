@@ -2,6 +2,7 @@ package botfarmagent.game
 
 import botfarmagent.game.ktorplugins.configureRouting
 import botfarmagent.game.ktorplugins.configureSerialization
+import botfarmagent.misc.MockLanguageModelService
 import botfarmshared.game.apidata.*
 import com.aallam.openai.api.chat.ChatChoice
 import com.aallam.openai.api.chat.ChatCompletion

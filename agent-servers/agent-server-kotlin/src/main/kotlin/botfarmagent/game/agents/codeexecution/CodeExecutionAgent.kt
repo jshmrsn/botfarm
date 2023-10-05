@@ -1,9 +1,9 @@
 package botfarmagent.game.agents.codeexecution
 
-import botfarmagent.game.*
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
 import botfarmagent.game.common.*
+import botfarmagent.misc.*
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.ActionResult
@@ -12,6 +12,7 @@ import botfarmshared.game.apidata.AgentSyncOutput
 import botfarmshared.game.apidata.EntityInfo
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
+import botfarmshared.misc.ignoreIntelliJExhaustiveWhenBug
 import kotlinx.coroutines.delay
 import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.PolyglotException
@@ -120,6 +121,16 @@ class CodeExecutionAgent(
                   AutomaticShortTermMemory(
                      time = selfSpokenMessage.time,
                      summary = "I said \"${selfSpokenMessage.message}\" (while standing at ${selfSpokenMessage.location.asJsonArrayRounded})",
+                     forcePreviousActivity = true
+                  )
+               )
+            }
+
+            newObservations.selfThoughts.forEach { selfThought ->
+               newAutomaticShortTermMemories.add(
+                  AutomaticShortTermMemory(
+                     time = selfThought.time,
+                     summary = "I had the thought \"${selfThought.thought}\" (while standing at ${selfThought.location.asJsonArrayRounded})",
                      forcePreviousActivity = true
                   )
                )
@@ -631,7 +642,7 @@ class CodeExecutionAgent(
                ""
             }
 
-            val entityVariableName = "${variableTypeName}_entity_${nextEntityIndex}"
+            val entityVariableName = "${variableTypeName}_entity_${entityInfo.entityId.value}"
             val serializedAsJavaScript = JavaScriptCodeSerialization.serialize(jsEntity)
 
             val entityAsCode = "const $entityVariableName: Entity = $serializedAsJavaScript"

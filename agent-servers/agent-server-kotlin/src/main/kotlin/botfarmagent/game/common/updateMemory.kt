@@ -1,6 +1,6 @@
 package botfarmagent.game.common
 
-import botfarmagent.game.*
+import botfarmagent.misc.*
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.AgentSyncOutput

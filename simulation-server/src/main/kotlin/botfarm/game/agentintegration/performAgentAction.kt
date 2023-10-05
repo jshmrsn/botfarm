@@ -3,18 +3,15 @@ package botfarm.game.agentintegration
 import botfarm.common.PositionComponentData
 import botfarm.common.resolvePosition
 import botfarm.engine.simulation.Entity
-import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
-import botfarm.game.components.AgentComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.InventoryComponentData
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
-import botfarmshared.misc.Vector2
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-fun handleAgentAction(
+fun performAgentAction(
    action: Action,
    state: AgentSyncState,
    entity: Entity,
@@ -33,6 +30,7 @@ fun handleAgentAction(
 
    println("Action started: $actionUniqueId\n${prettyPrint.encodeToString(action)}")
    val speak = action.speak
+   val recordThought = action.recordThought
    state.mutableObservations.startedActionUniqueIds.add(actionUniqueId)
 
    fun addActionResult() {
@@ -67,6 +65,11 @@ fun handleAgentAction(
 
    if (speak != null) {
       state.speak(speak)
+      addActionResult()
+   }
+
+   if (recordThought != null) {
+      state.recordThought(recordThought)
       addActionResult()
    }
 

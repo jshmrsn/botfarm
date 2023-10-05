@@ -23,7 +23,8 @@ suspend fun syncAgentCoroutineSystem(
    val state = AgentSyncState(
       simulation = simulation,
       agentType = agentType,
-      entity = entity
+      entity = entity,
+      agentId = agentId
    )
 
    var lastAgentSyncUnixTime = 0.0

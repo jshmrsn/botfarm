@@ -1,4 +1,4 @@
-package botfarmagent.game
+package botfarmagent.misc
 
 import com.aallam.openai.api.LegacyOpenAI
 import com.aallam.openai.api.chat.ChatCompletion

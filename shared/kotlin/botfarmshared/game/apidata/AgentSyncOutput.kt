@@ -23,6 +23,7 @@ class AgentSyncOutput(
    val agentStatus: String? = null,
    val debugInfo: String? = null,
    val actions: List<Action>? = null,
+   val script: String? = null,
    val error: String? = null,
    val wasRateLimited: Boolean = false,
    val promptUsages: List<PromptUsageInfo> = listOf()
@@ -40,7 +41,8 @@ class Action(
    val equipInventoryItem: ActionOnInventoryItem? = null,
    val craftItem: CraftItemAction? = null,
    val speak: String? = null,
-   val facialExpressionEmoji: String? = null
+   val facialExpressionEmoji: String? = null,
+   val recordThought: String? = null
 )
 
 @Serializable

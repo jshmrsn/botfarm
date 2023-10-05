@@ -1,9 +1,9 @@
 package botfarmagent.game.agents.jsonaction
 
-import botfarmagent.game.*
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
 import botfarmagent.game.common.*
+import botfarmagent.misc.*
 import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
@@ -503,7 +503,7 @@ class JsonActionAgent(
 
       val promptSendTime = getCurrentUnixTimeSeconds()
 
-      val promptResult = runPromptWithJsonOutput(
+      val promptResult: RunJsonPromptResult = runPromptWithJsonOutput(
          languageModelService = languageModelService,
          modelInfo = modelInfo,
          promptBuilder = builder,

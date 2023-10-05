@@ -17,6 +17,7 @@ import botfarm.game.setup.SpawnPlayersMode
 import botfarm.game.setup.gameSystems
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.AgentId
+import botfarmshared.game.apidata.CraftingRecipe
 import botfarmshared.misc.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -1762,6 +1763,25 @@ class GameSimulation(
          userControlledComponent.data.userId == userId
       } else {
          false
+      }
+   }
+
+   fun getCraftingRecipes(): List<CraftingRecipe> {
+      val itemConfigs = this.configs
+         .mapNotNull { it as? ItemConfig }
+
+      return itemConfigs.mapNotNull {
+         if (it.craftableConfig != null) {
+            CraftingRecipe(
+               itemConfigKey = it.key,
+               itemName = it.name,
+               description = it.description,
+               cost = it.craftableConfig.craftingCost,
+               amount = it.craftableConfig.craftingAmount
+            )
+         } else {
+            null
+         }
       }
    }
 }

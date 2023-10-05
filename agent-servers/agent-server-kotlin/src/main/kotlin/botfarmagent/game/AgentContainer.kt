@@ -1,5 +1,6 @@
 package botfarmagent.game
 
+import botfarmagent.misc.LanguageModelService
 import botfarmshared.game.apidata.AgentId
 import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.AgentSyncOutput
