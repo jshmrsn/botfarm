@@ -8,6 +8,7 @@ import botfarm.game.GameSimulation
 import botfarm.game.codeexecution.jsdata.AgentJavaScriptApi
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.isDead
+import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
 import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.Source
@@ -24,17 +25,17 @@ class AgentSyncState(
    var mostRecentSyncInput: AgentSyncInput? = null
 
    // Prevent new agents from seeing events from before they are started
-   var previousNewEventCheckTime = this.simulation.getCurrentSimulationTime()
+   var previousNewEventCheckSimulationTime = this.simulation.getCurrentSimulationTime()
 
    var mutableObservations = MutableObservations()
 
    var activeAction: Action? = null
    val pendingActions = mutableListOf<Action>()
 
-   var activeScriptPromptId: String? = null
    var activeScriptThread: Thread? = null
-   var mostRecentScript: String? = null
 
+   var activeScriptToRun: ScriptToRun? = null
+   var mostRecentCompletedScriptId: String? = null
 
    val javaScriptContext: Context =
       Context.newBuilder("js")
@@ -88,26 +89,18 @@ class AgentSyncState(
    }
 
    fun autoInteractWithEntity(
-      targetEntity: Entity
-   ): GameSimulation.MoveToResult {
+      targetEntity: Entity,
+      callback: (AutoInteractType) -> Unit = {}
+   ) {
       val simulation = this.simulation
       val entity = this.entity
 
       synchronized(simulation) {
-         val characterComponent = entity.getComponent<CharacterComponentData>()
-
-         val movementResult = simulation.startEntityMovement(
+         simulation.autoInteractWithEntity(
             entity = entity,
-            endPoint = targetEntity.resolvePosition()
+            targetEntity = targetEntity,
+            callback = callback
          )
-
-         characterComponent.modifyData {
-            it.copy(
-               pendingInteractionTargetEntityId = targetEntity.entityId
-            )
-         }
-
-         return movementResult
       }
    }
 

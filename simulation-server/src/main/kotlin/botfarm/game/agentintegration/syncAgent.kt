@@ -21,12 +21,12 @@ suspend fun syncAgent(
    context: CoroutineSystemContext,
    simulation: GameSimulation,
    entity: Entity,
-   agentComponent: EntityComponent<AgentComponentData>,
+   agentControlledComponent: EntityComponent<AgentControlledComponentData>,
    state: AgentSyncState,
    agentId: AgentId,
    syncId: String
 ) {
-   val agentServerIntegration = simulation.agentServerIntegration
+   val agentServerIntegration = simulation.agentService
 
    val simulationTime = simulation.getCurrentSimulationTime()
 
@@ -41,7 +41,7 @@ suspend fun syncAgent(
 
    synchronized(simulation) {
       if (simulation.shouldPauseAi) {
-         agentComponent.modifyData {
+         agentControlledComponent.modifyData {
             it.copy(
                agentIntegrationStatus = "paused",
                agentStatus = null,
@@ -93,10 +93,10 @@ suspend fun syncAgent(
             javaScriptVariableName = "self",
             api = agentJavaScriptApi
          ),
-         corePersonality = agentComponent.data.corePersonality,
-         initialMemories = agentComponent.data.initialMemories,
+         corePersonality = agentControlledComponent.data.corePersonality,
+         initialMemories = agentControlledComponent.data.initialMemories,
          inventoryInfo = inventoryInfo,
-         observationDistance = agentComponent.data.observationDistance,
+         observationDistance = agentControlledComponent.data.observationDistance,
          equippedItemConfigKey = equippedToolItemConfigAndStackIndex?.second?.key
       )
 
@@ -116,7 +116,7 @@ suspend fun syncAgent(
       agentSyncInput = AgentSyncInput(
          syncId = syncId,
          agentId = agentId,
-         agentType = agentComponent.data.agentType,
+         agentType = agentControlledComponent.data.agentType,
          simulationId = simulation.simulationId,
          simulationTime = simulationTime,
          gameSimulationInfo = GameSimulationInfo(
@@ -126,10 +126,11 @@ suspend fun syncAgent(
          gameConstants = GameConstants,
          selfInfo = selfInfo,
          newObservations = newObservationsForInput,
-         agentTypeScriptInterfaceString = state.agentTypeScriptInterfaceString
+         agentTypeScriptInterfaceString = state.agentTypeScriptInterfaceString,
+         mostRecentCompletedScriptId = state.mostRecentCompletedScriptId
       )
 
-      agentComponent.modifyData {
+      agentControlledComponent.modifyData {
          it.copy(
             agentIntegrationStatus = "waiting_for_agent",
             totalRemoteAgentRequests = it.totalRemoteAgentRequests + 1,
@@ -143,7 +144,7 @@ suspend fun syncAgent(
    context.unwindIfNeeded()
 
    synchronized(simulation) {
-      agentComponent.modifyData {
+      agentControlledComponent.modifyData {
          it.copy(
             agentIntegrationStatus = "idle"
          )
@@ -156,17 +157,18 @@ suspend fun syncAgent(
             syncId = syncId,
             agentSyncInput = agentSyncInput,
             agentSyncOutput = agentSyncOutput,
-            agentComponent = agentComponent,
+            agentControlledComponent = agentControlledComponent,
             simulation = simulation,
             state = state,
-            entity = entity
+            entity = entity,
+            coroutineSystemContext = context
          )
       } catch (exception: Exception) {
          val errorId = buildShortRandomIdentifier()
          println("Exception while handling agent step result (errorId = $errorId, agentId = $agentId, stepId = $syncId): ${exception.stackTraceToString()}")
 
          synchronized(simulation) {
-            agentComponent.modifyData {
+            agentControlledComponent.modifyData {
                it.copy(
                   agentError = "Exception while handling agent step result (errorId = $errorId)"
                )

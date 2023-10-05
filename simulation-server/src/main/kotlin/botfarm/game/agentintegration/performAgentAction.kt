@@ -34,18 +34,20 @@ fun performAgentAction(
    state.mutableObservations.startedActionUniqueIds.add(actionUniqueId)
 
    fun addActionResult() {
-      println("Action completed result: $actionUniqueId")
-      val actionResult = ActionResult(
-         actionUniqueId = actionUniqueId
-      )
+      synchronized(state.simulation) {
+         println("Action completed result: $actionUniqueId")
+         val actionResult = ActionResult(
+            actionUniqueId = actionUniqueId
+         )
 
-      state.mutableObservations.actionResults.add(actionResult)
+         state.mutableObservations.actionResults.add(actionResult)
 
-      onResult(actionResult)
+         onResult(actionResult)
+      }
    }
 
    val facialExpressionEmoji = action.facialExpressionEmoji
-   val locationToWalkToAndReason = action.walk
+   val walk = action.walk
    val useEquippedToolItemOnEntity = action.useEquippedToolItemOnEntity
    val pickUpEntity = action.pickUpEntity
    val useEquippedToolItem = action.useEquippedToolItem
@@ -73,8 +75,8 @@ fun performAgentAction(
       addActionResult()
    }
 
-   if (locationToWalkToAndReason != null) {
-      val endPoint = locationToWalkToAndReason.location
+   if (walk != null) {
+      val endPoint = walk.location
 
       state.mutableObservations.movementRecords.add(
          MovementRecord(
@@ -85,13 +87,10 @@ fun performAgentAction(
          )
       )
 
-      println("starting move: " + endPoint)
       val movementResult = simulation.startEntityMovement(
          entity = entity,
          endPoint = endPoint
       )
-
-      println("movementResult: " + movementResult)
 
       if (movementResult is GameSimulation.MoveToResult.Success) {
          state.waitForMovement(
@@ -236,9 +235,9 @@ fun performAgentAction(
       )
    }
 
-   fun handleAutoInteractWithEntity(
+   fun autoInteractWithEntity(
       targetEntityId: EntityId,
-      actionId: String
+      expectedAutoInteractType: AutoInteractType
    ) {
       // jshmrsn: Currently, all actions on entities are executed by the single autoInteractWithEntity
       // The provided actionId is currently just a hint for agents to keep track of their intended interaction
@@ -247,47 +246,40 @@ fun performAgentAction(
       if (targetEntity == null) {
          val destroyedTargetEntity = simulation.getDestroyedEntityOrNull(targetEntityId)
          if (destroyedTargetEntity != null) {
-            println("Can't find entity for action from AI (but was destroyed AFTER prompt was generated) ($debugInfo): $actionId, actionUniqueId = $actionUniqueId, targetEntityId = $targetEntityId")
+            println("Can't find entity for action from AI (but was destroyed AFTER prompt was generated) ($debugInfo): $expectedAutoInteractType, actionUniqueId = $actionUniqueId, targetEntityId = $targetEntityId")
          } else {
-            simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI ($debugInfo): $actionId, actionUniqueId = $actionUniqueId, targetEntityId = $targetEntityId")
+            simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI ($debugInfo): $expectedAutoInteractType, actionUniqueId = $actionUniqueId, targetEntityId = $targetEntityId")
          }
          addActionResult()
       } else {
-         val movementResult = state.autoInteractWithEntity(targetEntity)
+         state.autoInteractWithEntity(targetEntity) { autoInteractResult ->
+            println("Agent autoInteractResult ($expectedAutoInteractType): " + autoInteractResult.name)
 
-         if (movementResult is GameSimulation.MoveToResult.Success) {
-            state.waitForMovement(
-               positionComponent = positionComponent,
-               movementResult = movementResult
-            ) {
-               state.mutableObservations.actionOnEntityRecords.add(
-                  ActionOnEntityRecord(
-                     startedAtTime = simulationTimeForStep,
-                     targetEntityId = targetEntityId,
-                     actionId = actionId,
-                     reason = reason
-                  )
+            state.mutableObservations.actionOnEntityRecords.add(
+               ActionOnEntityRecord(
+                  startedAtTime = simulationTimeForStep,
+                  targetEntityId = targetEntityId,
+                  autoInteractType = autoInteractResult,
+                  reason = reason
                )
+            )
 
-               addActionResult()
-            }
-         } else {
             addActionResult()
          }
       }
    }
 
    if (pickUpEntity != null) {
-      handleAutoInteractWithEntity(
+      autoInteractWithEntity(
          targetEntityId = pickUpEntity.targetEntityId,
-         actionId = "pickUpEntity"
+         expectedAutoInteractType = AutoInteractType.PickUp
       )
    }
 
    if (useEquippedToolItemOnEntity != null) {
-      handleAutoInteractWithEntity(
+      autoInteractWithEntity(
          targetEntityId = useEquippedToolItemOnEntity.targetEntityId,
-         actionId = "useEquippedToolItemOnEntity"
+         expectedAutoInteractType = AutoInteractType.AttackWithEquippedTool
       )
    }
 }

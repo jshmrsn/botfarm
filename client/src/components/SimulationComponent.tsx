@@ -11,7 +11,7 @@ import {ChatInputArea} from "./ChatInputArea";
 import {MyInventoryPanel} from "./MyInventoryPanel";
 import {handleWebSocketMessage} from "../common/handleWebSocketMessage";
 import {DebugPanel} from "./DebugPanel";
-import {AgentComponentData} from "../game/agentComponentData";
+import {AgentControlledComponent} from "../game/AgentControlledComponentData";
 import {UserControlledComponentData} from "../game/userControlledComponentData";
 import {ActivityPanel} from "./ActivityPanel";
 import {CraftingPanel} from "./CraftingPanel";
@@ -344,10 +344,10 @@ export const SimulationComponent = (props: SimulationProps) => {
   let totalCost = 0.0
   if (dynamicState.simulation != null) {
     for (let entity of dynamicState.simulation.entities) {
-      const agentComponent = entity.getComponentOrNull<AgentComponentData>("AgentComponentData")
+      const agentControlledComponent =  AgentControlledComponent.getOrNull(entity)
 
-      if (agentComponent != null) {
-        totalCost += agentComponent.data.costDollars
+      if (agentControlledComponent != null) {
+        totalCost += agentControlledComponent.data.costDollars
       }
     }
   }
@@ -423,7 +423,7 @@ export const SimulationComponent = (props: SimulationProps) => {
           const position = resolvePositionForCurrentTime(positionComponent)
           let searchScore = Vector2.distance(playerPosition, position)
 
-          if (nearestEntity?.getComponentOrNull<AgentComponentData>("AgentComponentData") != null) {
+          if (nearestEntity != null && AgentControlledComponent.getOrNull(nearestEntity) != null) {
             searchScore *= 0.3
           }
 

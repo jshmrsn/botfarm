@@ -2,7 +2,7 @@ package botfarm.game.setup
 
 import botfarm.engine.simulation.*
 import botfarm.game.GameSimulation
-import botfarm.game.agentintegration.AgentServerIntegration
+import botfarm.game.agentintegration.AgentService
 import botfarm.game.agentintegration.MockAgent
 import botfarm.game.agentintegration.MockAgentContext
 import botfarmshared.misc.getCurrentUnixTimeSeconds
@@ -44,7 +44,7 @@ open class GameScenario(
          configs = configs
       )
 
-      val agentServerIntegration = AgentServerIntegration(
+      val agentServerIntegration = AgentService(
          agentServerEndpoint = System.getenv()["BOTFARM_AGENT_SERVER_ENDPOINT"] ?: "http://localhost:5002",
          buildMockAgent = this.buildMockAgent
       )
@@ -52,7 +52,7 @@ open class GameScenario(
       val simulation = GameSimulation(
          context = context,
          data = simulationData,
-         agentServerIntegration = agentServerIntegration,
+         agentService = agentServerIntegration,
          gameScenario = this
       )
 

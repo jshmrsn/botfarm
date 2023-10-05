@@ -1,27 +1,22 @@
 package botfarm.engine.ktorplugins
 
 import botfarm.engine.simulation.*
-import botfarm.game.agentintegration.AgentServerIntegration
 import botfarmshared.engine.apidata.SimulationId
 import io.ktor.http.HttpStatusCode
-import io.ktor.resources.Resource
 import io.ktor.server.application.Application
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.http.content.staticFiles
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.receive
 import io.ktor.server.resources.Resources
-import io.ktor.server.resources.get
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.routing
-import io.ktor.util.pipeline.PipelineContext
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import java.io.File
 import kotlin.io.path.absolutePathString
-import io.ktor.server.resources.post as resourcePost
 import io.ktor.server.routing.post as routingPost
 
 
@@ -108,7 +103,10 @@ fun Application.configureRouting(
                wasCreatedByAdmin = isAdmin,
                simulationContainer = simulationContainer,
                createdByUserSecret = request.userSecret,
-               scenario = scenario
+               scenario = scenario,
+               coroutineDelayImplementation = {
+                  delay(it.toLong())
+               }
             )
 
             val simulation = scenario.createSimulation(

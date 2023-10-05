@@ -95,11 +95,16 @@ class JsItemOnGroundComponent(
    @HostAccess.Export @JvmField val amount: Int
 ) {
    @HostAccess.Export
-   fun pickup(reason: String?) {
+   fun pickUp(reason: String?) {
       this.api.pickUpItem(
          entityId = this.entityInfo.entityId.value,
          reason = reason
       )
+   }
+
+   @HostAccess.Export
+   fun pickUp() {
+      this.pickUp(reason = null)
    }
 }
 
@@ -115,6 +120,11 @@ class JsDamageableComponent(
          entityId = this.entityInfo.entityId.value,
          reason = reason
       )
+   }
+
+   @HostAccess.Export
+   fun attackWithEquippedItem() {
+      this.attackWithEquippedItem(reason = null)
    }
 }
 

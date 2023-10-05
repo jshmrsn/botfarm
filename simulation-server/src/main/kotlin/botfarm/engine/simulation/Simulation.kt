@@ -3,7 +3,6 @@ package botfarm.engine.simulation
 import aws.sdk.kotlin.services.s3.S3Client
 import aws.sdk.kotlin.services.s3.putObject
 import aws.smithy.kotlin.runtime.content.ByteStream
-import botfarm.game.agentintegration.AgentServerIntegration
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.DynamicSerialization
@@ -103,7 +102,8 @@ class SimulationContext(
    val wasCreatedByAdmin: Boolean,
    val simulationContainer: SimulationContainer,
    val createdByUserSecret: UserSecret,
-   val scenario: Scenario
+   val scenario: Scenario,
+   val coroutineDelayImplementation: suspend (milliseconds: Int) -> Unit
 )
 
 open class Simulation(

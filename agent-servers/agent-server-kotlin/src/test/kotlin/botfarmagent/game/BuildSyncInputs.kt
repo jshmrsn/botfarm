@@ -7,9 +7,10 @@ import botfarmshared.game.GameSimulationInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
 
+val x = EntityInfoWrapper
 fun buildSyncInputs(
    syncId: String = "test-sync-1",
-   agentType: String = "code"
+   agentType: String = "script"
 ) = AgentSyncInput(
    agentType = agentType,
    syncId = syncId,
@@ -17,14 +18,18 @@ fun buildSyncInputs(
    simulationId = SimulationId(value = "test-simulation-1"),
    simulationTime = 0.0,
    selfInfo = SelfInfo(
-      entityInfo = EntityInfo(
-         observedAtSimulationTime = 0.0,
-         entityId = EntityId(value = "entity-1-self"),
-         location = Vector2(x = 0.0, y = 0.0),
-         itemInfo = null,
-         damageableInfo = null,
-         characterInfo = null,
-         growerInfo = null
+      entityInfoWrapper = EntityInfoWrapper(
+         entityInfo = EntityInfo(
+            observedAtSimulationTime = 0.0,
+            entityId = EntityId(value = "entity-1-self"),
+            location = Vector2(x = 0.0, y = 0.0),
+            itemInfo = null,
+            damageableInfo = null,
+            characterInfo = null,
+            growerInfo = null
+         ),
+         javaScriptVariableName = "test",
+         serializedAsJavaScript = "?"
       ),
       corePersonality = "Friendly",
       initialMemories = listOf(),
@@ -42,7 +47,9 @@ fun buildSyncInputs(
       craftItemActionRecords = listOf(),
       activityStreamEntries = listOf(),
       actionResults = listOf(),
-      startedActionUniqueIds = listOf()
+      startedActionUniqueIds = listOf(),
+      selfThoughts = listOf(),
+      scriptExecutionErrors = listOf()
    ),
    gameConstants = GameConstants,
    gameSimulationInfo = GameSimulationInfo(
@@ -50,6 +57,8 @@ fun buildSyncInputs(
          x = 0.0,
          y = 0.0
       ),
-      craftingRecipes = listOf()
-   )
+      craftingRecipeInfoWrappers = listOf()
+   ),
+   agentTypeScriptInterfaceString = "",
+   mostRecentCompletedScriptId = null
 )

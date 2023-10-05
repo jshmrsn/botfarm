@@ -1,12 +1,12 @@
 package botfarm.game.agentintegration
 
 import botfarmshared.engine.apidata.PromptUsageInfo
-import botfarm.game.components.AgentComponentData
+import botfarm.game.components.AgentControlledComponentData
 import botfarm.engine.simulation.EntityComponent
 
 fun updateComponentModelUsage(
    usageInfo: PromptUsageInfo,
-   agentComponent: EntityComponent<AgentComponentData>
+   agentControlledComponent: EntityComponent<AgentControlledComponentData>
 ) {
    val modelUsagePricing = usageInfo.modelUsagePricing
    val inputTokens = usageInfo.usage.promptTokens
@@ -14,7 +14,7 @@ fun updateComponentModelUsage(
 
    val promptDollarCost = (modelUsagePricing.costPer1kInput * inputTokens + modelUsagePricing.costPer1kOutput * outputTokens) / 1000.0
 
-   agentComponent.modifyData {
+   agentControlledComponent.modifyData {
       it.copy(
          totalInputTokens = it.totalInputTokens + inputTokens,
          totalOutputTokens = it.totalOutputTokens + outputTokens,

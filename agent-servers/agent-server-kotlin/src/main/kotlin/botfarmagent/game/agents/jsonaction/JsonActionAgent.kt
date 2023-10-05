@@ -53,106 +53,14 @@ class JsonActionAgent(
    }
 
    override fun consumeInput(input: AgentSyncInput) {
-      val pendingEvents = input.newObservations
+      val newObservations = input.newObservations
 
-      val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
-         .also { newAutomaticShortTermMemories ->
-            pendingEvents.activityStreamEntries.forEach { activityStreamEntry ->
-               if (activityStreamEntry.sourceEntityId != input.selfInfo.entityInfoWrapper.entityInfo.entityId) {
-                  newAutomaticShortTermMemories.add(
-                     AutomaticShortTermMemory(
-                        time = activityStreamEntry.time,
-                        summary = activityStreamEntry.title + (activityStreamEntry.message?.let {
-                           "\n" + activityStreamEntry.message
-                        } ?: "")
-                     )
-                  )
-               }
-            }
+      val newShortTermMemories = buildAutomaticShortTermMemoriesForNewObservations(
+         newObservations = newObservations,
+         selfEntityId = input.selfInfo.entityInfoWrapper.entityInfo.entityId
+      )
 
-            pendingEvents.selfSpokenMessages.forEach { selfSpokenMessage ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = selfSpokenMessage.time,
-                     summary = "I said \"${selfSpokenMessage.message}\" (while standing at ${selfSpokenMessage.location.asJsonArrayRounded})",
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            pendingEvents.spokenMessages.forEach { observedMessage ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = observedMessage.time,
-                     summary = "I heard ${observedMessage.characterName} say \"${observedMessage.message}\" (they were at ${observedMessage.speakerLocation.asJsonArrayRounded})",
-                  )
-               )
-            }
-
-            fun buildReasonSuffix(reason: String?) = if (reason != null) {
-               " (because ${reason})"
-            } else {
-               ""
-            }
-
-            pendingEvents.movementRecords.forEach { movement ->
-               val movementSummary =
-                  "I started walking from ${movement.startPoint.asJsonArrayRounded} to ${movement.endPoint.asJsonArrayRounded}" + buildReasonSuffix(
-                     movement.reason
-                  )
-
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = movement.startedAtTime,
-                     summary = movementSummary,
-                     deDuplicationCategory = "walkTo",
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            pendingEvents.actionOnEntityRecords.forEach { record ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = record.startedAtTime,
-                     summary = "I took the action '${record.actionId}' on entity '${record.targetEntityId.value}'" + buildReasonSuffix(
-                        record.reason
-                     ),
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            pendingEvents.actionOnInventoryItemActionRecords.forEach { record ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = record.startedAtTime,
-                     summary = "I performed action '${record.actionId}' on the item '${record.itemConfigKey}' from my inventory '${record.itemConfigKey}'" + buildReasonSuffix(
-                        record.reason
-                     ),
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            pendingEvents.craftItemActionRecords.forEach { record ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = record.startedAtTime,
-                     summary = "I crafted an '${record.itemConfigKey}' item" + buildReasonSuffix(
-                        record.reason
-                     ),
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-         }
-         .sortedBy { it.time }
-
-      this.memoryState.automaticShortTermMemories.addAll(newAutomaticShortTermMemories)
-
-      this.memoryState.automaticShortTermMemories.sortBy { it.time }
-      deDuplicateOldAutomaticMemories(this.memoryState.automaticShortTermMemories)
+      addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemories, newShortTermMemories)
    }
 
    override suspend fun step(

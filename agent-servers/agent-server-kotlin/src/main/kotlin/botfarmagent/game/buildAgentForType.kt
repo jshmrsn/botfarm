@@ -1,7 +1,7 @@
 package botfarmagent.game
 
 import botfarmagent.game.agents.jsonaction.JsonActionAgent
-import botfarmagent.game.agents.codeexecution.CodeExecutionAgent
+import botfarmagent.game.agents.scriptexecution.ScriptExecutionAgent
 
 fun buildAgentForType(
    agentContext: AgentContext
@@ -14,8 +14,8 @@ fun buildAgentForType(
          useGpt4 = !agentType.contains("gpt3"),
          useFunctionCalling = agentType.contains("func")
       )
-   } else if (agentType.startsWith("code")) {
-      return CodeExecutionAgent(
+   } else if (agentType.startsWith("script")) {
+      return ScriptExecutionAgent(
          context = agentContext,
          useGpt4 = !agentType.contains("gpt3")
       )

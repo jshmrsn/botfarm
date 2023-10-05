@@ -1,9 +1,4 @@
-// import {ItemOnGroundComponent} from "./scripted-agent-interfaces"
-
 declare const api: any
-
-const speak = api.speak
-const setFacialExpressionEmoji = api.setFacialExpressionEmoji
 
 declare class JsArray {
   getLength(): number
@@ -97,3 +92,8 @@ function getAllCraftingRecipes(): any[] {
 const getTotalInventoryAmountForItemTypeId = api.getTotalInventoryAmountForItemTypeId
 const recordThought = api.recordThought
 const walkTo = api.walkTo
+const pickUpItem = api.pickUpItem
+const speak = api.speak
+const setFacialExpressionEmoji = api.setFacialExpressionEmoji
+const interactWithEntity = api.interactWithEntity
+const getSelfEntity = api.getSelfEntity

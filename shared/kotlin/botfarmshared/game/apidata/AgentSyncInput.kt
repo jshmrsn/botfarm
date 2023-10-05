@@ -40,7 +40,7 @@ class MovementRecord(
 @Serializable
 class ActionOnEntityRecord(
    val startedAtTime: Double,
-   val actionId: String,
+   val autoInteractType: AutoInteractType,
    val targetEntityId: EntityId,
    val reason: String?
 )
@@ -156,6 +156,7 @@ class EntityInfoWrapper(
 
 @Serializable
 class Observations(
+   val scriptExecutionErrors: List<ScriptExecutionError>,
    val spokenMessages: List<ObservedSpokenMessage>,
    val selfSpokenMessages: List<SelfSpokenMessage>,
    val entitiesById: Map<EntityId, EntityInfoWrapper>,
@@ -236,6 +237,16 @@ class AgentSyncInput(
    val newObservations: Observations,
    val gameConstants: GameConstants,
    val gameSimulationInfo: GameSimulationInfo,
-   val agentTypeScriptInterfaceString: String
+   val agentTypeScriptInterfaceString: String,
+   val mostRecentCompletedScriptId: String?
 )
 
+
+enum class AutoInteractType {
+   Failed,
+   FailedToMove,
+   PickUp,
+   AttackWithEquippedTool,
+   UseEquippedTool,
+   PlacedGrowableInGrower
+}

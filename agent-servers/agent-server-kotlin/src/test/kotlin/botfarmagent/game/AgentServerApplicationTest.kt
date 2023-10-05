@@ -55,10 +55,11 @@ suspend fun ApplicationTestBuilder.sendSyncRequest(
 class AgentServerApplicationTest {
    @Test
    fun testRoot() = testApplication {
-      val testCodeResponse = """
+      val testScript = """speak("Hello from agent code!")"""
+      val testScriptResponse = """
          I'm a language model and this is what I'd like to do!
          ```js
-         speak("Hello from agent code!")  
+         $testScript  
          ```
          More text!
       """.trimIndent()
@@ -74,7 +75,7 @@ class AgentServerApplicationTest {
                      index = 0,
                      message = ChatMessage(
                         role = ChatRole.User,
-                        content = testCodeResponse,
+                        content = testScriptResponse,
                         name = null,
                         functionCall = null
                      ),
@@ -104,21 +105,20 @@ class AgentServerApplicationTest {
          assertEquals("Botfarm Agent Server", bodyAsText())
       }
 
-      var foundSpeakMessage = false
+      var foundScript = false
       var counter = 0
 
-      while (!foundSpeakMessage) {
+      while (!foundScript) {
          val response = sendSyncRequest(buildSyncInputs())
 
          response.outputs.forEach { output ->
-            output.actions?.forEach { action ->
-               if (action.speak != null) {
-                  if (action.speak == "Hello from agent code!") {
-                     println("Found expected speech message")
-                     foundSpeakMessage = true
-                  } else {
-                     throw Exception("Unexpected speak message: " + action.speak)
-                  }
+            val scriptToRun = output.scriptToRun
+            if (scriptToRun != null) {
+               if (scriptToRun.script.contains(testScript)) {
+                  println("Found expected script")
+                  foundScript = true
+               } else {
+                  throw Exception("Unexpected script")
                }
             }
          }

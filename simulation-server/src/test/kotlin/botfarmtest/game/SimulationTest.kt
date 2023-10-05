@@ -2,99 +2,15 @@ package botfarmtest.game
 
 import botfarm.common.isMoving
 import botfarm.common.resolvePosition
-import botfarm.createTestAgentServerIntegration
-import botfarm.engine.simulation.*
 import botfarm.game.GameSimulation
 import botfarm.game.components.*
-import botfarm.game.setup.GameScenario
-import botfarm.game.setup.addCharacterConfigs
-import botfarm.game.setup.addItemConfigs
-import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.Vector2
-import kotlin.math.min
 import kotlin.test.*
 
 class SimulationTest {
    @Test
-   fun test() {
-      val agentServerIntegration = createTestAgentServerIntegration()
-
-      val configs = mutableListOf<Config>()
-      addCharacterConfigs(configs)
-      addItemConfigs(configs)
-
-      val simulationData = SimulationData(
-         scenarioInfo = ScenarioInfo(
-            identifier = "test",
-            gameIdentifier = "game"
-         ),
-         simulationId = SimulationId(value = "test-simulation-1"),
-         configs = configs
-      )
-
-      val simulationContainer = SimulationContainer()
-
-      val scenario = GameScenario(
-         identifier = "test"
-      )
-
-      val simulationContext = SimulationContext(
-         wasCreatedByAdmin = true,
-         simulationContainer = simulationContainer,
-         createdByUserSecret = UserSecret("test"),
-         scenario = scenario,
-         noClientsConnectedTerminationTimeoutSeconds = null
-      )
-
-      fun simulateSeconds(
-         duration: Double,
-         shouldStop: () -> Boolean = { false }
-      ) {
-         var durationRemaining = duration
-
-         while (durationRemaining >= 0.00001) {
-            val deltaTime = min(0.2, durationRemaining)
-            durationRemaining -= deltaTime
-            simulationContainer.tick(
-               deltaTime = deltaTime
-            )
-
-            if (shouldStop()) {
-               break
-            }
-         }
-      }
-
-      fun simulateUntil(
-         description: String = "default",
-         maxSeconds: Double = 30.0,
-         until: () -> Boolean = { false }
-      ) {
-         var didSucceed = false
-         simulateSeconds(
-            duration = maxSeconds,
-            shouldStop = {
-               if (until()) {
-                  didSucceed = true
-                  true
-               } else {
-                  false
-               }
-            }
-         )
-
-         if (!didSucceed) {
-            throw Exception("simulateUntil: Max time reached (${maxSeconds.toInt()}) ($description)")
-         }
-      }
-
-      val simulation = GameSimulation(
-         context = simulationContext,
-         data = simulationData,
-         agentServerIntegration = agentServerIntegration
-      )
-
-      simulationContainer.addSimulation(simulation)
+   fun test() = simulationTest {
+      val simulation = this.simulation
 
       val axe = simulation.spawnItem(
          itemConfigKey = "axe",
@@ -118,13 +34,6 @@ class SimulationTest {
       )
 
       assert(character.resolvePosition().distance(startLocation) < 1.0)
-
-
-      fun getItemEntities(itemConfigKey: String) = simulation.entities.filter {
-         it.getComponentOrNull<ItemComponentData>()?.data?.itemConfigKey == itemConfigKey
-      }
-
-      fun getWoodEntities() = getItemEntities("wood")
 
       run {
          val endLocation = Vector2(900.0, 1100.0)

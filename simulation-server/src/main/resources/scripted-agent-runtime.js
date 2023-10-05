@@ -1,6 +1,3 @@
-// import {ItemOnGroundComponent} from "./scripted-agent-interfaces"
-const speak = api.speak;
-const setFacialExpressionEmoji = api.setFacialExpressionEmoji;
 function convertJsArray(jsArray) {
     const result = [];
     const length = jsArray.getLength();
@@ -53,3 +50,8 @@ function getAllCraftingRecipes() {
 const getTotalInventoryAmountForItemTypeId = api.getTotalInventoryAmountForItemTypeId;
 const recordThought = api.recordThought;
 const walkTo = api.walkTo;
+const pickUpItem = api.pickUpItem;
+const speak = api.speak;
+const setFacialExpressionEmoji = api.setFacialExpressionEmoji;
+const interactWithEntity = api.interactWithEntity;
+const getSelfEntity = api.getSelfEntity;

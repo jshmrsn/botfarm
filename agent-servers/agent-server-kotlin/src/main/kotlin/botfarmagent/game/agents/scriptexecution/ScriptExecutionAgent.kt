@@ -1,4 +1,4 @@
-package botfarmagent.game.agents.codeexecution
+package botfarmagent.game.agents.scriptexecution
 
 import botfarmagent.game.Agent
 import botfarmagent.game.AgentContext
@@ -11,7 +11,7 @@ import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlin.math.roundToInt
 
-class CodeExecutionAgent(
+class ScriptExecutionAgent(
    context: AgentContext,
    val useGpt4: Boolean
 ) : Agent(context) {
@@ -19,9 +19,6 @@ class CodeExecutionAgent(
    var previousPromptDoneUnixTime = -1000.0
 
    val memoryState = MemoryState()
-
-   val receivedActionStartedIds = mutableSetOf<String>()
-   val receivedActionResultById = mutableMapOf<String, ActionResult>()
 
    init {
       val initialInputs = this.initialSyncInput
@@ -56,129 +53,13 @@ class CodeExecutionAgent(
    override fun consumeInput(input: AgentSyncInput) {
       val newObservations = input.newObservations
 
-      newObservations.startedActionUniqueIds.forEach {
-         println("Got action started: $it")
-         this.receivedActionStartedIds.add(it)
-      }
+      val newShortTermMemories = buildAutomaticShortTermMemoriesForNewObservations(
+         newObservations = newObservations,
+         selfEntityId = input.selfInfo.entityInfoWrapper.entityInfo.entityId
+      )
 
-      newObservations.actionResults.forEach {
-         println("Got action completed result: ${it.actionUniqueId}")
-         this.receivedActionResultById[it.actionUniqueId] = it
-      }
-
-      val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
-         .also { newAutomaticShortTermMemories ->
-            newObservations.activityStreamEntries.forEach { activityStreamEntry ->
-               if (activityStreamEntry.sourceEntityId != input.selfInfo.entityInfoWrapper.entityInfo.entityId) {
-                  newAutomaticShortTermMemories.add(
-                     AutomaticShortTermMemory(
-                        time = activityStreamEntry.time,
-                        summary = activityStreamEntry.title + (activityStreamEntry.message?.let {
-                           "\n" + activityStreamEntry.message
-                        } ?: "")
-                     )
-                  )
-               }
-            }
-
-            newObservations.selfSpokenMessages.forEach { selfSpokenMessage ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = selfSpokenMessage.time,
-                     summary = "I said \"${selfSpokenMessage.message}\" (while standing at ${selfSpokenMessage.location.asJsonArrayRounded})",
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            newObservations.selfThoughts.forEach { selfThought ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = selfThought.time,
-                     summary = "I had the thought \"${selfThought.thought}\" (while standing at ${selfThought.location.asJsonArrayRounded})",
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            newObservations.spokenMessages.forEach { observedMessage ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = observedMessage.time,
-                     summary = "I heard ${observedMessage.characterName} say \"${observedMessage.message}\" (they were at ${observedMessage.speakerLocation.asJsonArrayRounded})",
-                     isHighPriority = true
-                  )
-               )
-            }
-
-            fun buildReasonSuffix(reason: String?) = if (reason != null) {
-               " (because ${reason})"
-            } else {
-               ""
-            }
-
-            newObservations.movementRecords.forEach { movement ->
-               val movementSummary =
-                  "I started walking from ${movement.startPoint.asJsonArrayRounded} to ${movement.endPoint.asJsonArrayRounded}" + buildReasonSuffix(
-                     movement.reason
-                  )
-
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = movement.startedAtTime,
-                     summary = movementSummary,
-                     deDuplicationCategory = "walkTo",
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            newObservations.actionOnEntityRecords.forEach { record ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = record.startedAtTime,
-                     summary = "I took the action '${record.actionId}' on entity '${record.targetEntityId.value}'" + buildReasonSuffix(
-                        record.reason
-                     ),
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            newObservations.actionOnInventoryItemActionRecords.forEach { record ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = record.startedAtTime,
-                     summary = "I performed action '${record.actionId}' on the item '${record.itemConfigKey}' from my inventory '${record.itemConfigKey}'" + buildReasonSuffix(
-                        record.reason
-                     ),
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-
-            newObservations.craftItemActionRecords.forEach { record ->
-               newAutomaticShortTermMemories.add(
-                  AutomaticShortTermMemory(
-                     time = record.startedAtTime,
-                     summary = "I crafted an '${record.itemConfigKey}' item" + buildReasonSuffix(
-                        record.reason
-                     ),
-                     forcePreviousActivity = true
-                  )
-               )
-            }
-         }
-         .sortedBy { it.time }
-
-      this.memoryState.automaticShortTermMemories.addAll(newAutomaticShortTermMemories)
-      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.addAll(newAutomaticShortTermMemories)
-
-      this.memoryState.automaticShortTermMemories.sortBy { it.time }
-      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.sortBy { it.time }
-
-      deDuplicateOldAutomaticMemories(this.memoryState.automaticShortTermMemories)
-      deDuplicateOldAutomaticMemories(this.memoryState.automaticShortTermMemoriesSinceLastPrompt)
+      addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemories, newShortTermMemories)
+      addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemoriesSinceLastPrompt, newShortTermMemories)
    }
 
    override suspend fun step(
@@ -262,16 +143,20 @@ class CodeExecutionAgent(
 
       val timeSincePrompt = getCurrentUnixTimeSeconds() - this.previousPromptDoneUnixTime
 
+      val hasCompletedScript = this.mostRecentSentScriptId == null ||
+              this.mostRecentSentScriptId == this.mostRecentSyncInput.mostRecentCompletedScriptId
+
       val newPromptTimeLimit = if (hasHighPriorityMemorySinceLastPrompt) {
-         8.0
-         // TODO: Inform agent when script is complete
-//      } else if (this.activeScriptPromptId == null) {
-//         15.0
+         5.0
+      } else if (hasCompletedScript) {
+         15.0
       } else {
-         30.0
+         90.0
       }
 
       val shouldPrompt = timeSincePrompt > newPromptTimeLimit
+
+      println("hasCompletedScript: $hasCompletedScript")
 
       if (!shouldPrompt) {
          println("Not prompting yet (${timeSincePrompt.roundToInt()} / $newPromptTimeLimit seconds) ($agentId)")
@@ -373,8 +258,7 @@ class CodeExecutionAgent(
       }
 
       val interfacesSection = builder.addSection("interfaces")
-      val interfacesSource = CodeExecutionAgent::class.java.getResource("/scripted-agent-interfaces.ts")?.readText()
-         ?: throw Exception("Scripted agent interfaces resource not found")
+      val interfacesSource = input.agentTypeScriptInterfaceString
 
       interfacesSection.addLine(interfacesSource)
 
@@ -730,14 +614,15 @@ class CodeExecutionAgent(
          responseText
       }
 
+      val scriptId = buildShortRandomIdentifier()
+      this.mostRecentSentScriptId = scriptId
+
       val newDebugInfoLines = mutableListOf<String>()
       newDebugInfoLines.add("### Sync ID: $syncId")
       newDebugInfoLines.add("")
 
-
       newDebugInfoLines.add("### Short-Term Memory")
       newDebugInfoLines.add("")
-
       newDebugInfoLines.add(this.memoryState.shortTermMemory)
 
       newDebugInfoLines.add("")
@@ -752,14 +637,14 @@ class CodeExecutionAgent(
          newDebugInfoLines.add(it.summary)
       }
 
-      newDebugInfoLines.add("### Agent Script")
-      newDebugInfoLines.add("```ts\n$responseScript\n```")
-
       println("===== RESPONSE SCRIPT ($promptId) ====== \n$responseScript\n===============")
 
       this.addPendingOutput(
          AgentSyncOutput(
-            script = responseScript,
+            scriptToRun = ScriptToRun(
+               script = responseScript,
+               scriptId = scriptId
+            ),
             debugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",

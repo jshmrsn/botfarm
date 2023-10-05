@@ -1,13 +1,14 @@
 package botfarmtest.game
 
 import botfarm.engine.ktorplugins.*
+import botfarm.engine.simulation.ScenarioRegistration
 import botfarm.engine.simulation.SimulationContainer
 import botfarm.engine.simulation.UserSecret
-import botfarm.game.agentintegration.AgentServerIntegration
+import botfarm.game.agentintegration.AgentService
 import botfarm.game.agentintegration.MockAgent
+import botfarm.game.agentintegration.MockAgentContext
 import botfarm.game.setup.registerGameScenarios
 import botfarmshared.engine.apidata.SimulationId
-import botfarmshared.game.apidata.AgentSyncRequest
 import botfarmshared.game.apidata.AgentSyncResponse
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -74,27 +75,32 @@ suspend fun ApplicationTestBuilder.sendGetSimulationInfoRequest(
    return getSimulationInfoResponse
 }
 
-fun createTestAgentServerIntegration(
-   handleSyncRequest: (AgentSyncRequest) -> AgentSyncResponse = {
-      AgentSyncResponse(
-         outputs = listOf()
-      )
+fun createTestAgentService(
+   buildMockAgent: ((context: MockAgentContext) -> MockAgent) = {
+      MockAgent {
+         AgentSyncResponse(
+            outputs = listOf()
+         )
+      }
    }
-): AgentServerIntegration {
+): AgentService {
    val testAgentServerPort = 0
-   return AgentServerIntegration(
+   return AgentService(
       agentServerEndpoint = "http://localhost:$testAgentServerPort",
-      buildMockAgent = MockAgent(handleSyncRequest = handleSyncRequest)
+      buildMockAgent = buildMockAgent
    )
 }
 
 class ApplicationTest {
    @Test
    fun testRoot() = testApplication {
-      val simulationContainer = SimulationContainer()
+      val scenarioRegistration = ScenarioRegistration().also {
+         registerGameScenarios(it)
+      }
+
+      val simulationContainer = SimulationContainer(scenarioRegistration)
 
       application {
-         registerGameScenarios()
          configureSerialization()
          configureRouting(
             simulationContainer = simulationContainer

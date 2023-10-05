@@ -25,3 +25,12 @@ fun deDuplicateOldAutomaticMemories(automaticShortTermMemories: MutableList<Auto
       }
    }
 }
+
+fun addNewAutomaticShortTermMemories(
+   automaticShortTermMemories: MutableList<AutomaticShortTermMemory>,
+   newAutomaticShortTermMemories: List<AutomaticShortTermMemory>
+) {
+   automaticShortTermMemories.addAll(newAutomaticShortTermMemories)
+   automaticShortTermMemories.sortBy { it.time }
+   deDuplicateOldAutomaticMemories(automaticShortTermMemories)
+}

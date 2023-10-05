@@ -36,7 +36,7 @@ import {
   resolveEntityPositionForTime,
   resolvePositionForTime
 } from "../common/PositionComponentData";
-import {AgentComponentData} from "./agentComponentData";
+import {AgentControlledComponent, AgentControlledComponentData} from "./AgentControlledComponentData";
 import {UserControlledComponent, UserControlledComponentData} from "./userControlledComponentData";
 import {IconHandGrab, IconTool} from "@tabler/icons-react";
 import {CompositeAnimationSelection} from "./CompositeAnimationSelection";
@@ -1211,7 +1211,7 @@ export class SimulationScene extends Phaser.Scene {
         }
 
         if (characterComponent != null) {
-          const agentComponentData = entity.getComponentDataOrNull<AgentComponentData>("AgentComponentData")
+          const agentControlledComponentData = AgentControlledComponent.getDataOrNull(entity)
 
           this.renderCharacter(
             positionComponent.data,
@@ -1219,7 +1219,7 @@ export class SimulationScene extends Phaser.Scene {
             entity,
             renderContext,
             characterComponent.data,
-            agentComponentData,
+            agentControlledComponentData,
             position
           );
         } else if (itemComponent != null) {
@@ -1321,7 +1321,7 @@ export class SimulationScene extends Phaser.Scene {
     entity: Entity,
     renderContext: RenderContext,
     characterComponentData: CharacterComponentData,
-    agentComponentData: AgentComponentData | null,
+    agentControlledComponentData: AgentControlledComponentData | null,
     position: Vector2,
   ) {
     const mainCamera = this.mainCamera;
@@ -1344,48 +1344,48 @@ export class SimulationScene extends Phaser.Scene {
     const emoji = characterComponentData.facialExpressionEmoji;
     let statusSuffix = ""
 
-    if (agentComponentData != null) {
-      if (agentComponentData.agentIntegrationStatus != null) {
-        if (agentComponentData.agentIntegrationStatus.includes("waiting_for_agent")) {
+    if (agentControlledComponentData != null) {
+      if (agentControlledComponentData.agentIntegrationStatus != null) {
+        if (agentControlledComponentData.agentIntegrationStatus.includes("waiting_for_agent")) {
           // statusSuffix += "🕒"
-        } else if (agentComponentData.agentIntegrationStatus === "paused") {
+        } else if (agentControlledComponentData.agentIntegrationStatus === "paused") {
           statusSuffix += "⏸️"
-        } else if (agentComponentData.agentIntegrationStatus === "error_from_remote_agent") {
+        } else if (agentControlledComponentData.agentIntegrationStatus === "error_from_remote_agent") {
           statusSuffix += "⚠️"
-        } else if (agentComponentData.agentIntegrationStatus === "exception") {
+        } else if (agentControlledComponentData.agentIntegrationStatus === "exception") {
           statusSuffix += "🚫"
         }
       }
 
-      if (agentComponentData.agentStatus != null) {
-        if (agentComponentData.agentStatus.includes("running-prompt")) {
+      if (agentControlledComponentData.agentStatus != null) {
+        if (agentControlledComponentData.agentStatus.includes("running-prompt")) {
           statusSuffix += "💭"
-        } else if (agentComponentData.agentStatus === "prompt-finished") {
+        } else if (agentControlledComponentData.agentStatus === "prompt-finished") {
           // statusSuffix += "✅"
-        } else if (agentComponentData.agentStatus === "running-script") {
+        } else if (agentControlledComponentData.agentStatus === "running-script") {
           statusSuffix += "📜"
-        } else if (agentComponentData.agentStatus === "script-done") {
+        } else if (agentControlledComponentData.agentStatus === "script-done") {
           statusSuffix += "📜✅"
-        } else if (agentComponentData.agentStatus === "waiting-for-action") {
+        } else if (agentControlledComponentData.agentStatus === "waiting-for-action") {
           statusSuffix += "📜🕒"
-        } else if (agentComponentData.agentStatus === "action-done") {
+        } else if (agentControlledComponentData.agentStatus === "action-done") {
           statusSuffix += "📜✔️"
-        } else if (agentComponentData.agentStatus === "exception") {
+        } else if (agentControlledComponentData.agentStatus === "exception") {
           statusSuffix += "🚫🤖"
-        } else if (agentComponentData.agentStatus === "script-exception") {
+        } else if (agentControlledComponentData.agentStatus === "script-exception") {
           statusSuffix += "🚫📜"
-        } else if (agentComponentData.agentStatus.includes("updating-memory")) {
+        } else if (agentControlledComponentData.agentStatus.includes("updating-memory")) {
           statusSuffix += "📝️"
-        } else if (agentComponentData.agentStatus === "update-memory-success") {
+        } else if (agentControlledComponentData.agentStatus === "update-memory-success") {
           // statusSuffix += "🟢"
         }
       }
 
-      if (agentComponentData.agentError != null) {
+      if (agentControlledComponentData.agentError != null) {
         statusSuffix += "❌"
       }
 
-      if (agentComponentData.wasRateLimited) {
+      if (agentControlledComponentData.wasRateLimited) {
         statusSuffix += "📉" // ⏳
       }
     }
@@ -1519,8 +1519,8 @@ export class SimulationScene extends Phaser.Scene {
       content.setPosition(bubble.x + (bubbleWidth / 2) - (textBounds.width / 2), bubble.y + (bubbleHeight / 2) - (textBounds.height / 2));
     }
 
-    if (agentComponentData != null && this.dynamicState.selectedEntityId === entity.entityId) {
-      const observationCircleScale = agentComponentData.observationDistance * 2.0 / 500.0
+    if (agentControlledComponentData != null && this.dynamicState.selectedEntityId === entity.entityId) {
+      const observationCircleScale = agentControlledComponentData.observationDistance * 2.0 / 500.0
 
       renderContext.renderSprite("agent-observation-distance-circle:" + entity.entityId, {
         layer: this.observationRingsLayer,

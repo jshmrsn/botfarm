@@ -17,8 +17,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-
-class AgentServerIntegration(
+class AgentService(
    val agentServerEndpoint: String,
    val buildMockAgent: ((context: MockAgentContext) -> MockAgent)? = null
 ) {
@@ -36,10 +35,10 @@ class AgentServerIntegration(
          val mockAgent = this.mockAgentsByKey.getOrPut(agentKey) {
             buildMockAgent(
                MockAgentContext(
-               agentId = inputs.agentId,
-               simulationId = inputs.simulationId,
-               agentType = inputs.agentType
-            )
+                  agentId = inputs.agentId,
+                  simulationId = inputs.simulationId,
+                  agentType = inputs.agentType
+               )
             )
          }
 

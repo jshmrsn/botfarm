@@ -30,7 +30,8 @@ class CoroutineSystem(
          val context = CoroutineSystemContext(
             entity = entity,
             simulation = simulation,
-            simulationContainer = simulationContainer
+            simulationContainer = simulationContainer,
+            delayImplementation = simulation.context.coroutineDelayImplementation
          )
 
          val job = CoroutineScope(simulationContainer.coroutineDispatcher).launch {

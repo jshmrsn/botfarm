@@ -23,10 +23,17 @@ class AgentSyncOutput(
    val agentStatus: String? = null,
    val debugInfo: String? = null,
    val actions: List<Action>? = null,
-   val script: String? = null,
+   val scriptToRun: ScriptToRun? = null,
    val error: String? = null,
    val wasRateLimited: Boolean = false,
    val promptUsages: List<PromptUsageInfo> = listOf()
+)
+
+
+@Serializable
+class ScriptToRun(
+   val scriptId: String,
+   val script: String
 )
 
 @Serializable
@@ -43,6 +50,13 @@ class Action(
    val speak: String? = null,
    val facialExpressionEmoji: String? = null,
    val recordThought: String? = null
+)
+
+
+@Serializable
+class ScriptExecutionError(
+   val error: String,
+   val scriptId: String
 )
 
 @Serializable

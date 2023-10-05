@@ -38,7 +38,7 @@ interface ItemOnGroundComponent {
   itemTypeId: string
   canBePickedUp: boolean
   amount: number
-  pickup(reason?: string | null)
+  pickUp(reason?: string | null)
 }
 
 interface DamageableComponent {
@@ -85,6 +85,7 @@ interface CraftingRecipe {
 // Functions to query current world state
 declare function getCurrentInventoryItemStacks(): InventoryItemStack[];
 declare function getCurrentNearbyEntities(): Entity[];
+declare function getSelfEntity(): Entity;
 declare function getAllCraftingRecipes(): CraftingRecipe[];
 declare function getTotalInventoryAmountForItemTypeId(itemTypeId: string): number
 
@@ -93,3 +94,4 @@ declare function walkTo(location: Vector2, reason?: string | null);
 declare function speak(wordsToSay: string);
 declare function recordThought(thought: string);
 declare function setFacialExpressionEmoji(singleEmoji: string);
+

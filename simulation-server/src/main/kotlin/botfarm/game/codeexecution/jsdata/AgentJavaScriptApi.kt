@@ -1,9 +1,11 @@
 package botfarm.game.codeexecution.jsdata
 
+import botfarm.common.PositionComponentData
+import botfarm.common.resolvePosition
 import botfarm.game.agentintegration.AgentSyncState
-import botfarm.game.codeexecution.JavaScriptCodeSerialization
+import botfarm.game.agentintegration.buildEntityInfoForAgent
 import botfarm.game.codeexecution.UnwindScriptThreadThrowable
-import botfarm.game.components.AgentComponentData
+import botfarm.game.components.AgentControlledComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.InventoryComponentData
 import botfarm.game.config.ItemConfig
@@ -21,7 +23,7 @@ class AgentJavaScriptApi(
    val entity = this.agentSyncState.entity
    val inventoryComponent = this.entity.getComponent<InventoryComponentData>()
    val characterComponent = this.entity.getComponent<CharacterComponentData>()
-   val agentComponent = this.entity.getComponent<AgentComponentData>()
+   val agentControlledComponent = this.entity.getComponent<AgentControlledComponentData>()
 
    var shouldEndScript = false
 
@@ -128,13 +130,30 @@ class AgentJavaScriptApi(
    }
 
    @HostAccess.Export
-   fun getCurrentNearbyEntities(): JsArray<JsEntity> {
-      // TODO: Re-implement to fetch entities from actual simulation, while obeying identical observation distance rules
-      this.endIfRequested()
-      val entitiesById = this.agentSyncState.mostRecentSyncInput?.newObservations?.entitiesById ?: mapOf()
+   fun getSelfEntity(): JsEntity {
+      val entityInfo = buildEntityInfoForAgent(this.entity, this.simulation.simulationTime)
+      return this.buildJsEntity(entityInfo)
+   }
 
-      return entitiesById.values.map { entityInfoWrapper ->
-         this.buildJsEntity(entityInfoWrapper.entityInfo)
+   @HostAccess.Export
+   fun getCurrentNearbyEntities(): JsArray<JsEntity> {
+      this.endIfRequested()
+      val selfPosition = this.entity.resolvePosition()
+      val observationDistance = this.agentControlledComponent.data.observationDistance
+
+      val observedEntities = this.simulation.entities.filter {
+         if (it.getComponentOrNull<PositionComponentData>() != null &&
+            it.entityId != this.entity.entityId) {
+            val distance = it.resolvePosition().distance(selfPosition)
+            distance <= observationDistance
+         } else {
+            false
+         }
+      }
+
+      return observedEntities.map { observedEntity ->
+         val entityInfo = buildEntityInfoForAgent(observedEntity, this.simulation.simulationTime)
+         this.buildJsEntity(entityInfo)
       }.toList().toJs()
    }
 

@@ -67,7 +67,7 @@ class AgentRunner(
 
                inputsList.forEach { inputs ->
                   synchronized(agent) {
-                     agent.notifyWillConsumeInput(inputs)
+                     agent.commonConsumeInput(inputs)
                      agent.consumeInput(
                         input = inputs
                      )

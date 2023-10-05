@@ -3,22 +3,22 @@ package botfarm.game.systems
 import botfarm.engine.simulation.CoroutineSystemContext
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
-import botfarm.game.agentintegration.*
-import botfarm.game.components.AgentComponentData
-import botfarmshared.game.apidata.AgentSyncResponse
+import botfarm.game.agentintegration.AgentSyncState
+import botfarm.game.agentintegration.recordObservationsForAgent
+import botfarm.game.agentintegration.syncAgent
+import botfarm.game.agentintegration.updateAgentActions
+import botfarm.game.components.AgentControlledComponentData
 import botfarmshared.misc.buildShortRandomIdentifier
-import botfarmshared.misc.getCurrentUnixTimeSeconds
-import kotlinx.coroutines.delay
 import java.net.ConnectException
 
 suspend fun syncAgentCoroutineSystem(
    context: CoroutineSystemContext,
-   agentComponent: EntityComponent<AgentComponentData>
+   agentControlledComponent: EntityComponent<AgentControlledComponentData>
 ) {
-   val entity = agentComponent.entity
-   val agentId = agentComponent.data.agentId
+   val entity = agentControlledComponent.entity
+   val agentId = agentControlledComponent.data.agentId
    val simulation = context.simulation as GameSimulation
-   val agentType = agentComponent.data.agentType
+   val agentType = agentControlledComponent.data.agentType
 
    val state = AgentSyncState(
       simulation = simulation,
@@ -27,7 +27,7 @@ suspend fun syncAgentCoroutineSystem(
       agentId = agentId
    )
 
-   var lastAgentSyncUnixTime = 0.0
+   var lastAgentSyncSimulationTime = 0.0
 
    while (true) {
       context.unwindIfNeeded()
@@ -38,20 +38,20 @@ suspend fun syncAgentCoroutineSystem(
          recordObservationsForAgent(
             simulation = simulation,
             entity = entity,
-            agentComponent = agentComponent,
+            agentControlledComponent = agentControlledComponent,
             state = state
          )
 
-         val timeSinceAgentSync = getCurrentUnixTimeSeconds() - lastAgentSyncUnixTime
+         val timeSinceAgentSync = simulation.simulationTime - lastAgentSyncSimulationTime
          val agentSyncInterval = 1.0
          if (timeSinceAgentSync > agentSyncInterval) {
-            lastAgentSyncUnixTime = getCurrentUnixTimeSeconds()
+            lastAgentSyncSimulationTime = simulation.simulationTime
 
             syncAgent(
                context = context,
                simulation = simulation,
                entity = entity,
-               agentComponent = agentComponent,
+               agentControlledComponent = agentControlledComponent,
                state = state,
                agentId = agentId,
                syncId = syncId
@@ -63,10 +63,10 @@ suspend fun syncAgentCoroutineSystem(
             state = state
          )
 
-         delay(100)
+         context.delay(100)
       } catch (connectException: ConnectException) {
          context.synchronizeSimulation {
-            agentComponent.modifyData {
+            agentControlledComponent.modifyData {
                it.copy(
                   agentIntegrationStatus = "exception",
                   agentError = "Agent connection refused (syncId = $syncId)"
@@ -74,14 +74,14 @@ suspend fun syncAgentCoroutineSystem(
             }
          }
 
-         delay(3000)
+         context.delay(3000)
       } catch (exception: Exception) {
          val errorId = buildShortRandomIdentifier()
          simulation.broadcastAlertAsGameMessage("Exception in agent sync (errorId = $errorId, syncId = $syncId)")
          println("Exception in character agent logic (errorId = $errorId, syncId = $syncId):\n${exception.stackTraceToString()}")
 
          context.synchronizeSimulation {
-            agentComponent.modifyData {
+            agentControlledComponent.modifyData {
                it.copy(
                   agentIntegrationStatus = "exception",
                   agentError = "Exception in character agent logic (errorId = $errorId, syncId = $syncId)"
@@ -89,7 +89,7 @@ suspend fun syncAgentCoroutineSystem(
             }
          }
 
-         delay(3000)
+         context.delay(3000)
       }
    }
 }

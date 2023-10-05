@@ -3,7 +3,7 @@ package botfarm.game.components
 import botfarmshared.game.apidata.AgentId
 import botfarm.engine.simulation.EntityComponentData
 
-data class AgentComponentData(
+data class AgentControlledComponentData(
    val agentId: AgentId,
    val corePersonality: String,
    val initialMemories: List<String> = listOf(),
@@ -15,6 +15,11 @@ data class AgentComponentData(
    val wasRateLimited: Boolean = false,
    val agentRemoteDebugInfo: String = "",
    val agentError: String? = null,
+   val currentActionTimeline: String? = null,
+   val executingScriptId: String? = null,
+   val executingScript: String? = null,
+   val scriptExecutionError: String? = null,
+
    val observationDistance: Double = 1200.0,
    val totalInputTokens: Int = 0,
    val totalOutputTokens: Int = 0,

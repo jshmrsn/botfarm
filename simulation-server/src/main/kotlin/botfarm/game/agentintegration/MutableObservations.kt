@@ -22,7 +22,10 @@ class MutableObservations {
    val actionResults: MutableList<ActionResult> = mutableListOf()
    val startedActionUniqueIds: MutableList<String> = mutableListOf()
 
+   val scriptExecutionErrors: MutableList<ScriptExecutionError> = mutableListOf()
+
    fun toObservations(api: AgentJavaScriptApi): Observations = Observations(
+      scriptExecutionErrors = this.scriptExecutionErrors.toList(),
       spokenMessages = this.spokenMessages.toList(),
       selfSpokenMessages = this.selfSpokenMessages.toList(),
       entitiesById = this.entitiesById.toMap().mapValues {

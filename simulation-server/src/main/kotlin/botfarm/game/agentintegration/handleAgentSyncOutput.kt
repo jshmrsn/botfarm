@@ -3,7 +3,8 @@ package botfarm.game.agentintegration
 import botfarm.common.isMoving
 import botfarm.common.resolvePosition
 import botfarm.engine.simulation.AlertMode
-import botfarm.game.components.AgentComponentData
+import botfarm.engine.simulation.CoroutineSystemContext
+import botfarm.game.components.AgentControlledComponentData
 import botfarm.game.GameSimulation
 import botfarmshared.game.apidata.*
 import botfarm.engine.simulation.Entity
@@ -18,19 +19,21 @@ import kotlin.concurrent.thread
 
 suspend fun handleAgentSyncOutput(
    syncId: String,
+   coroutineSystemContext: CoroutineSystemContext,
    agentSyncInput: AgentSyncInput,
    agentSyncOutput: AgentSyncOutput,
-   agentComponent: EntityComponent<AgentComponentData>,
+   agentControlledComponent: EntityComponent<AgentControlledComponentData>,
    simulation: GameSimulation,
    state: AgentSyncState,
    entity: Entity
 ) {
    val actions = agentSyncOutput.actions
-   val script = agentSyncOutput.script
+   val scriptToRun = agentSyncOutput.scriptToRun
+
    val agentId = state.agentId
 
    synchronized(simulation) {
-      agentComponent.modifyData {
+      agentControlledComponent.modifyData {
          it.copy(
             agentRemoteDebugInfo = agentSyncOutput.debugInfo ?: it.agentRemoteDebugInfo,
             agentStatus = agentSyncOutput.agentStatus ?: it.agentStatus,
@@ -43,7 +46,7 @@ suspend fun handleAgentSyncOutput(
 
    agentSyncOutput.promptUsages.forEach {
       synchronized(simulation) {
-         updateComponentModelUsage(it, agentComponent)
+         updateComponentModelUsage(it, agentControlledComponent)
       }
    }
 
@@ -51,7 +54,7 @@ suspend fun handleAgentSyncOutput(
       synchronized(simulation) {
          simulation.broadcastAlertMessage(AlertMode.ConsoleError, "Error from remote agent: " + agentSyncOutput.error)
 
-         agentComponent.modifyData {
+         agentControlledComponent.modifyData {
             it.copy(
                agentError = agentSyncOutput.error
             )
@@ -61,8 +64,11 @@ suspend fun handleAgentSyncOutput(
       return
    }
 
-   if (script != null) {
-      println("Got new script from agent ($agentId, $syncId)")
+   if (scriptToRun != null) {
+      val scriptId = scriptToRun.scriptId
+      val script = scriptToRun.script
+
+      println("Got new script from agent ($agentId, $scriptId)")
 
       if (entity.isMoving) {
          simulation.startEntityMovement(
@@ -80,7 +86,7 @@ suspend fun handleAgentSyncOutput(
 
       if (previousThread != null) {
          if (previousThread.isAlive) {
-            println("Agent script thread exists and is active, so attempting to end now ($syncId)")
+            println("Agent script thread exists and is active, so attempting to end now ($scriptId)")
 
             val waitStartTime = getCurrentUnixTimeSeconds()
             val timeout = 5.0
@@ -88,20 +94,20 @@ suspend fun handleAgentSyncOutput(
             while (true) {
                val waitedTime = getCurrentUnixTimeSeconds() - waitStartTime
                if (!previousThread.isAlive) {
-                  println("Agent script thread has now ended after waiting $waitedTime seconds ($syncId)")
+                  println("Agent script thread has now ended after waiting $waitedTime seconds ($scriptId)")
                   break
                } else if (waitedTime > timeout) {
-                  println("Agent script thread did not end after $timeout seconds, so interrupting ($syncId)")
+                  println("Agent script thread did not end after $timeout seconds, so interrupting ($scriptId)")
                   previousThread.interrupt()
                   break
                } else {
-                  delay(200)
+                  coroutineSystemContext.delay(200)
                }
             }
 
-            delay(200)
+            coroutineSystemContext.delay(200)
          } else {
-            println("Agent script thread exists, but is not active, so not interrupting ($syncId)")
+            println("Agent script thread exists, but is not active, so not interrupting ($scriptId)")
          }
       }
 
@@ -114,9 +120,17 @@ suspend fun handleAgentSyncOutput(
       val agentJavaScriptApi = state.agentJavaScriptApi
 
       synchronized(simulation) {
-         state.activeScriptPromptId = syncId
-         state.mostRecentScript = wrappedResponseScript
+         state.activeScriptToRun = scriptToRun
          state.agentJavaScriptApi.shouldEndScript = false
+
+         agentControlledComponent.modifyData {
+            it.copy(
+               executingScriptId = scriptId,
+               executingScript = script,
+               scriptExecutionError = null,
+               currentActionTimeline = null
+            )
+         }
 
          val bindingsToAdd = mutableListOf<Pair<String, (conversionContext: JsConversionContext) -> Any>>()
 
@@ -178,62 +192,97 @@ suspend fun handleAgentSyncOutput(
 
             try {
                state.javaScriptContext.eval(javaScriptSource)
-               println("Agent script thread complete: $syncId")
+               println("Agent script thread complete: $scriptId")
                synchronized(simulation) {
-                  if (state.activeScriptPromptId == syncId) {
-                     state.activeScriptPromptId = null
+                  if (state.activeScriptToRun?.scriptId == scriptId) {
+                     state.activeScriptToRun = null
+                     state.mostRecentCompletedScriptId = scriptId
                   }
                }
             } catch (unwindScriptThreadThrowable: UnwindScriptThreadThrowable) {
-               println("Got unwind agent script thread throwable ($syncId): ${unwindScriptThreadThrowable.reason}")
+               println("Got unwind agent script thread throwable ($scriptId): ${unwindScriptThreadThrowable.reason}")
                synchronized(simulation) {
-                  if (state.activeScriptPromptId == syncId) {
-                     state.activeScriptPromptId = null
+                  if (state.activeScriptToRun?.scriptId == scriptId) {
+                     state.activeScriptToRun = null
+                     state.mostRecentCompletedScriptId = scriptId
                   }
                }
             } catch (polyglotException: PolyglotException) {
-               val hostException = polyglotException.asHostException()
-               if (hostException is UnwindScriptThreadThrowable) {
-                  println("Got unwind agent script thread throwable via PolyglotException ($syncId): ${hostException.reason}")
+               val resolvedException = if (polyglotException.isHostException) {
+                  polyglotException.asHostException()
+               } else {
+                  polyglotException
+               }
+
+               if (resolvedException is UnwindScriptThreadThrowable) {
+                  println("Got unwind agent script thread throwable via PolyglotException ($scriptId): ${resolvedException.reason}")
 
                   synchronized(simulation) {
-                     if (state.activeScriptPromptId == syncId) {
-                        state.activeScriptPromptId = null
+                     if (state.activeScriptToRun?.scriptId == scriptId) {
+                        state.activeScriptToRun = null
+                        state.mostRecentCompletedScriptId = scriptId
                      }
                   }
                } else {
-                  println("Polyglot exception evaluating agent JavaScript ($syncId): " + polyglotException.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
+                  println("Polyglot exception evaluating agent JavaScript ($scriptId): " + polyglotException.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
 
                   synchronized(simulation) {
-//                     this.addPendingOutput(
-//                        AgentSyncOutput(
-//                           error = "Polyglot exception evaluating JavaScript ($syncId)",
-//                           agentStatus = "script-exception"
-//                        )
-//                     )
+                     if (state.activeScriptToRun?.scriptId == scriptId) {
+                        state.activeScriptToRun = null
+                        state.mostRecentCompletedScriptId = scriptId
+                     }
+
+                     agentControlledComponent.modifyData {
+                        it.copy(
+                           scriptExecutionError = polyglotException.stackTraceToString()
+                        )
+                     }
+
+                     state.mutableObservations.scriptExecutionErrors.add(ScriptExecutionError(
+                        scriptId = scriptId,
+                        error = polyglotException.stackTraceToString()
+                     ))
                   }
                }
             } catch (exception: Exception) {
-               println("Exception evaluating agent JavaScript ($syncId): " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
-//               synchronized(simulation) {
-//                  this.addPendingOutput(
-//                     AgentSyncOutput(
-//                        error = "Exception evaluating JavaScript ($syncId)",
-//                        agentStatus = "script-exception"
-//                     )
-//                  )
-//               }
+               println("Exception evaluating agent JavaScript ($scriptId): " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
+
+               synchronized(simulation) {
+                  if (state.activeScriptToRun?.scriptId == scriptId) {
+                     state.activeScriptToRun = null
+                     state.mostRecentCompletedScriptId = scriptId
+                  }
+
+                  state.mutableObservations.scriptExecutionErrors.add(ScriptExecutionError(
+                     scriptId = scriptId,
+                     error = exception.stackTraceToString()
+                  ))
+
+                  agentControlledComponent.modifyData {
+                     it.copy(
+                        scriptExecutionError = exception.stackTraceToString()
+                     )
+                  }
+               }
             }
          }
       }
    }
 
    if (actions != null) {
-      if (entity.isMoving) {
-         simulation.startEntityMovement(
-            entity = entity,
-            endPoint = entity.resolvePosition()
-         )
+      synchronized(simulation) {
+         if (entity.isMoving) {
+            simulation.startEntityMovement(
+               entity = entity,
+               endPoint = entity.resolvePosition()
+            )
+         }
+
+         agentControlledComponent.modifyData {
+            it.copy(
+               currentActionTimeline = null
+            )
+         }
       }
 
       state.activeAction = null

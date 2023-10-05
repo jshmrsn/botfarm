@@ -4,7 +4,7 @@ import botfarm.common.PositionComponentData
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
-import botfarm.game.components.AgentComponentData
+import botfarm.game.components.AgentControlledComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarmshared.game.apidata.ActivityStreamEntryRecord
 import botfarmshared.game.apidata.ObservedSpokenMessage
@@ -12,7 +12,7 @@ import botfarmshared.game.apidata.ObservedSpokenMessage
 fun recordObservationsForAgent(
    simulation: GameSimulation,
    entity: Entity,
-   agentComponent: EntityComponent<AgentComponentData>,
+   agentControlledComponent: EntityComponent<AgentControlledComponentData>,
    state: AgentSyncState
 ) {
    val characterComponent = entity.getComponent<CharacterComponentData>()
@@ -21,7 +21,7 @@ fun recordObservationsForAgent(
    val simulationTimeForStep: Double
 
    synchronized(simulation) {
-      val observationDistance = agentComponent.data.observationDistance
+      val observationDistance = agentControlledComponent.data.observationDistance
 
       simulationTimeForStep = simulation.getCurrentSimulationTime()
       val currentLocation = positionComponent.data.positionAnimation.resolve(simulationTimeForStep)
@@ -40,27 +40,25 @@ fun recordObservationsForAgent(
                   entity = otherEntity,
                   simulationTime = simulationTimeForStep
                )
-            }
 
-            // jshmrsn: Currently not limiting distance that agents can "hear" chat messages
-            if (otherCharacterComponentData != null) {
-               val newMessages = otherCharacterComponentData.recentSpokenMessages.filter {
-                  val age = simulationTimeForStep - it.sentSimulationTime
-                  val tooOldToBeObserved = age > 30
-                  it.sentSimulationTime > state.previousNewEventCheckTime && !tooOldToBeObserved
-               }
+               if (otherCharacterComponentData != null) {
+                  val newMessages = otherCharacterComponentData.recentSpokenMessages.filter {
+                     it.sentSimulationTime > state.previousNewEventCheckSimulationTime
+                  }
 
-               newMessages.forEach { newMessage ->
-                  state.mutableObservations.spokenMessages.add(
-                     ObservedSpokenMessage(
-                        entityId = otherEntity.entityId,
-                        characterName = otherCharacterComponentData.name,
-                        message = newMessage.message,
-                        speakerLocation = otherPosition,
-                        myLocation = currentLocation,
-                        time = newMessage.sentSimulationTime
+                  newMessages.forEach { newMessage ->
+                     println("Adding spoken message observation: " + newMessage.message)
+                     state.mutableObservations.spokenMessages.add(
+                        ObservedSpokenMessage(
+                           entityId = otherEntity.entityId,
+                           characterName = otherCharacterComponentData.name,
+                           message = newMessage.message,
+                           speakerLocation = otherPosition,
+                           myLocation = currentLocation,
+                           time = newMessage.sentSimulationTime
+                        )
                      )
-                  )
+                  }
                }
             }
          }
@@ -69,7 +67,7 @@ fun recordObservationsForAgent(
       val activityStream = simulation.getActivityStream()
 
       val newActivityStreamEntries = activityStream.filter { activityStreamEntry ->
-         activityStreamEntry.time > state.previousNewEventCheckTime &&
+         activityStreamEntry.time > state.previousNewEventCheckSimulationTime &&
                  activityStreamEntry.shouldReportToAi
       }
 
@@ -85,6 +83,6 @@ fun recordObservationsForAgent(
          )
       })
 
-      state.previousNewEventCheckTime = simulationTimeForStep
+      state.previousNewEventCheckSimulationTime = simulationTimeForStep
    }
 }

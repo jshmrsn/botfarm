@@ -2,18 +2,19 @@ import {Vector2Animation} from "../misc/Vector2Animation";
 import {Text} from "@mantine/core";
 import {RawEntityDataDebugComponent} from "./RenderInspectMode";
 import {Entity} from "../simulation/Entity";
-import {PositionComponentData} from "../common/PositionComponentData";
-import {AgentComponentData} from "../game/agentComponentData";
+import {PositionComponent} from "../common/PositionComponentData";
+import {AgentControlledComponent} from "../game/AgentControlledComponentData";
 import ReactMarkdown from "react-markdown";
 import {getUnixTimeSeconds} from "../misc/utils";
+import {Fragment} from "react";
 
 export function renderSelectedEntityInspection(
   entity: Entity
 ) {
   const simulation = entity.simulation
 
-  const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
-  const agentComponent = entity.getComponentOrNull<AgentComponentData>("AgentComponentData")
+  const positionComponent = PositionComponent.getOrNull(entity)
+  const agentControlledComponent = AgentControlledComponent.getOrNull(entity)
 
   const simulationTime = simulation.getCurrentSimulationTime()
 
@@ -28,22 +29,24 @@ export function renderSelectedEntityInspection(
   }
 
   let agentDiv: JSX.Element | null
-  if (agentComponent != null) {
-    const agentComponentData = agentComponent.data
+  if (agentControlledComponent != null) {
+    const agentControlledComponentData = agentControlledComponent.data
     agentDiv = <div>
-      <Text>Core Personality: {agentComponentData.corePersonality}</Text>
-      <Text>Input tokens: {agentComponentData.totalInputTokens}</Text>
-      <Text>Output tokens: {agentComponentData.totalOutputTokens}</Text>
-      <Text>Prompt count: {agentComponentData.totalPrompts}</Text>
-      <Text>Agent requests: {agentComponentData.totalRemoteAgentRequests}</Text>
-      <Text>Agent Type: {agentComponentData.agentType}</Text>
-      <Text>Cost: ${agentComponentData.costDollars.toFixed(2)}</Text>
-      <Text>Agent Status: <b>{agentComponentData.agentStatus}</b></Text>
-      {agentComponentData.statusStartUnixTime != null ? <Text>Status Start Age: <b>{(getUnixTimeSeconds() - agentComponentData.statusStartUnixTime).toFixed(1)}</b></Text> : null}
-      {agentComponentData.statusDuration != null ? <Text>Status Duration: <b>{agentComponentData.statusDuration.toFixed(1)}</b></Text> : null}
-      <Text>Agent Integration Status: <b>{agentComponentData.agentIntegrationStatus}</b></Text>
+      <Text>Core Personality: {agentControlledComponentData.corePersonality}</Text>
+      <Text>Input tokens: {agentControlledComponentData.totalInputTokens}</Text>
+      <Text>Output tokens: {agentControlledComponentData.totalOutputTokens}</Text>
+      <Text>Prompt count: {agentControlledComponentData.totalPrompts}</Text>
+      <Text>Agent requests: {agentControlledComponentData.totalRemoteAgentRequests}</Text>
+      <Text>Agent Type: {agentControlledComponentData.agentType}</Text>
+      <Text>Cost: ${agentControlledComponentData.costDollars.toFixed(2)}</Text>
+      <Text>Agent Status: <b>{agentControlledComponentData.agentStatus}</b></Text>
+      {agentControlledComponentData.statusStartUnixTime != null ? <Text>Status Start
+        Age: <b>{(getUnixTimeSeconds() - agentControlledComponentData.statusStartUnixTime).toFixed(1)}</b></Text> : null}
+      {agentControlledComponentData.statusDuration != null ?
+        <Text>Status Duration: <b>{agentControlledComponentData.statusDuration.toFixed(1)}</b></Text> : null}
+      <Text>Agent Integration Status: <b>{agentControlledComponentData.agentIntegrationStatus}</b></Text>
 
-      {agentComponentData.agentError != null ? <div
+      {agentControlledComponentData.agentError != null ? <div
         style={{
           backgroundColor: "rgba(255, 0, 0, 0.2)",
           display: "flex",
@@ -52,15 +55,42 @@ export function renderSelectedEntityInspection(
       >
         <Text><b>Agent Error:</b></Text>
 
-        {agentComponentData.agentError.split("\n").map((line, index) => {
+        {agentControlledComponentData.agentError.split("\n").map((line, index) => {
           return <Text key={"error-line-" + index}>{line}</Text>
         })}
       </div> : null}
 
+      {agentControlledComponentData.scriptExecutionError != null ? <div
+        style={{
+          backgroundColor: "rgba(255, 0, 0, 0.2)",
+          display: "flex",
+          flexDirection: "row"
+        }}
+      >
+        <Text><b>Agent Script Error:</b></Text>
+        {agentControlledComponentData.scriptExecutionError.split("\n").map((line, index) => {
+          return <Text key={"error-line-" + index}>{line}</Text>
+        })}
+      </div> : null}
+
+      {agentControlledComponentData.executingScriptId != null ? <Fragment>
+        <Text><b>Agent Script: ({agentControlledComponentData.executingScriptId})</b></Text>
+        <Text>
+          <pre>{agentControlledComponentData.executingScript ?? ""}</pre>
+        </Text>
+      </Fragment> : null}
+
+      {agentControlledComponentData.currentActionTimeline != null ? <Fragment>
+        <Text><b>Running Action:</b></Text>
+        <Text>
+          <pre>{agentControlledComponentData.currentActionTimeline}</pre>
+        </Text>
+      </Fragment> : null}
+
       <Text><b>Debug Info:</b></Text>
 
       <ReactMarkdown>
-        {agentComponentData.agentRemoteDebugInfo}
+        {agentControlledComponentData.agentRemoteDebugInfo}
       </ReactMarkdown>
 
 

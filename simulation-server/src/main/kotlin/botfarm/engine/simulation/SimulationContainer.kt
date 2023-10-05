@@ -4,7 +4,6 @@ import botfarm.engine.ktorplugins.AdminRequest
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.buildShortRandomIdentifier
-import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.serialization.Serializable
@@ -21,7 +20,8 @@ class TickSystemContext(
 class CoroutineSystemContext(
    val entity: Entity,
    val simulation: Simulation,
-   val simulationContainer: SimulationContainer
+   val simulationContainer: SimulationContainer,
+   val delayImplementation: suspend (milliseconds: Int) -> Unit
 ) {
    var coroutineShouldStop = false
       private set
@@ -42,6 +42,10 @@ class CoroutineSystemContext(
       synchronized(this.simulation) {
          logic()
       }
+   }
+
+   suspend fun delay(milliseconds: Int) {
+      this.delayImplementation(milliseconds)
    }
 }
 

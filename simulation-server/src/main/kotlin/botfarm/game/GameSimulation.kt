@@ -6,7 +6,7 @@ import botfarm.common.aStarPathfinding
 import botfarm.common.resolvePosition
 import botfarm.engine.ktorplugins.AdminRequest
 import botfarm.engine.simulation.*
-import botfarm.game.agentintegration.AgentServerIntegration
+import botfarm.game.agentintegration.AgentService
 import botfarm.game.components.*
 import botfarm.game.config.CharacterBodySelectionsConfig
 import botfarm.game.config.EquipmentSlot
@@ -17,6 +17,7 @@ import botfarm.game.setup.SpawnPlayersMode
 import botfarm.game.setup.gameSystems
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.AgentId
+import botfarmshared.game.apidata.AutoInteractType
 import botfarmshared.game.apidata.CraftingRecipeInfo
 import botfarmshared.misc.*
 import kotlinx.serialization.Serializable
@@ -77,7 +78,7 @@ class AddCharacterMessageRequest(
 class GameSimulation(
    context: SimulationContext,
    data: SimulationData,
-   val agentServerIntegration: AgentServerIntegration,
+   val agentService: AgentService,
    val gameScenario: GameScenario
 ) : Simulation(
    context = context,
@@ -161,7 +162,7 @@ class GameSimulation(
             it.copy(
                recentSpokenMessages = it.recentSpokenMessages.filter { spokenMessage ->
                   val age = currentTime - spokenMessage.sentSimulationTime
-                  age < 30.0 // todo
+                  age < 30.0
                } + SpokenMessage(
                   sentSimulationTime = currentTime,
                   message = message
@@ -191,6 +192,7 @@ class GameSimulation(
       }
 
       val characterComponent = entity.getComponent<CharacterComponentData>()
+      this.pendingAutoInteractCallbackByEntityId.clear()
       characterComponent.modifyData {
          it.copy(
             pendingInteractionTargetEntityId = null,
@@ -474,6 +476,8 @@ class GameSimulation(
 
       val characterComponent = entity.getComponent<CharacterComponentData>()
 
+      this.pendingAutoInteractCallbackByEntityId.remove(entity.entityId)
+
       if (result !is MoveToResult.Success) {
          characterComponent.modifyData {
             it.copy(
@@ -481,7 +485,6 @@ class GameSimulation(
                pendingUseEquippedToolItemRequest = null
             )
          }
-         sendAlertMessage(client, "Move to point failed: " + result::class.simpleName)
       } else {
          characterComponent.modifyData {
             it.copy(
@@ -1043,6 +1046,7 @@ class GameSimulation(
       class Success(val movementId: String) : MoveToResult()
       data object PathNotFound : MoveToResult()
       data object NoPositionComponent : MoveToResult()
+      data object Busy : MoveToResult()
    }
 
 
@@ -1052,6 +1056,10 @@ class GameSimulation(
       retryCount: Int = 0,
       maxRetryCount: Int = 5
    ): MoveToResult {
+      if (!entity.isAvailableToPerformAction) {
+         return MoveToResult.Busy
+      }
+
       val clampedEndPoint = this.clampPoint(endPoint)
 
       val positionComponent = entity.getComponentOrNull<PositionComponentData>()
@@ -1279,7 +1287,7 @@ class GameSimulation(
       )
    }
 
-   fun spawnAgent(
+   fun spawnAgentControlledCharacter(
       corePersonality: String = "Friendly",
       initialMemories: List<String> = listOf(),
       agentType: String,
@@ -1294,7 +1302,7 @@ class GameSimulation(
          bodySelections = bodySelections,
          location = location,
          additionalComponents = listOf(
-            AgentComponentData(
+            AgentControlledComponentData(
                agentId = AgentId(buildShortRandomIdentifier()),
                corePersonality = corePersonality,
                initialMemories = initialMemories,
@@ -1619,12 +1627,12 @@ class GameSimulation(
          "spawn-agent" -> {
             requireAdmin()
 
-            val agentType = components.getOrNull(1) ?: AgentComponentData.defaultAgentType
+            val agentType = components.getOrNull(1) ?: AgentControlledComponentData.defaultAgentType
             val name = components.getOrNull(2)
 
             val spawnLocation = playerPosition + Vector2.randomSignedXY(150.0)
 
-            this.spawnAgent(
+            this.spawnAgentControlledCharacter(
                name = name ?: "Agent",
                corePersonality = "Friendly. Enjoys conversation. Enjoys walking around randomly.",
                initialMemories = listOf(
@@ -1787,5 +1795,31 @@ class GameSimulation(
          }
       }
    }
-}
 
+   val pendingAutoInteractCallbackByEntityId = mutableMapOf<EntityId, (AutoInteractType) -> Unit>()
+
+   fun autoInteractWithEntity(
+      entity: Entity,
+      targetEntity: Entity,
+      callback: (AutoInteractType) -> Unit
+   ) {
+      val movementResult = this.startEntityMovement(
+         entity = entity,
+         endPoint = targetEntity.resolvePosition()
+      )
+
+      if (movementResult !is MoveToResult.Success) {
+         callback(AutoInteractType.FailedToMove)
+      } else {
+         val characterComponent = entity.getComponent<CharacterComponentData>()
+
+         this.pendingAutoInteractCallbackByEntityId[entity.entityId] = callback
+
+         characterComponent.modifyData {
+            it.copy(
+               pendingInteractionTargetEntityId = targetEntity.entityId
+            )
+         }
+      }
+   }
+}

@@ -1,6 +1,7 @@
 package botfarmagent.game
 
 import botfarmagent.misc.LanguageModelService
+import botfarmshared.game.apidata.ActionResult
 import botfarmshared.game.apidata.AgentId
 import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.AgentSyncOutput
@@ -16,6 +17,7 @@ class AgentContext(
 abstract class Agent(
    val context: AgentContext
 ) {
+   var mostRecentSentScriptId: String? = null
    val agentContainer = this.context.agentContainer
    val initialSyncInput = this.context.initialSyncInput
    var mostRecentSyncInput = this.context.initialSyncInput
@@ -25,6 +27,8 @@ abstract class Agent(
 
    private val pendingInputs = mutableListOf<AgentSyncInput>()
    private val pendingOutputs = mutableListOf<AgentSyncOutput>()
+   val receivedActionStartedIds = mutableSetOf<String>()
+   val receivedActionResultById = mutableMapOf<String, ActionResult>()
 
    fun addPendingInput(input: AgentSyncInput) {
       synchronized(this) {
@@ -48,10 +52,22 @@ abstract class Agent(
       }
    }
 
-   fun notifyWillConsumeInput(
+   fun commonConsumeInput(
       input: AgentSyncInput
    ) {
       this.mostRecentSyncInput = input
+
+      val newObservations = input.newObservations
+
+      newObservations.startedActionUniqueIds.forEach {
+         println("Got action started: $it")
+         this.receivedActionStartedIds.add(it)
+      }
+
+      newObservations.actionResults.forEach {
+         println("Got action completed result: ${it.actionUniqueId}")
+         this.receivedActionResultById[it.actionUniqueId] = it
+      }
    }
 
    abstract fun consumeInput(
