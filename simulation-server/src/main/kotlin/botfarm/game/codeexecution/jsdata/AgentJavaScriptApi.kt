@@ -2,7 +2,7 @@ package botfarm.game.codeexecution.jsdata
 
 import botfarm.common.PositionComponentData
 import botfarm.common.resolvePosition
-import botfarm.game.agentintegration.AgentSyncState
+import botfarm.game.agentintegration.AgentIntegration
 import botfarm.game.agentintegration.buildEntityInfoForAgent
 import botfarm.game.codeexecution.UnwindScriptThreadThrowable
 import botfarm.game.components.AgentControlledComponentData
@@ -17,10 +17,10 @@ import kotlinx.serialization.json.Json
 import org.graalvm.polyglot.HostAccess
 
 class AgentJavaScriptApi(
-   val agentSyncState: AgentSyncState
+   val agentIntegration: AgentIntegration
 ) {
-   val simulation = this.agentSyncState.simulation
-   val entity = this.agentSyncState.entity
+   val simulation = this.agentIntegration.simulation
+   val entity = this.agentIntegration.entity
    val inventoryComponent = this.entity.getComponent<InventoryComponentData>()
    val characterComponent = this.entity.getComponent<CharacterComponentData>()
    val agentControlledComponent = this.entity.getComponent<AgentControlledComponentData>()
@@ -36,7 +36,7 @@ class AgentJavaScriptApi(
    @HostAccess.Export
    fun speak(message: String) {
       this.endIfRequested()
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             speak = message
          )
@@ -90,7 +90,7 @@ class AgentJavaScriptApi(
    fun getAllCraftingRecipes(): JsArray<JsCraftingRecipe> {
       this.endIfRequested()
 
-      val craftingRecipeInfos = this.agentSyncState.simulation.getCraftingRecipeInfos(
+      val craftingRecipeInfos = this.agentIntegration.simulation.getCraftingRecipeInfos(
          crafterEntity = this.entity
       )
 
@@ -164,7 +164,9 @@ class AgentJavaScriptApi(
       this.endIfRequested()
    }
 
-   fun performActionAndWaitForResult(action: Action): ActionResult {
+   private fun addPendingActionAndWaitForResult(action: Action): ActionResult {
+      val simulation = this.simulation
+
       this.endIfRequested()
 
       val actionUniqueId = action.actionUniqueId
@@ -178,7 +180,7 @@ class AgentJavaScriptApi(
       println("AgentJavaScriptApi: Added action: ($actionUniqueId)\n${actionJsonString}")
 
       synchronized(simulation) {
-         this.agentSyncState.pendingActions.add(action)
+         this.agentIntegration.addPendingAction(action)
       }
 
       run {
@@ -187,13 +189,13 @@ class AgentJavaScriptApi(
             ++waitingCounter
             this.sleep(200)
 
-            synchronized(this.simulation) {
-               val actionHasStarted = this.agentSyncState.startedActionUniqueIds.contains(actionUniqueId)
+            synchronized(simulation) {
+               val actionHasStarted = this.agentIntegration.hasStartedAction(actionUniqueId)
 
                if (!actionHasStarted) {
                   println("AgentJavaScriptApi: Action has not yet started, waiting... $actionUniqueId ($waitingCounter)")
                } else {
-                  val actionResult = this.agentSyncState.actionResultsByActionUniqueId[actionUniqueId]
+                  val actionResult = this.agentIntegration.getActionResult(actionUniqueId)
 
                   if (actionResult != null) {
                      println("AgentJavaScriptApi: Got action result $actionUniqueId ($waitingCounter)")
@@ -217,7 +219,7 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun pickUpItem(entityId: String, reason: String?) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             reason = reason,
             pickUpEntity = ActionOnEntity(
@@ -238,7 +240,7 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun interactWithEntity(entityId: String, reason: String?) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             reason = reason,
             useEquippedToolItemOnEntity = ActionOnEntity(
@@ -260,7 +262,7 @@ class AgentJavaScriptApi(
       itemConfigKey: String,
       reason: String?
    ) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             reason = reason,
             craftItem = CraftItemAction(
@@ -288,7 +290,7 @@ class AgentJavaScriptApi(
       stackIndex: Int?,
       reason: String?
    ) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             reason = reason,
             equipInventoryItem = ActionOnInventoryItem(
@@ -310,7 +312,7 @@ class AgentJavaScriptApi(
    fun useEquippedToolItem(
       reason: String?
    ) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             useEquippedToolItem = UseEquippedToolItem(
                reason = reason
@@ -340,7 +342,7 @@ class AgentJavaScriptApi(
       amount: Int?,
       reason: String?
    ) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             reason = reason,
             dropInventoryItem = ActionOnInventoryItem(
@@ -356,7 +358,7 @@ class AgentJavaScriptApi(
    fun recordThought(
       thought: String
    ) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
          recordThought = thought
       )
@@ -375,7 +377,7 @@ class AgentJavaScriptApi(
       destination: JsVector2,
       reason: String?
    ) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             reason = reason,
             walk = WalkAction(
@@ -389,7 +391,7 @@ class AgentJavaScriptApi(
    fun setFacialExpressionEmoji(
       emoji: String
    ) {
-      this.performActionAndWaitForResult(
+      this.addPendingActionAndWaitForResult(
          Action(
             facialExpressionEmoji = emoji
          )

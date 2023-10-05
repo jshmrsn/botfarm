@@ -8,7 +8,7 @@ import botfarmshared.game.apidata.*
 import kotlinx.serialization.Serializable
 
 @Serializable
-class MutableObservations {
+class PendingObservations {
    val spokenMessages: MutableList<ObservedSpokenMessage> = mutableListOf()
    val selfSpokenMessages: MutableList<SelfSpokenMessage> = mutableListOf()
    val selfThoughts: MutableList<SelfThought> = mutableListOf()
@@ -18,10 +18,8 @@ class MutableObservations {
    val actionOnInventoryItemActionRecords: MutableList<ActionOnInventoryItemRecord> = mutableListOf()
    val craftItemActionRecords: MutableList<CraftItemActionRecord> = mutableListOf()
    val activityStreamEntries: MutableList<ActivityStreamEntryRecord> = mutableListOf()
-
    val actionResults: MutableList<ActionResult> = mutableListOf()
    val startedActionUniqueIds: MutableList<String> = mutableListOf()
-
    val scriptExecutionErrors: MutableList<ScriptExecutionError> = mutableListOf()
 
    fun toObservations(api: AgentJavaScriptApi): Observations = Observations(
