@@ -1,6 +1,8 @@
 package botfarm.game.agentintegration
 
 import botfarm.common.PositionComponentData
+import botfarm.common.isMoving
+import botfarm.common.resolvePosition
 import botfarm.engine.simulation.AlertMode
 import botfarm.game.components.AgentComponentData
 import botfarm.game.components.CharacterComponentData
@@ -11,28 +13,12 @@ import botfarm.engine.simulation.EntityComponent
 
 fun handleAgentSyncOutput(
    agentSyncOutput: AgentSyncOutput,
-   positionComponent: EntityComponent<PositionComponentData>,
-   simulationTime: Double,
    agentComponent: EntityComponent<AgentComponentData>,
    simulation: GameSimulation,
-   characterComponent: EntityComponent<CharacterComponentData>,
    state: AgentSyncState,
-   entity: Entity,
-   syncId: String
+   entity: Entity
 ) {
-   val agentType = agentComponent.data.agentType
-   val debugInfo = "$agentType, syncId = $syncId"
-
-   val agentActionUtils = AgentActionUtils(
-      entity = entity,
-      state = state,
-      simulation = simulation,
-      debugInfo = debugInfo
-   )
-
    val actions = agentSyncOutput.actions
-
-   val currentLocation = positionComponent.data.positionAnimation.resolve(simulationTime)
 
    agentComponent.modifyData {
       it.copy(
@@ -60,21 +46,18 @@ fun handleAgentSyncOutput(
       return
    }
 
+
    if (actions != null) {
-      actions.forEach { action ->
-         handleAgentAction(
-            action = action,
-            state = state,
-            characterComponent = characterComponent,
-            agentActionUtils = agentActionUtils,
-            simulationTimeForStep = simulationTime,
-            currentLocation = currentLocation,
-            simulation = simulation,
+      if (entity.isMoving) {
+         simulation.startEntityMovement(
             entity = entity,
-            positionComponent = positionComponent,
-            debugInfo = debugInfo
+            endPoint = entity.resolvePosition()
          )
       }
+
+      state.activeAction = null
+      state.pendingActions.clear()
+      state.pendingActions.addAll(agentSyncOutput.actions)
    }
 }
 

@@ -293,7 +293,9 @@ class StartContext(
    val simulationContainer: SimulationContainer
 )
 
-class SimulationContainer {
+class SimulationContainer(
+   val scenarioRegistration: ScenarioRegistration
+) {
    val threadPool = Executors.newCachedThreadPool()
    val coroutineDispatcher: ExecutorCoroutineDispatcher = this.threadPool.asCoroutineDispatcher()
 
@@ -359,7 +361,7 @@ class SimulationContainer {
             terminatedSimulations = this.terminatedSimulations
                .filter { it.context.createdByUserSecret == userSecret || isAdmin }
                .map { it.buildInfo(checkBelongsToUserSecret = userSecret) },
-            scenarios = ScenarioRegistration.registeredScenarios
+            scenarios = this.scenarioRegistration.registeredScenarios
                .filter { !it.requiresAdmin || isAdmin }
                .map {
                   it.buildInfo()

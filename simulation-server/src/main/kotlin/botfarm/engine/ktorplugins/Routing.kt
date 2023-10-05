@@ -26,8 +26,7 @@ import io.ktor.server.routing.post as routingPost
 
 
 fun Application.configureRouting(
-   simulationContainer: SimulationContainer,
-   agentServerIntegration: AgentServerIntegration
+   simulationContainer: SimulationContainer
 ) {
    install(StatusPages) {
       exception<Throwable> { call, cause ->
@@ -95,7 +94,7 @@ fun Application.configureRouting(
          val request = call.receive<CreateSimulationRequest>()
          val isAdmin = AdminRequest.shouldGiveRequestAdminCapabilities(request.adminRequest)
 
-         val scenario = ScenarioRegistration.registeredScenarios.find {
+         val scenario = simulationContainer.scenarioRegistration.registeredScenarios.find {
             it.identifier == request.scenarioIdentifier &&
             it.gameIdentifier == request.scenarioGameIdentifier
          }
@@ -109,8 +108,7 @@ fun Application.configureRouting(
                wasCreatedByAdmin = isAdmin,
                simulationContainer = simulationContainer,
                createdByUserSecret = request.userSecret,
-               scenario = scenario,
-               agentServerIntegration = agentServerIntegration
+               scenario = scenario
             )
 
             val simulation = scenario.createSimulation(

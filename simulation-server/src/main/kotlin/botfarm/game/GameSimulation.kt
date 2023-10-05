@@ -6,11 +6,14 @@ import botfarm.common.aStarPathfinding
 import botfarm.common.resolvePosition
 import botfarm.engine.ktorplugins.AdminRequest
 import botfarm.engine.simulation.*
+import botfarm.game.agentintegration.AgentServerIntegration
 import botfarm.game.components.*
 import botfarm.game.config.CharacterBodySelectionsConfig
 import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
 import botfarm.game.config.RandomItemQuantity
+import botfarm.game.setup.GameScenario
+import botfarm.game.setup.SpawnPlayersMode
 import botfarm.game.setup.gameSystems
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.AgentId
@@ -72,7 +75,9 @@ class AddCharacterMessageRequest(
 
 class GameSimulation(
    context: SimulationContext,
-   data: SimulationData
+   data: SimulationData,
+   val agentServerIntegration: AgentServerIntegration,
+   val gameScenario: GameScenario
 ) : Simulation(
    context = context,
    systems = gameSystems,
@@ -81,8 +86,6 @@ class GameSimulation(
    companion object {
       val activityStreamEntityId = EntityId("activity-stream")
    }
-
-   val agentServerIntegration = context.agentServerIntegration
 
    private val collisionMap: List<List<Boolean>>
    val collisionMapRowCount: Int
@@ -1276,8 +1279,8 @@ class GameSimulation(
    }
 
    fun spawnAgent(
-      corePersonality: String,
-      initialMemories: List<String>,
+      corePersonality: String = "Friendly",
+      initialMemories: List<String> = listOf(),
       agentType: String,
       name: String = "Agent",
       age: Int = 25,
@@ -1741,7 +1744,7 @@ class GameSimulation(
    override fun handleNewClient(client: Client) {
       val isCreator = this.context.createdByUserSecret == client.userSecret
 
-      val shouldSpawnPlayerEntity = when (this.scenario.spawnPlayersEntityMode) {
+      val shouldSpawnPlayerEntity = when (this.gameScenario.spawnPlayersEntityMode) {
          SpawnPlayersMode.All -> true
          SpawnPlayersMode.NonCreator -> !isCreator
          SpawnPlayersMode.None -> false

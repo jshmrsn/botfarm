@@ -1,7 +1,8 @@
-package botfarm
+package botfarmtest.game
 
 import botfarm.common.isMoving
 import botfarm.common.resolvePosition
+import botfarm.createTestAgentServerIntegration
 import botfarm.engine.simulation.*
 import botfarm.game.GameSimulation
 import botfarm.game.components.*
@@ -42,7 +43,6 @@ class SimulationTest {
          simulationContainer = simulationContainer,
          createdByUserSecret = UserSecret("test"),
          scenario = scenario,
-         agentServerIntegration = agentServerIntegration,
          noClientsConnectedTerminationTimeoutSeconds = null
       )
 
@@ -90,7 +90,8 @@ class SimulationTest {
 
       val simulation = GameSimulation(
          context = simulationContext,
-         data = simulationData
+         data = simulationData,
+         agentServerIntegration = agentServerIntegration
       )
 
       simulationContainer.addSimulation(simulation)

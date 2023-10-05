@@ -3,11 +3,11 @@ package botfarm.game.systems
 import botfarm.engine.simulation.CoroutineSystemContext
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
-import botfarm.game.agentintegration.AgentSyncState
-import botfarm.game.agentintegration.recordObservationsForAgent
-import botfarm.game.agentintegration.syncAgent
+import botfarm.game.agentintegration.*
 import botfarm.game.components.AgentComponentData
+import botfarmshared.game.apidata.AgentSyncResponse
 import botfarmshared.misc.buildShortRandomIdentifier
+import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.delay
 import java.net.ConnectException
 
@@ -18,7 +18,15 @@ suspend fun syncAgentCoroutineSystem(
    val entity = agentComponent.entity
    val agentId = agentComponent.data.agentId
    val simulation = context.simulation as GameSimulation
-   val state = AgentSyncState(simulation)
+   val agentType = agentComponent.data.agentType
+
+   val state = AgentSyncState(
+      simulation = simulation,
+      agentType = agentType,
+      entity = entity
+   )
+
+   var lastAgentSyncUnixTime = 0.0
 
    while (true) {
       context.unwindIfNeeded()
@@ -33,17 +41,28 @@ suspend fun syncAgentCoroutineSystem(
             state = state
          )
 
-         syncAgent(
-            context = context,
-            simulation = simulation,
+         val timeSinceAgentSync = getCurrentUnixTimeSeconds() - lastAgentSyncUnixTime
+         val agentSyncInterval = 1.0
+         if (timeSinceAgentSync > agentSyncInterval) {
+            lastAgentSyncUnixTime = getCurrentUnixTimeSeconds()
+
+            syncAgent(
+               context = context,
+               simulation = simulation,
+               entity = entity,
+               agentComponent = agentComponent,
+               state = state,
+               agentId = agentId,
+               syncId = syncId
+            )
+         }
+
+         updateAgentActions(
             entity = entity,
-            agentComponent = agentComponent,
-            state = state,
-            agentId = agentId,
-            syncId = syncId
+            state = state
          )
 
-         delay(1000)
+         delay(100)
       } catch (connectException: ConnectException) {
          context.synchronizeSimulation {
             agentComponent.modifyData {

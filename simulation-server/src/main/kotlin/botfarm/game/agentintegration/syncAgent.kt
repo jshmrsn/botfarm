@@ -1,14 +1,10 @@
 package botfarm.game.agentintegration
 
-import botfarm.common.PositionComponentData
 import botfarm.engine.simulation.CoroutineSystemContext
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
-import botfarm.game.components.AgentComponentData
-import botfarm.game.components.CharacterComponentData
-import botfarm.game.components.InventoryComponentData
-import botfarm.game.components.getEquippedItemConfigAndStackIndex
+import botfarm.game.components.*
 import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
 import botfarmshared.game.GameConstants
@@ -26,9 +22,6 @@ suspend fun syncAgent(
    syncId: String
 ) {
    val agentServerIntegration = simulation.agentServerIntegration
-
-   val characterComponent = entity.getComponentOrNull<CharacterComponentData>() ?: return
-   val positionComponent = entity.getComponentOrNull<PositionComponentData>() ?: return
 
    val simulationTime = simulation.getCurrentSimulationTime()
 
@@ -143,14 +136,10 @@ suspend fun syncAgent(
          try {
             handleAgentSyncOutput(
                agentSyncOutput = agentSyncOutput,
-               positionComponent = positionComponent,
-               simulationTime = simulationTime,
                agentComponent = agentComponent,
                simulation = simulation,
-               characterComponent = characterComponent,
                state = state,
-               entity = entity,
-               syncId = syncId
+               entity = entity
             )
          } catch (exception: Exception) {
             val errorId = buildShortRandomIdentifier()
@@ -167,3 +156,4 @@ suspend fun syncAgent(
       }
    }
 }
+

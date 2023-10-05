@@ -1,8 +1,8 @@
 package botfarm.game.setup.scenarios
 
-import botfarm.engine.simulation.SpawnPlayersMode
 import botfarm.game.GameSimulation
 import botfarm.game.setup.GameScenario
+import botfarm.game.setup.SpawnPlayersMode
 import botfarmshared.misc.Vector2
 
 class DefaultGameScenario : GameScenario(
@@ -34,7 +34,7 @@ class DefaultGameScenario : GameScenario(
 class SpectateAgentsGameScenario : GameScenario(
    identifier = "spectate-agents",
    name = "Spectate Two Agents (Code Execution Agent)",
-   spawnPlayersMode = SpawnPlayersMode.None
+   spawnPlayersEntityMode = SpawnPlayersMode.None
 ) {
    override fun configureGameSimulation(simulation: GameSimulation) {
       spawnCommonEnvironmentEntities(simulation)

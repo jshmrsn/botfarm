@@ -10,18 +10,12 @@ class ScenarioInfo(
    val description: String? = null
 )
 
-enum class SpawnPlayersMode {
-   None,
-   NonCreator,
-   All
-}
 
 abstract class Scenario(
    val identifier: String,
    val gameIdentifier: String,
    val name: String? = null,
    val description: String? = null,
-   val spawnPlayersEntityMode: SpawnPlayersMode = SpawnPlayersMode.All,
    val requiresAdmin: Boolean = true
 ) {
    fun buildInfo(): ScenarioInfo = ScenarioInfo(
@@ -36,7 +30,7 @@ abstract class Scenario(
    ): Simulation
 }
 
-object ScenarioRegistration {
+class ScenarioRegistration {
    private val mutableRegisteredScenarios = mutableListOf<Scenario>()
    val registeredScenarios: List<Scenario> = mutableRegisteredScenarios
 

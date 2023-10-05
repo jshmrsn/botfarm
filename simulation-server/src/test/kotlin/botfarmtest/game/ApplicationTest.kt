@@ -1,11 +1,14 @@
-package botfarm
+package botfarmtest.game
 
 import botfarm.engine.ktorplugins.*
 import botfarm.engine.simulation.SimulationContainer
 import botfarm.engine.simulation.UserSecret
 import botfarm.game.agentintegration.AgentServerIntegration
+import botfarm.game.agentintegration.MockAgent
 import botfarm.game.setup.registerGameScenarios
 import botfarmshared.engine.apidata.SimulationId
+import botfarmshared.game.apidata.AgentSyncRequest
+import botfarmshared.game.apidata.AgentSyncResponse
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -71,11 +74,17 @@ suspend fun ApplicationTestBuilder.sendGetSimulationInfoRequest(
    return getSimulationInfoResponse
 }
 
-// jshmrsn TODO: Eventually, create a HTTP server in this process which provides a mock agent server
-fun createTestAgentServerIntegration(): AgentServerIntegration {
+fun createTestAgentServerIntegration(
+   handleSyncRequest: (AgentSyncRequest) -> AgentSyncResponse = {
+      AgentSyncResponse(
+         outputs = listOf()
+      )
+   }
+): AgentServerIntegration {
    val testAgentServerPort = 0
    return AgentServerIntegration(
-      agentServerEndpoint = "http://localhost:$testAgentServerPort"
+      agentServerEndpoint = "http://localhost:$testAgentServerPort",
+      buildMockAgent = MockAgent(handleSyncRequest = handleSyncRequest)
    )
 }
 
@@ -84,14 +93,11 @@ class ApplicationTest {
    fun testRoot() = testApplication {
       val simulationContainer = SimulationContainer()
 
-      val agentServerIntegration = createTestAgentServerIntegration()
-
       application {
          registerGameScenarios()
          configureSerialization()
          configureRouting(
-            simulationContainer = simulationContainer,
-            agentServerIntegration = agentServerIntegration
+            simulationContainer = simulationContainer
          )
       }
 

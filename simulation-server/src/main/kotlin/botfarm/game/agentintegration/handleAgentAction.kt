@@ -1,9 +1,11 @@
 package botfarm.game.agentintegration
 
 import botfarm.common.PositionComponentData
+import botfarm.common.resolvePosition
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
+import botfarm.game.components.AgentComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.InventoryComponentData
 import botfarmshared.engine.apidata.EntityId
@@ -15,16 +17,18 @@ import kotlinx.serialization.json.Json
 fun handleAgentAction(
    action: Action,
    state: AgentSyncState,
-   characterComponent: EntityComponent<CharacterComponentData>,
-   agentActionUtils: AgentActionUtils,
-   simulationTimeForStep: Double,
-   currentLocation: Vector2,
-   simulation: GameSimulation,
    entity: Entity,
-   positionComponent: EntityComponent<PositionComponentData>,
-   debugInfo: String
+   onResult: (ActionResult) -> Unit
 ) {
+   val simulation = state.simulation
+   val positionComponent = entity.getComponent<PositionComponentData>()
+   val characterComponent = entity.getComponent<CharacterComponentData>()
+   val currentLocation = entity.resolvePosition()
+   val simulationTimeForStep = simulation.getCurrentSimulationTime()
+
    val actionUniqueId = action.actionUniqueId
+   val debugInfo = "${state.agentType}, actionUniqueId = ${actionUniqueId}"
+
    val prettyPrint = Json { prettyPrint = true }
 
    println("Action started: $actionUniqueId\n${prettyPrint.encodeToString(action)}")
@@ -33,11 +37,13 @@ fun handleAgentAction(
 
    fun addActionResult() {
       println("Action completed result: $actionUniqueId")
-      state.mutableObservations.actionResults.add(
-         ActionResult(
-            actionUniqueId = actionUniqueId
-         )
+      val actionResult = ActionResult(
+         actionUniqueId = actionUniqueId
       )
+
+      state.mutableObservations.actionResults.add(actionResult)
+
+      onResult(actionResult)
    }
 
    val facialExpressionEmoji = action.facialExpressionEmoji
@@ -60,7 +66,7 @@ fun handleAgentAction(
    }
 
    if (speak != null) {
-      agentActionUtils.speak(speak)
+      state.speak(speak)
       addActionResult()
    }
 
@@ -85,7 +91,7 @@ fun handleAgentAction(
       println("movementResult: " + movementResult)
 
       if (movementResult is GameSimulation.MoveToResult.Success) {
-         agentActionUtils.waitForMovement(
+         state.waitForMovement(
             positionComponent = positionComponent,
             movementResult = movementResult
          ) {
@@ -244,10 +250,10 @@ fun handleAgentAction(
          }
          addActionResult()
       } else {
-         val movementResult = agentActionUtils.autoInteractWithEntity(targetEntity)
+         val movementResult = state.autoInteractWithEntity(targetEntity)
 
          if (movementResult is GameSimulation.MoveToResult.Success) {
-            agentActionUtils.waitForMovement(
+            state.waitForMovement(
                positionComponent = positionComponent,
                movementResult = movementResult
             ) {

@@ -103,8 +103,7 @@ class SimulationContext(
    val wasCreatedByAdmin: Boolean,
    val simulationContainer: SimulationContainer,
    val createdByUserSecret: UserSecret,
-   val scenario: Scenario,
-   val agentServerIntegration: AgentServerIntegration
+   val scenario: Scenario
 )
 
 open class Simulation(

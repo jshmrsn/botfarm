@@ -1,4 +1,4 @@
-package botfarm
+package botfarmtest.common
 
 import botfarm.common.IndexPair
 import botfarm.common.aStarPathfinding

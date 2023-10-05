@@ -1,29 +1,31 @@
 package botfarm.game.setup
 
-import botfarm.common.SpriteConfig
 import botfarm.engine.simulation.*
-import botfarm.game.*
+import botfarm.game.GameSimulation
 import botfarm.game.agentintegration.AgentServerIntegration
-import botfarm.game.components.CompositeAnimationSelection
-import botfarm.game.config.*
-import botfarmshared.game.apidata.ItemCollection
-import botfarmshared.game.apidata.ItemCollectionEntry
-import botfarmshared.misc.RandomConfig
-import botfarmshared.misc.Vector2
+import botfarm.game.agentintegration.MockAgent
+import botfarm.game.agentintegration.MockAgentContext
 import botfarmshared.misc.getCurrentUnixTimeSeconds
+
+enum class SpawnPlayersMode {
+   None,
+   NonCreator,
+   All
+}
 
 open class GameScenario(
    identifier: String,
    name: String? = null,
    description: String? = null,
-   spawnPlayersMode: SpawnPlayersMode = SpawnPlayersMode.All,
-   requiresAdmin: Boolean = true
+   val spawnPlayersEntityMode: SpawnPlayersMode = SpawnPlayersMode.All,
+   requiresAdmin: Boolean = true,
+   val buildMockAgent: ((context: MockAgentContext) -> MockAgent)? = null,
+   val configureGameSimulationCallback: (GameSimulation) -> Unit = {}
 ) : Scenario(
    identifier = identifier,
    gameIdentifier = "game",
    name = name,
    description = description,
-   spawnPlayersEntityMode = spawnPlayersMode,
    requiresAdmin = requiresAdmin
 ) {
    override fun createSimulation(
@@ -42,12 +44,20 @@ open class GameScenario(
          configs = configs
       )
 
+      val agentServerIntegration = AgentServerIntegration(
+         agentServerEndpoint = System.getenv()["BOTFARM_AGENT_SERVER_ENDPOINT"] ?: "http://localhost:5002",
+         buildMockAgent = this.buildMockAgent
+      )
+
       val simulation = GameSimulation(
          context = context,
-         data = simulationData
+         data = simulationData,
+         agentServerIntegration = agentServerIntegration,
+         gameScenario = this
       )
 
       synchronized(simulation) {
+         this.configureGameSimulationCallback(simulation)
          this.configureGameSimulation(simulation)
       }
 
