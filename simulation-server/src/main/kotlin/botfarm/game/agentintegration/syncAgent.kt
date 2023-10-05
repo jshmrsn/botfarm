@@ -4,6 +4,11 @@ import botfarm.engine.simulation.CoroutineSystemContext
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
+import botfarm.game.codeexecution.JavaScriptCodeSerialization
+import botfarm.game.codeexecution.jsdata.JsCraftingRecipe
+import botfarm.game.codeexecution.jsdata.JsInventoryItemStackInfo
+import botfarm.game.codeexecution.jsdata.buildInfo
+import botfarm.game.codeexecution.jsdata.buildWrapper
 import botfarm.game.components.*
 import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
@@ -27,7 +32,9 @@ suspend fun syncAgent(
 
    context.unwindIfNeeded()
 
-   val newObservationsForInput = state.mutableObservations.toObservations()
+   val agentJavaScriptApi = state.agentJavaScriptApi
+
+   val newObservationsForInput = state.mutableObservations.toObservations(api = agentJavaScriptApi)
    state.mutableObservations = MutableObservations()
 
    val agentSyncInput: AgentSyncInput
@@ -46,7 +53,9 @@ suspend fun syncAgent(
          return
       }
 
-      val craftingRecipes = simulation.getCraftingRecipes()
+      val craftingRecipeInfos = simulation.getCraftingRecipeInfos(
+         crafterEntity = entity
+      )
 
       val selfEntityInfo = buildEntityInfoForAgent(
          entity = entity,
@@ -56,12 +65,23 @@ suspend fun syncAgent(
       val inventoryComponentData = entity.getComponent<InventoryComponentData>().data
 
       val inventoryInfo = InventoryInfo(
-         itemStacks = inventoryComponentData.inventory.itemStacks.map { itemStack ->
+         itemStacks = inventoryComponentData.inventory.itemStacks.mapIndexed { stackIndex, itemStack ->
             val itemConfig = simulation.getConfig<ItemConfig>(itemStack.itemConfigKey)
 
-            ItemStackInfo.build(
-               itemConfig = itemConfig,
-               itemStack = itemStack
+            val itemStackInfo = itemStack.buildInfo(
+               itemConfig = itemConfig
+            )
+
+            val itemStackVariableName = "inventory_item_${stackIndex}"
+
+            ItemStackInfoWrapper(
+               itemStackInfo = itemStackInfo,
+               serializedAsJavaScript = JavaScriptCodeSerialization.serialize(JsInventoryItemStackInfo(
+                  api = agentJavaScriptApi,
+                  itemStackInfo = itemStackInfo,
+                  stackIndex = stackIndex
+               )),
+               javaScriptVariableName = itemStackVariableName
             )
          }
       )
@@ -69,13 +89,29 @@ suspend fun syncAgent(
       val equippedToolItemConfigAndStackIndex = entity.getEquippedItemConfigAndStackIndex(EquipmentSlot.Tool)
 
       val selfInfo = SelfInfo(
-         entityInfo = selfEntityInfo,
+         entityInfoWrapper = selfEntityInfo.buildWrapper(
+            javaScriptVariableName = "self",
+            api = agentJavaScriptApi
+         ),
          corePersonality = agentComponent.data.corePersonality,
          initialMemories = agentComponent.data.initialMemories,
          inventoryInfo = inventoryInfo,
          observationDistance = agentComponent.data.observationDistance,
          equippedItemConfigKey = equippedToolItemConfigAndStackIndex?.second?.key
       )
+
+      val craftingRecipeInfoWrappers = craftingRecipeInfos.mapIndexed { recipeIndex, craftingRecipeInfo ->
+         val variableName = "crafting_recipe_${craftingRecipeInfo.itemConfigKey.replace("-", "_")}"
+
+         CraftingRecipeInfoWrapper(
+            craftingRecipeInfo = craftingRecipeInfo,
+            javaScriptVariableName = variableName,
+            serializedAsJavaScript = JavaScriptCodeSerialization.serialize(JsCraftingRecipe(
+               api = agentJavaScriptApi,
+               craftingRecipeInfo = craftingRecipeInfo
+            ))
+         )
+      }
 
       agentSyncInput = AgentSyncInput(
          syncId = syncId,
@@ -84,7 +120,7 @@ suspend fun syncAgent(
          simulationId = simulation.simulationId,
          simulationTime = simulationTime,
          gameSimulationInfo = GameSimulationInfo(
-            craftingRecipes = craftingRecipes,
+            craftingRecipeInfoWrappers = craftingRecipeInfoWrappers,
             worldBounds = simulation.worldBounds
          ),
          gameConstants = GameConstants,

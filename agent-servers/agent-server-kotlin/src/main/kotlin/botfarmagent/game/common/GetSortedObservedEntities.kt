@@ -2,11 +2,12 @@ package botfarmagent.game.common
 
 import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.EntityInfo
+import botfarmshared.game.apidata.EntityInfoWrapper
 import botfarmshared.game.apidata.SelfInfo
 
 class SortedEntitiesResult(
-   val uniqueEntities: List<EntityInfo>,
-   val nonUniqueEntities: List<EntityInfo>
+   val uniqueEntities: List<EntityInfoWrapper>,
+   val nonUniqueEntities: List<EntityInfoWrapper>
 )
 
 fun getGroupedSortedObservedEntities(
@@ -20,16 +21,17 @@ fun getGroupedSortedObservedEntities(
 
    val entitiesSortedByDistance = inputs.newObservations.entitiesById.values
       .sortedBy {
-         it.location.distance(selfInfo.entityInfo.location)
+         it.entityInfo.location.distance(selfInfo.entityInfoWrapper.entityInfo.location)
       }
 
-   val characters = entitiesSortedByDistance.filter { it.characterInfo != null }
+   val characters = entitiesSortedByDistance.filter { it.entityInfo.characterInfo != null }
 
    val hasAddedItemCategories = mutableSetOf<String>()
-   val uniqueCategoryEntities = mutableListOf<EntityInfo>()
-   val nonUniqueEntities = mutableListOf<EntityInfo>()
+   val uniqueCategoryEntities = mutableListOf<EntityInfoWrapper>()
+   val nonUniqueEntities = mutableListOf<EntityInfoWrapper>()
 
-   entitiesSortedByDistance.forEach { entityInfo ->
+   entitiesSortedByDistance.forEach { entityInfoWrapper ->
+      val entityInfo = entityInfoWrapper.entityInfo
       if (entityInfo.itemInfo != null && entityInfo.characterInfo == null) {
          val categoryComponents = mutableListOf(entityInfo.itemInfo.itemConfigKey)
 
@@ -42,9 +44,9 @@ fun getGroupedSortedObservedEntities(
 
          if (!hasAddedItemCategories.contains(category)) {
             hasAddedItemCategories.add(category)
-            uniqueCategoryEntities.add(entityInfo)
+            uniqueCategoryEntities.add(entityInfoWrapper)
          } else {
-            nonUniqueEntities.add(entityInfo)
+            nonUniqueEntities.add(entityInfoWrapper)
          }
       }
    }
@@ -68,7 +70,7 @@ fun getGroupedSortedObservedEntities(
 fun getSortedObservedEntities(
    inputs: AgentSyncInput,
    selfInfo: SelfInfo
-): List<EntityInfo> {
+): List<EntityInfoWrapper> {
    val grouped = getGroupedSortedObservedEntities(
       inputs = inputs,
       selfInfo = selfInfo

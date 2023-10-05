@@ -6,18 +6,9 @@ import botfarmagent.game.common.*
 import botfarmagent.misc.*
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.PromptUsageInfo
-import botfarmshared.game.apidata.ActionResult
-import botfarmshared.game.apidata.AgentSyncInput
-import botfarmshared.game.apidata.AgentSyncOutput
-import botfarmshared.game.apidata.EntityInfo
+import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
-import botfarmshared.misc.ignoreIntelliJExhaustiveWhenBug
-import kotlinx.coroutines.delay
-import org.graalvm.polyglot.Context
-import org.graalvm.polyglot.PolyglotException
-import org.graalvm.polyglot.Source
-import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
 class CodeExecutionAgent(
@@ -32,41 +23,15 @@ class CodeExecutionAgent(
    val receivedActionStartedIds = mutableSetOf<String>()
    val receivedActionResultById = mutableMapOf<String, ActionResult>()
 
-   val javaScriptContext: Context =
-      Context.newBuilder("js")
-         .option("js.strict", "true")
-         .build()
-
-   private var activeScriptPromptId: String? = null
-   private var activeScriptThread: Thread? = null
-   private var mostRecentScript: String? = null
-
-   private val agentJavaScriptApi: AgentJavaScriptApi
-
    init {
       val initialInputs = this.initialSyncInput
       val simulationTime = initialInputs.simulationTime
       val selfInfo = initialInputs.selfInfo
 
-      val javaScriptBindings = this.javaScriptContext.getBindings("js")
-      val agentJavaScriptApi = AgentJavaScriptApi(this)
-      this.agentJavaScriptApi = agentJavaScriptApi
-      javaScriptBindings.putMember("api", agentJavaScriptApi)
-
-      val sourceName = "helpers"
-
-      run {
-         val runtimeSource =
-            CodeExecutionAgent::class.java.getResource("/scripted-agent-runtime.js")?.readText()
-               ?: throw Exception("Scripted agent runtime JavaScript resource not found")
-
-         val javaScriptSource = Source.newBuilder("js", runtimeSource, sourceName).build()
-         this.javaScriptContext.eval(javaScriptSource)
-      }
 
       val initialLongTermMemories = selfInfo.initialMemories.mapIndexed { initialMemoryIndex, initialMemory ->
          LongTermMemory(
-            createdAtLocation = selfInfo.entityInfo.location,
+            createdAtLocation = selfInfo.entityInfoWrapper.entityInfo.location,
             importance = 100,
             createdTime = simulationTime,
             content = initialMemory,
@@ -104,7 +69,7 @@ class CodeExecutionAgent(
       val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
          .also { newAutomaticShortTermMemories ->
             newObservations.activityStreamEntries.forEach { activityStreamEntry ->
-               if (activityStreamEntry.sourceEntityId != input.selfInfo.entityInfo.entityId) {
+               if (activityStreamEntry.sourceEntityId != input.selfInfo.entityInfoWrapper.entityInfo.entityId) {
                   newAutomaticShortTermMemories.add(
                      AutomaticShortTermMemory(
                         time = activityStreamEntry.time,
@@ -224,7 +189,6 @@ class CodeExecutionAgent(
       val worldBounds = gameSimulationInfo.worldBounds
 
       val simulationTimeForStep = input.simulationTime
-      val bindingsToAdd = mutableListOf<Pair<String, (conversionContext: JsConversionContext) -> Any>>()
 
       val modelInfo = if (this.useGpt4) {
          ModelInfo.gpt_4
@@ -300,10 +264,11 @@ class CodeExecutionAgent(
 
       val newPromptTimeLimit = if (hasHighPriorityMemorySinceLastPrompt) {
          8.0
-      } else if (this.activeScriptPromptId == null) {
-         15.0
+         // TODO: Inform agent when script is complete
+//      } else if (this.activeScriptPromptId == null) {
+//         15.0
       } else {
-         60.0
+         30.0
       }
 
       val shouldPrompt = timeSincePrompt > newPromptTimeLimit
@@ -324,7 +289,6 @@ class CodeExecutionAgent(
       println("Preparing to run prompt...")
 
       val selfInfo = input.selfInfo
-      val currentLocation = selfInfo.entityInfo.location
       val observationDistance = selfInfo.observationDistance
 
       val completionMaxTokens = 500
@@ -530,14 +494,12 @@ class CodeExecutionAgent(
 
 
       craftingRecipesSection.also {
-         for (craftingRecipe in gameSimulationInfo.craftingRecipes) {
-            val jsCraftingRecipe = this.agentJavaScriptApi.buildJsCraftingRecipe(
-               craftingRecipe = craftingRecipe
-            )
+         for (craftingRecipeInfoWrapper in gameSimulationInfo.craftingRecipeInfoWrappers) {
+            val craftingRecipeInfo = craftingRecipeInfoWrapper.craftingRecipeInfo
 
-            val variableName = "crafting_recipe_${craftingRecipe.itemConfigKey.replace("-", "_")}"
+            val variableName = craftingRecipeInfoWrapper.javaScriptVariableName
 
-            val serializedAsCode = JavaScriptCodeSerialization.serialize(jsCraftingRecipe)
+            val serializedAsCode = craftingRecipeInfoWrapper.serializedAsJavaScript
 
             val variableDeclarationAsCode =
                "const $variableName: CraftingRecipe = $serializedAsCode"
@@ -551,13 +513,6 @@ class CodeExecutionAgent(
                println("Crafting item did not fit")
                break
             }
-
-            bindingsToAdd.add(variableName to {
-               this.agentJavaScriptApi.buildJsCraftingRecipe(
-                  craftingRecipe = craftingRecipe,
-                  jsConversionContext = it
-               )
-            })
          }
       }
 
@@ -570,17 +525,14 @@ class CodeExecutionAgent(
             it.addLine("// Your inventory item stacks:")
 
             val checkedItemTypes = mutableSetOf<String>()
-            for ((stackIndex, itemStack) in inventory.itemStacks.withIndex()) {
-               if (!checkedItemTypes.contains(itemStack.itemConfigKey)) {
-                  checkedItemTypes.add(itemStack.itemConfigKey)
+            for ((stackIndex, itemStackInfoWrapper) in inventory.itemStacks.withIndex()) {
+               val itemStackInfo = itemStackInfoWrapper.itemStackInfo
+               if (!checkedItemTypes.contains(itemStackInfo.itemConfigKey)) {
+                  checkedItemTypes.add(itemStackInfo.itemConfigKey)
 
-                  val jsInventoryItemStackInfo = this.agentJavaScriptApi.buildJsInventoryItemStackInfo(
-                     itemStackInfo = itemStack,
-                     stackIndex = stackIndex
-                  )
 
-                  val itemStackVariableName = "inventory_item_${stackIndex}"
-                  val serializedAsJavaScript = JavaScriptCodeSerialization.serialize(jsInventoryItemStackInfo)
+                  val itemStackVariableName = itemStackInfoWrapper.javaScriptVariableName
+                  val serializedAsJavaScript = itemStackInfoWrapper.serializedAsJavaScript
 
                   val inventoryItemStackAsCode =
                      "const $itemStackVariableName: InventoryItemStack = $serializedAsJavaScript"
@@ -594,10 +546,6 @@ class CodeExecutionAgent(
                      println("Inventory item did not fit (${stackIndex + 1} / ${inventory.itemStacks.size})")
                      break
                   }
-
-                  bindingsToAdd.add(itemStackVariableName to {
-                     jsInventoryItemStackInfo
-                  })
                }
             }
 
@@ -605,21 +553,15 @@ class CodeExecutionAgent(
             inventorySummarySection.addLine("//   Summary of your fully inventory:")
             checkedItemTypes.forEach { checkedItemType ->
                val totalAmount = inventory.itemStacks
-                  .filter { it.itemConfigKey == checkedItemType }
-                  .sumOf { it.amount }
+                  .filter { it.itemStackInfo.itemConfigKey == checkedItemType }
+                  .sumOf { it.itemStackInfo.amount }
                inventorySummarySection.addLine("//     $checkedItemType: $totalAmount")
             }
          }
       }
 
+      selfSection.addLine("const ${selfInfo.entityInfoWrapper.javaScriptVariableName}: Entity = ${selfInfo.entityInfoWrapper.serializedAsJavaScript}")
 
-      val selfJsEntity = this.agentJavaScriptApi.buildJsEntity(selfInfo.entityInfo)
-
-      selfSection.addLine("const self: Entity = ${JavaScriptCodeSerialization.serialize(selfJsEntity)}")
-
-      bindingsToAdd.add("self" to {
-         selfJsEntity
-      })
 
       val groupedSortedEntities = getGroupedSortedObservedEntities(input, selfInfo)
 
@@ -629,21 +571,13 @@ class CodeExecutionAgent(
 
       fun addEntitiesFromList(
          section: PromptBuilder,
-         entities: List<EntityInfo>
+         entities: List<EntityInfoWrapper>
       ) {
-         for (entityInfo in entities) {
-            val jsEntity = this.agentJavaScriptApi.buildJsEntity(entityInfo)
+         for (entityInfoWrapper in entities) {
+            val entityInfo = entityInfoWrapper.entityInfo
 
-            val variableTypeName = if (entityInfo.characterInfo != null) {
-               "character"
-            } else if (entityInfo.itemInfo != null) {
-               entityInfo.itemInfo.itemConfigKey.replace("-", "_")
-            } else {
-               ""
-            }
-
-            val entityVariableName = "${variableTypeName}_entity_${entityInfo.entityId.value}"
-            val serializedAsJavaScript = JavaScriptCodeSerialization.serialize(jsEntity)
+            val entityVariableName = entityInfoWrapper.javaScriptVariableName
+            val serializedAsJavaScript = entityInfoWrapper.serializedAsJavaScript
 
             val entityAsCode = "const $entityVariableName: Entity = $serializedAsJavaScript"
 
@@ -657,10 +591,6 @@ class CodeExecutionAgent(
             }
 
             addedEntityIds.add(entityInfo.entityId)
-
-            bindingsToAdd.add(entityVariableName to {
-               jsEntity
-            })
 
             ++nextEntityIndex
          }
@@ -678,7 +608,7 @@ class CodeExecutionAgent(
 //      )
 
       val remainingEntities = (groupedSortedEntities.uniqueEntities + groupedSortedEntities.nonUniqueEntities).filter {
-         it.entityId !in addedEntityIds
+         it.entityInfo.entityId !in addedEntityIds
       }
 
       if (remainingEntities.isNotEmpty()) {
@@ -687,7 +617,7 @@ class CodeExecutionAgent(
 
          omittedEntityIntroSection.addLine("//   Summary of omitted entities:")
 
-         val characterEntities = remainingEntities.filter { it.characterInfo != null }
+         val characterEntities = remainingEntities.filter { it.entityInfo.characterInfo != null }
 
          if (characterEntities.isNotEmpty()) {
             omittedEntitySummarySection.addLine(
@@ -696,7 +626,7 @@ class CodeExecutionAgent(
             )
          }
 
-         val itemInfos = remainingEntities.mapNotNull { it.itemInfo }
+         val itemInfos = remainingEntities.mapNotNull { it.entityInfo.itemInfo }
 
          val itemEntityCounts: Map<String, Int> = mutableMapOf<String, Int>().also {
             itemInfos.forEach { itemInfo ->
@@ -719,68 +649,64 @@ class CodeExecutionAgent(
       val promptId = buildShortRandomIdentifier()
 
 
-      val responseText = if (responseOverride != null) {
-         responseOverride
-      } else {
-         val promptResult = runPrompt(
-            languageModelService = this.context.languageModelService,
-            modelInfo = modelInfo,
-            promptBuilder = builder,
-            debugInfo = "${input.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
-            completionPrefix = completionPrefix,
-            completionMaxTokens = completionMaxTokens,
-            useFunctionCalling = false,
-            temperature = 0.2
-         )
+      val promptResult = runPrompt(
+         languageModelService = this.context.languageModelService,
+         modelInfo = modelInfo,
+         promptBuilder = builder,
+         debugInfo = "${input.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
+         completionPrefix = completionPrefix,
+         completionMaxTokens = completionMaxTokens,
+         useFunctionCalling = false,
+         temperature = 0.2
+      )
 
-         when (promptResult) {
-            is RunPromptResult.Success -> {
-               promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
-            }
-
-            is RunPromptResult.RateLimitError -> {
-               return this.addPendingOutput(
-                  AgentSyncOutput(
-                     error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
-                     wasRateLimited = true,
-                     promptUsages = promptUsages
-                  )
-               )
-            }
-
-            is RunPromptResult.ConnectionError -> {
-               return this.addPendingOutput(
-                  AgentSyncOutput(
-                     error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
-                     wasRateLimited = true,
-                     promptUsages = promptUsages
-                  )
-               )
-            }
-
-            is RunPromptResult.UnknownApiError -> {
-               return this.addPendingOutput(
-                  AgentSyncOutput(
-                     error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName,
-                     promptUsages = promptUsages
-                  )
-               )
-            }
-
-            is RunPromptResult.LengthLimit -> {
-               promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
-
-               return this.addPendingOutput(
-                  AgentSyncOutput(
-                     error = "Prompt exceeded max length (errorId = ${promptResult.errorId})",
-                     promptUsages = promptUsages
-                  )
-               )
-            }
+      when (promptResult) {
+         is RunPromptResult.Success -> {
+            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
          }
 
-         promptResult.responseText
+         is RunPromptResult.RateLimitError -> {
+            return this.addPendingOutput(
+               AgentSyncOutput(
+                  error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
+                  wasRateLimited = true,
+                  promptUsages = promptUsages
+               )
+            )
+         }
+
+         is RunPromptResult.ConnectionError -> {
+            return this.addPendingOutput(
+               AgentSyncOutput(
+                  error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
+                  wasRateLimited = true,
+                  promptUsages = promptUsages
+               )
+            )
+         }
+
+         is RunPromptResult.UnknownApiError -> {
+            return this.addPendingOutput(
+               AgentSyncOutput(
+                  error = "Unknown prompt API error (errorId = ${promptResult.errorId}): " + promptResult::class.simpleName,
+                  promptUsages = promptUsages
+               )
+            )
+         }
+
+         is RunPromptResult.LengthLimit -> {
+            promptUsages.add(buildPromptUsageInfo(promptResult.usage, modelInfo))
+
+            return this.addPendingOutput(
+               AgentSyncOutput(
+                  error = "Prompt exceeded max length (errorId = ${promptResult.errorId})",
+                  promptUsages = promptUsages
+               )
+            )
+         }
       }
+
+      val responseText = promptResult.responseText
 
 
       this.previousPromptDoneUnixTime = getCurrentUnixTimeSeconds()
@@ -829,9 +755,11 @@ class CodeExecutionAgent(
       newDebugInfoLines.add("### Agent Script")
       newDebugInfoLines.add("```ts\n$responseScript\n```")
 
+      println("===== RESPONSE SCRIPT ($promptId) ====== \n$responseScript\n===============")
+
       this.addPendingOutput(
          AgentSyncOutput(
-            actions = null,
+            script = responseScript,
             debugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",
@@ -844,156 +772,5 @@ class CodeExecutionAgent(
             }
          )
       )
-
-      println("===== RESPONSE SCRIPT ($promptId) ====== \n$responseScript\n===============")
-
-      val wrappedResponseScript = """
-         (function() {
-         $responseScript
-         })()
-      """.trimIndent()
-
-      val previousThread = this.activeScriptThread
-
-      this.agentJavaScriptApi.shouldEndScript = true
-
-      if (previousThread != null) {
-         if (previousThread.isAlive) {
-            println("Agent script thread exists and is active, so attempting to end now ($promptId)")
-
-            val waitStartTime = getCurrentUnixTimeSeconds()
-            val timeout = 5.0
-
-            while (true) {
-               val waitedTime = getCurrentUnixTimeSeconds() - waitStartTime
-               if (!previousThread.isAlive) {
-                  println("Agent script thread has now ended after waiting $waitedTime seconds ($promptId)")
-                  break
-               } else if (waitedTime > timeout) {
-                  println("Agent script thread did not end after $timeout seconds, so interrupting ($promptId)")
-                  previousThread.interrupt()
-                  break
-               } else {
-                  delay(200)
-               }
-            }
-
-            delay(200)
-         } else {
-            println("Agent script thread exists, but is not active, so not interrupting ($promptId)")
-         }
-      }
-
-      synchronized(this) {
-         this.activeScriptPromptId = promptId
-         this.mostRecentScript = wrappedResponseScript
-         this.agentJavaScriptApi.shouldEndScript = false
-
-
-         this.addPendingOutput(
-            AgentSyncOutput(
-               agentStatus = "running-script",
-               statusStartUnixTime = getCurrentUnixTimeSeconds(),
-               statusDuration = null
-            )
-         )
-
-         this.activeScriptThread = thread {
-            val bindings = this.javaScriptContext.getBindings("js")
-
-            val jsConversionContext = JsConversionContext(bindings)
-
-            bindingsToAdd.forEach {
-               bindings.putMember(it.first, it.second(jsConversionContext))
-            }
-
-            val sourceName = "agent"
-            val javaScriptSource = Source.newBuilder("js", wrappedResponseScript, sourceName).build()
-
-            try {
-               this.javaScriptContext.eval(javaScriptSource)
-               println("Agent script thread complete: $promptId")
-               synchronized(this) {
-                  this.addPendingOutput(
-                     AgentSyncOutput(
-                        agentStatus = "script-done",
-                        statusStartUnixTime = getCurrentUnixTimeSeconds(),
-                        statusDuration = null
-                     )
-                  )
-
-                  if (this.activeScriptPromptId == promptId) {
-                     this.activeScriptPromptId = null
-                  }
-               }
-            } catch (unwindScriptThreadThrowable: UnwindScriptThreadThrowable) {
-               println("Got unwind agent script thread throwable ($promptId): ${unwindScriptThreadThrowable.reason}")
-               synchronized(this) {
-                  if (this.activeScriptPromptId == promptId) {
-                     this.activeScriptPromptId = null
-                  }
-               }
-            } catch (polyglotException: PolyglotException) {
-               val hostException = polyglotException.asHostException()
-               if (hostException is UnwindScriptThreadThrowable) {
-                  println("Got unwind agent script thread throwable via PolyglotException ($promptId): ${hostException.reason}")
-
-                  synchronized(this) {
-                     if (this.activeScriptPromptId == promptId) {
-                        this.activeScriptPromptId = null
-                     }
-                  }
-               } else {
-                  println("Polyglot exception evaluating agent JavaScript ($promptId): " + polyglotException.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
-
-                  synchronized(this) {
-                     this.addPendingOutput(
-                        AgentSyncOutput(
-                           error = "Polyglot exception evaluating JavaScript ($promptId)",
-                           agentStatus = "script-exception"
-                        )
-                     )
-                  }
-               }
-            } catch (exception: Exception) {
-               println("Exception evaluating agent JavaScript ($promptId): " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
-               synchronized(this) {
-                  this.addPendingOutput(
-                     AgentSyncOutput(
-                        error = "Exception evaluating JavaScript ($promptId)",
-                        agentStatus = "script-exception"
-                     )
-                  )
-               }
-            }
-         }
-      }
-   }
-
-   fun recordThought(thought: String) {
-      val newLongTermMemory = LongTermMemory(
-         createdTime = this.mostRecentSyncInput.simulationTime,
-         content = thought,
-         id = this.memoryState.longTermMemories.size + 1,
-         createdAtLocation = this.mostRecentSyncInput.selfInfo.entityInfo.location,
-         importance = 0
-      )
-
-      this.memoryState.longTermMemories.add(newLongTermMemory)
-
-      this.memoryState.automaticShortTermMemories.add(
-         AutomaticShortTermMemory(
-            time = this.mostRecentSyncInput.simulationTime,
-            summary = "I had the thought: " + thought
-         )
-      )
    }
 }
-
-val responseOverride: String? = null
-//"""
-//       walkTo(vector2(1000, 3500), "I'm going to pick up that axe.");
-//       walkTo(vector2(-1000, 3500), "I'm going to pick up that axe.");
-//       walkTo(vector2(-1000, -3500), "I'm going to pick up that axe.");
-//       walkTo(vector2(-1000, 3500), "I'm going to pick up that axe.");
-//""".trimIndent()

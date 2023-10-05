@@ -36,7 +36,6 @@ repositories {
 
 
 dependencies {
-   implementation("org.graalvm.js:js:20.2.0")
    implementation("com.knuddels:jtokkit:0.6.1")
    implementation("com.aallam.openai:openai-client:3.4.1")
    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.5")

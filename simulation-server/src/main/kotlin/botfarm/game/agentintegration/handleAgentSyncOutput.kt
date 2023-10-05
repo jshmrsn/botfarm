@@ -8,7 +8,6 @@ import botfarm.game.GameSimulation
 import botfarmshared.game.apidata.*
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
-import botfarm.game.codeexecution.JavaScriptCodeSerialization
 import botfarm.game.codeexecution.UnwindScriptThreadThrowable
 import botfarm.game.codeexecution.jsdata.JsConversionContext
 import botfarmshared.misc.getCurrentUnixTimeSeconds
@@ -121,12 +120,16 @@ suspend fun handleAgentSyncOutput(
 
          val bindingsToAdd = mutableListOf<Pair<String, (conversionContext: JsConversionContext) -> Any>>()
 
-         for (craftingRecipe in simulation.getCraftingRecipes()) {
-            val variableName = "crafting_recipe_${craftingRecipe.itemConfigKey.replace("-", "_")}"
+         val craftingRecipeInfos = simulation.getCraftingRecipeInfos(
+            crafterEntity = entity
+         )
+
+         for (craftingRecipeInfo in craftingRecipeInfos) {
+            val variableName = "crafting_recipe_${craftingRecipeInfo.itemConfigKey.replace("-", "_")}"
 
             bindingsToAdd.add(variableName to {
                agentJavaScriptApi.buildJsCraftingRecipe(
-                  craftingRecipe = craftingRecipe,
+                  craftingRecipeInfo = craftingRecipeInfo,
                   jsConversionContext = it
                )
             })
@@ -144,24 +147,17 @@ suspend fun handleAgentSyncOutput(
             })
          }
 
-         val selfJsEntity = agentJavaScriptApi.buildJsEntity(agentSyncInput.selfInfo.entityInfo)
+         val selfJsEntity = agentJavaScriptApi.buildJsEntity(agentSyncInput.selfInfo.entityInfoWrapper.entityInfo)
 
          bindingsToAdd.add("self" to {
             selfJsEntity
          })
 
-         for (entityInfo in agentSyncInput.newObservations.entitiesById.values) {
+         for (entityInfoWrapper in agentSyncInput.newObservations.entitiesById.values) {
+            val entityInfo = entityInfoWrapper.entityInfo
             val jsEntity = agentJavaScriptApi.buildJsEntity(entityInfo)
 
-            val variableTypeName = if (entityInfo.characterInfo != null) {
-               "character"
-            } else if (entityInfo.itemInfo != null) {
-               entityInfo.itemInfo.itemConfigKey.replace("-", "_")
-            } else {
-               ""
-            }
-
-            val entityVariableName = "${variableTypeName}_entity_${entityInfo.entityId.value}"
+            val entityVariableName = entityInfoWrapper.javaScriptVariableName
 
             bindingsToAdd.add(entityVariableName to {
                jsEntity

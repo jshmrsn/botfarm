@@ -32,7 +32,7 @@ class JsonActionAgent(
 
       val initialLongTermMemories = selfInfo.initialMemories.mapIndexed { initialMemoryIndex, initialMemory ->
          LongTermMemory(
-            createdAtLocation = selfInfo.entityInfo.location,
+            createdAtLocation = selfInfo.entityInfoWrapper.entityInfo.location,
             importance = 100,
             createdTime = simulationTime,
             content = initialMemory,
@@ -58,7 +58,7 @@ class JsonActionAgent(
       val newAutomaticShortTermMemories: List<AutomaticShortTermMemory> = mutableListOf<AutomaticShortTermMemory>()
          .also { newAutomaticShortTermMemories ->
             pendingEvents.activityStreamEntries.forEach { activityStreamEntry ->
-               if (activityStreamEntry.sourceEntityId != input.selfInfo.entityInfo.entityId) {
+               if (activityStreamEntry.sourceEntityId != input.selfInfo.entityInfoWrapper.entityInfo.entityId) {
                   newAutomaticShortTermMemories.add(
                      AutomaticShortTermMemory(
                         time = activityStreamEntry.time,
@@ -250,7 +250,7 @@ class JsonActionAgent(
       println("Preparing to run prompt...")
 
       val selfInfo = input.selfInfo
-      val currentLocation = selfInfo.entityInfo.location
+      val currentLocation = selfInfo.entityInfoWrapper.entityInfo.location
       val observationDistance = selfInfo.observationDistance
 
       val completionMaxTokens = 500
@@ -334,12 +334,13 @@ class JsonActionAgent(
 
       builder.addSection("craftingRecipes") {
          it.addLine("## ITEM_CRAFTING_RECIPES")
-         gameSimulationInfo.craftingRecipes.forEach { craftingRecipe ->
+         gameSimulationInfo.craftingRecipeInfoWrappers.forEach { craftingRecipeInfoWrapper ->
+            val craftingRecipeInfo = craftingRecipeInfoWrapper.craftingRecipeInfo
             it.addJsonLine(buildJsonObject {
-               put("itemConfigKey", craftingRecipe.itemConfigKey)
-               put("itemName", craftingRecipe.itemName)
+               put("itemConfigKey", craftingRecipeInfo.itemConfigKey)
+               put("itemName", craftingRecipeInfo.itemName)
                putJsonArray("craftingCost") {
-                  craftingRecipe.cost.entries.forEach {
+                  craftingRecipeInfo.cost.entries.forEach {
                      addJsonObject {
                         put("costItemAmount", it.amount)
                         put("costItemConfigKey", it.itemConfigKey)
@@ -355,24 +356,25 @@ class JsonActionAgent(
          it.addLine("## YOUR_ITEM_INVENTORY")
          val inventory = selfInfo.inventoryInfo
 
-         for (itemStack in inventory.itemStacks) {
+         for (itemStackInfoWrapper in inventory.itemStacks) {
+            val itemStackInfo = itemStackInfoWrapper.itemStackInfo
             it.addJsonLine(buildJsonObject {
-               put("itemConfigKey", itemStack.itemConfigKey)
-               put("youHaveQuantity", itemStack.amount)
+               put("itemConfigKey", itemStackInfo.itemConfigKey)
+               put("youHaveQuantity", itemStackInfo.amount)
 
                putJsonArray("availableActionIds") {
-                  if (itemStack.canBeEquipped) {
+                  if (itemStackInfo.canBeEquipped) {
                      add(JsonPrimitive("equipItem"))
                   }
 
-                  if (itemStack.canBeDropped) {
+                  if (itemStackInfo.canBeDropped) {
                      add(JsonPrimitive("dropItem"))
                   }
                }
 
                putJsonObject("itemInfo") {
-                  put("itemName", itemStack.itemName)
-                  put("itemDescription", itemStack.itemDescription)
+                  put("itemName", itemStackInfo.itemName)
+                  put("itemDescription", itemStackInfo.itemDescription)
                }
             })
          }
@@ -385,7 +387,7 @@ class JsonActionAgent(
          it.addJsonLine(
             buildEntityInfoJson(
                selfInfo = selfInfo,
-               entityInfo = selfInfo.entityInfo
+               entityInfo = selfInfo.entityInfoWrapper.entityInfo
             )
          )
 
@@ -398,11 +400,13 @@ class JsonActionAgent(
          val sortedEntities = getSortedObservedEntities(input, selfInfo)
 
          var entityIndex = 0
-         for (entityInfo in sortedEntities) {
+         for (entityInfoWrapper in sortedEntities) {
+            val entityInfo = entityInfoWrapper.entityInfo
+
             val result = it.addJsonLine(
                buildEntityInfoJson(
                   selfInfo = selfInfo,
-                  entityInfo = entityInfo
+                  entityInfo = entityInfoWrapper.entityInfo
                ),
                optional = true
             ).didFit
@@ -410,7 +414,7 @@ class JsonActionAgent(
             if (!result) {
                println(
                   "Entity did not fit (${entityIndex + 1} / ${sortedEntities.size}): " + entityInfo.location.distance(
-                     selfInfo.entityInfo.location
+                     selfInfo.entityInfoWrapper.entityInfo.location
                   )
                )
                break
@@ -446,12 +450,8 @@ class JsonActionAgent(
          )
 
          if (modelInfo.isCompletionModel) {
-            it.addLine(
-               """
-            Your response:
-            
-"""
-            )
+            it.addLine("")
+            it.addLine("Your response:")
          }
 
          it.addText(completionPrefix)

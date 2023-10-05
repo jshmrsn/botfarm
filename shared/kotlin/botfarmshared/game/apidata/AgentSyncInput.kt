@@ -1,7 +1,5 @@
 package botfarmshared.game.apidata
 
-import botfarm.game.components.ItemStack
-import botfarm.game.config.ItemConfig
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.game.GameConstants
@@ -150,10 +148,17 @@ class SelfThought(
 )
 
 @Serializable
+class EntityInfoWrapper(
+   val entityInfo: EntityInfo,
+   val serializedAsJavaScript: String,
+   val javaScriptVariableName: String
+)
+
+@Serializable
 class Observations(
    val spokenMessages: List<ObservedSpokenMessage>,
    val selfSpokenMessages: List<SelfSpokenMessage>,
-   val entitiesById: Map<EntityId, EntityInfo>,
+   val entitiesById: Map<EntityId, EntityInfoWrapper>,
    val movementRecords: List<MovementRecord>,
    val actionOnEntityRecords: List<ActionOnEntityRecord>,
    val actionOnInventoryItemActionRecords: List<ActionOnInventoryItemRecord>,
@@ -174,27 +179,18 @@ class ItemStackInfo(
    val canBeDropped: Boolean,
    val isEquipped: Boolean,
    val spawnItemOnUseConfigKey: String?
-) {
-   companion object {
-      fun build(itemConfig: ItemConfig, itemStack: ItemStack): ItemStackInfo {
-         return ItemStackInfo(
-            itemConfigKey = itemStack.itemConfigKey,
-            amount = itemStack.amount,
-            itemName = itemConfig.name,
-            itemDescription = itemConfig.description,
-            canBeDropped = itemConfig.storableConfig?.canBeDropped ?: false,
-            canBeEquipped = itemConfig.equippableConfig != null,
-            isEquipped = itemStack.isEquipped,
-            spawnItemOnUseConfigKey = itemConfig.spawnItemOnUseConfig?.spawnItemConfigKey
-         )
-      }
-   }
+)
 
-}
+@Serializable
+class ItemStackInfoWrapper(
+   val itemStackInfo: ItemStackInfo,
+   val serializedAsJavaScript: String,
+   val javaScriptVariableName: String
+)
 
 @Serializable
 class InventoryInfo(
-   val itemStacks: List<ItemStackInfo>
+   val itemStacks: List<ItemStackInfoWrapper>
 )
 
 @JvmInline
@@ -204,7 +200,7 @@ value class AgentId(val value: String)
 
 @Serializable
 class SelfInfo(
-   val entityInfo: EntityInfo,
+   val entityInfoWrapper: EntityInfoWrapper,
    val corePersonality: String,
    val initialMemories: List<String>,
    val observationDistance: Double,
@@ -213,12 +209,20 @@ class SelfInfo(
 )
 
 @Serializable
-class CraftingRecipe(
+class CraftingRecipeInfo(
    val itemConfigKey: String,
    val itemName: String,
    val description: String,
    val cost: ItemCollection,
-   val amount: Int
+   val amount: Int,
+   val canCurrentlyAfford: Boolean
+)
+
+@Serializable
+class CraftingRecipeInfoWrapper(
+   val craftingRecipeInfo: CraftingRecipeInfo,
+   val serializedAsJavaScript: String,
+   val javaScriptVariableName: String
 )
 
 @Serializable

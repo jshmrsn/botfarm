@@ -1,6 +1,6 @@
 package botfarm.game.codeexecution.jsdata
 
-import botfarmshared.game.apidata.CraftingRecipe
+import botfarmshared.game.apidata.CraftingRecipeInfo
 import org.graalvm.polyglot.HostAccess
 
 class JsItemCostEntry(
@@ -11,23 +11,20 @@ class JsItemCostEntry(
 
 class JsCraftingRecipe(
    val api: AgentJavaScriptApi,
-   val craftingRecipe: CraftingRecipe,
-   @HostAccess.Export
-   @JvmField
-   val canCurrentlyAfford: Boolean,
-   jsConversionContext: JsConversionContext?
+   val craftingRecipeInfo: CraftingRecipeInfo,
+   jsConversionContext: JsConversionContext? = null
 ) {
    @HostAccess.Export
    @JvmField
-   val itemTypeId: String = this.craftingRecipe.itemConfigKey
+   val itemTypeId: String = this.craftingRecipeInfo.itemConfigKey
 
    @HostAccess.Export
    @JvmField
-   val description: String = this.craftingRecipe.description
+   val description: String = this.craftingRecipeInfo.description
 
    @HostAccess.Export
    @JvmField
-   val costEntries: Any = this.craftingRecipe.cost.entries.map {
+   val costEntries: Any = this.craftingRecipeInfo.cost.entries.map {
       JsItemCostEntry(
          itemTypeId = it.itemConfigKey,
          amount = it.amount
@@ -35,9 +32,13 @@ class JsCraftingRecipe(
    }.toJs(jsConversionContext)
 
    @HostAccess.Export
+   @JvmField
+   val canCurrentlyAfford: Boolean = this.craftingRecipeInfo.canCurrentlyAfford
+
+   @HostAccess.Export
    fun craft(reason: String?) {
       this.api.craftItem(
-         itemConfigKey = this.craftingRecipe.itemConfigKey,
+         itemConfigKey = this.craftingRecipeInfo.itemConfigKey,
          reason = reason
       )
    }

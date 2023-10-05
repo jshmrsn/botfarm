@@ -1,5 +1,5 @@
 package botfarmshared.game
-import botfarmshared.game.apidata.CraftingRecipe
+import botfarmshared.game.apidata.CraftingRecipeInfoWrapper
 import botfarmshared.misc.Vector2
 import kotlinx.serialization.Serializable
 
@@ -12,5 +12,5 @@ object GameConstants {
 @Serializable
 class GameSimulationInfo(
    val worldBounds: Vector2,
-   val craftingRecipes: List<CraftingRecipe>
+   val craftingRecipeInfoWrappers: List<CraftingRecipeInfoWrapper>
 )

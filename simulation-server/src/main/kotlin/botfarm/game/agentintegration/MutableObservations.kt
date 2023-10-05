@@ -1,5 +1,8 @@
 package botfarm.game.agentintegration
 
+import botfarm.game.codeexecution.JavaScriptCodeSerialization
+import botfarm.game.codeexecution.jsdata.AgentJavaScriptApi
+import botfarm.game.codeexecution.jsdata.JsEntity
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
 import kotlinx.serialization.Serializable
@@ -19,10 +22,28 @@ class MutableObservations {
    val actionResults: MutableList<ActionResult> = mutableListOf()
    val startedActionUniqueIds: MutableList<String> = mutableListOf()
 
-   fun toObservations(): Observations = Observations(
+   fun toObservations(api: AgentJavaScriptApi): Observations = Observations(
       spokenMessages = this.spokenMessages.toList(),
       selfSpokenMessages = this.selfSpokenMessages.toList(),
-      entitiesById = this.entitiesById.toMap(),
+      entitiesById = this.entitiesById.toMap().mapValues {
+         val entityInfo = it.value
+
+         val variableTypeName = if (entityInfo.characterInfo != null) {
+            "character"
+         } else if (entityInfo.itemInfo != null) {
+            entityInfo.itemInfo.itemConfigKey.replace("-", "_")
+         } else {
+            ""
+         }
+
+         val entityVariableName = "${variableTypeName}_entity_${entityInfo.entityId.value}"
+
+         EntityInfoWrapper(
+            serializedAsJavaScript = JavaScriptCodeSerialization.serialize(JsEntity(api, entityInfo)),
+            javaScriptVariableName = entityVariableName,
+            entityInfo = it.value
+         )
+      },
       movementRecords = this.movementRecords.toList(),
       actionOnEntityRecords = this.actionOnEntityRecords.toList(),
       actionOnInventoryItemActionRecords = this.actionOnInventoryItemActionRecords.toList(),

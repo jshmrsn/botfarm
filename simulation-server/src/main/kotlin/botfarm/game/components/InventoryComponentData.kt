@@ -57,10 +57,14 @@ fun Entity.getInventoryItemTotalAmount(itemConfigKey: String): Int {
    return existingStacks.sumOf { it.amount }
 }
 
-fun Entity.takeInventoryItemCollection(itemCollection: ItemCollection): Boolean {
-   val canAfford = itemCollection.entries.all { costEntry ->
+fun Entity.canAfford(itemCollection: ItemCollection): Boolean {
+   return itemCollection.entries.all { costEntry ->
       this.getInventoryItemTotalAmount(costEntry.itemConfigKey) >= costEntry.amount
    }
+}
+
+fun Entity.takeInventoryItemCollection(itemCollection: ItemCollection): Boolean {
+   val canAfford = this.canAfford(itemCollection)
 
    if (!canAfford) {
       return false

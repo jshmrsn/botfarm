@@ -17,7 +17,7 @@ import botfarm.game.setup.SpawnPlayersMode
 import botfarm.game.setup.gameSystems
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.AgentId
-import botfarmshared.game.apidata.CraftingRecipe
+import botfarmshared.game.apidata.CraftingRecipeInfo
 import botfarmshared.misc.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -1766,18 +1766,21 @@ class GameSimulation(
       }
    }
 
-   fun getCraftingRecipes(): List<CraftingRecipe> {
+   fun getCraftingRecipeInfos(
+      crafterEntity: Entity
+   ): List<CraftingRecipeInfo> {
       val itemConfigs = this.configs
          .mapNotNull { it as? ItemConfig }
 
       return itemConfigs.mapNotNull {
          if (it.craftableConfig != null) {
-            CraftingRecipe(
+            CraftingRecipeInfo(
                itemConfigKey = it.key,
                itemName = it.name,
                description = it.description,
                cost = it.craftableConfig.craftingCost,
-               amount = it.craftableConfig.craftingAmount
+               amount = it.craftableConfig.craftingAmount,
+               canCurrentlyAfford = crafterEntity.canAfford(it.craftableConfig.craftingCost)
             )
          } else {
             null

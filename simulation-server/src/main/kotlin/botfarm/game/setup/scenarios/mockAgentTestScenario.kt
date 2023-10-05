@@ -51,7 +51,7 @@ val mockAgentTestScenario = GameScenario(
             )
          } else if (getCurrentUnixTimeSeconds() - startTime > 30 && !hasSentSecondScriptResponse) {
             hasSentSecondScriptResponse = true
-            
+
             outputs.add(
                AgentSyncOutput(
                   script = """

@@ -1,6 +1,7 @@
 package botfarm.game.codeexecution.jsdata
 
 import botfarm.game.agentintegration.AgentSyncState
+import botfarm.game.codeexecution.JavaScriptCodeSerialization
 import botfarm.game.codeexecution.UnwindScriptThreadThrowable
 import botfarm.game.components.AgentComponentData
 import botfarm.game.components.CharacterComponentData
@@ -9,7 +10,6 @@ import botfarm.game.config.ItemConfig
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
-import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.graalvm.polyglot.HostAccess
@@ -74,22 +74,12 @@ class AgentJavaScriptApi(
    }
 
    fun buildJsCraftingRecipe(
-      craftingRecipe: CraftingRecipe,
+      craftingRecipeInfo: CraftingRecipeInfo,
       jsConversionContext: JsConversionContext? = null
    ): JsCraftingRecipe {
-      var canCurrentlyAfford = true
-
-      craftingRecipe.cost.entries.forEach {
-         val currentAmount = this.getTotalInventoryAmountForItemTypeId(itemTypeId = it.itemConfigKey)
-         if (currentAmount < it.amount) {
-            canCurrentlyAfford = false
-         }
-      }
-
       return JsCraftingRecipe(
          api = this,
-         craftingRecipe = craftingRecipe,
-         canCurrentlyAfford = canCurrentlyAfford,
+         craftingRecipeInfo = craftingRecipeInfo,
          jsConversionContext = jsConversionContext
       )
    }
@@ -98,7 +88,11 @@ class AgentJavaScriptApi(
    fun getAllCraftingRecipes(): JsArray<JsCraftingRecipe> {
       this.endIfRequested()
 
-      return this.agentSyncState.simulation.getCraftingRecipes().map {
+      val craftingRecipeInfos = this.agentSyncState.simulation.getCraftingRecipeInfos(
+         crafterEntity = this.entity
+      )
+
+      return craftingRecipeInfos.map {
          this.buildJsCraftingRecipe(it)
       }.toJs()
    }
@@ -125,9 +119,8 @@ class AgentJavaScriptApi(
             JsInventoryItemStackInfo(
                api = this,
                stackIndex = stackIndex,
-               itemStackInfo = ItemStackInfo.build(
-                  itemConfig = itemConfig,
-                  itemStack = itemStack
+               itemStackInfo = itemStack.buildInfo(
+                  itemConfig = itemConfig
                )
             )
          }.toJs()
@@ -136,11 +129,12 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun getCurrentNearbyEntities(): JsArray<JsEntity> {
+      // TODO: Re-implement to fetch entities from actual simulation, while obeying identical observation distance rules
       this.endIfRequested()
       val entitiesById = this.agentSyncState.mostRecentSyncInput?.newObservations?.entitiesById ?: mapOf()
 
-      return entitiesById.values.map { entityInfo ->
-         this.buildJsEntity(entityInfo)
+      return entitiesById.values.map { entityInfoWrapper ->
+         this.buildJsEntity(entityInfoWrapper.entityInfo)
       }.toList().toJs()
    }
 
@@ -383,3 +377,4 @@ class AgentJavaScriptApi(
       )
    }
 }
+
