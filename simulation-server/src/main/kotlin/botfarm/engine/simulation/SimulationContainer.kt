@@ -317,8 +317,8 @@ class SimulationContainer(
    private val terminatedSimulations = mutableListOf<Simulation>()
 
    fun createSimulation(
-      clientReceiveInteractionTimeoutSeconds: Double? = 60.0,
-      clientReceiveMessageTimeoutSeconds: Double? = 60.0,
+      clientReceiveInteractionTimeoutSeconds: Double? = 180.0,
+      clientReceiveMessageTimeoutSeconds: Double? = 180.0,
       noClientsConnectedTerminationTimeoutSeconds: Double? = 120.0,
       wasCreatedByAdmin: Boolean,
       createdByUserSecret: UserSecret,

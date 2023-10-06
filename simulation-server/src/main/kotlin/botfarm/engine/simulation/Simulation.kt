@@ -93,9 +93,9 @@ class PendingReplayData {
 
 class SimulationContext(
    val coroutineScope: CoroutineScope,
-   val clientReceiveInteractionTimeoutSeconds: Double? = 180.0,
-   val clientReceiveMessageTimeoutSeconds: Double? = 180.0,
-   val noClientsConnectedTerminationTimeoutSeconds: Double? = 120.0,
+   val clientReceiveInteractionTimeoutSeconds: Double?,
+   val clientReceiveMessageTimeoutSeconds: Double?,
+   val noClientsConnectedTerminationTimeoutSeconds: Double?,
    val wasCreatedByAdmin: Boolean,
    val simulationContainer: SimulationContainer,
    val createdByUserSecret: UserSecret,

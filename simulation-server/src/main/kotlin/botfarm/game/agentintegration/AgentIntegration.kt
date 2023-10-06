@@ -418,29 +418,30 @@ class AgentIntegration(
                      entity = otherEntity,
                      simulationTime = simulationTimeForStep
                   )
+               }
 
-                  if (otherCharacterComponentData != null) {
-                     val newMessages = otherCharacterComponentData.recentSpokenMessages.filter {
-                        val messageAge = simulation.simulationTime - it.sentSimulationTime
-                        messageAge < 15.0 && !this.allObservedMessageIds.contains(it.messageId)
-                     }
 
-                     newMessages.forEach { newMessage ->
-                        println("Adding spoken message observation: " + newMessage.message)
-                        this.allObservedMessageIds.add(newMessage.messageId)
+               if (otherCharacterComponentData != null) {
+                  val newMessages = otherCharacterComponentData.recentSpokenMessages.filter {
+                     val messageAge = simulation.simulationTime - it.sentSimulationTime
+                     messageAge < 15.0 && !this.allObservedMessageIds.contains(it.messageId)
+                  }
 
-                        this.pendingObservations.spokenMessages.add(
-                           ObservedSpokenMessage(
-                              messageId = newMessage.messageId,
-                              entityId = otherEntity.entityId,
-                              characterName = otherCharacterComponentData.name,
-                              message = newMessage.message,
-                              speakerLocation = otherPosition,
-                              myLocation = currentLocation,
-                              time = newMessage.sentSimulationTime
-                           )
+                  newMessages.forEach { newMessage ->
+                     println("Adding spoken message observation: " + newMessage.message)
+                     this.allObservedMessageIds.add(newMessage.messageId)
+
+                     this.pendingObservations.spokenMessages.add(
+                        ObservedSpokenMessage(
+                           messageId = newMessage.messageId,
+                           entityId = otherEntity.entityId,
+                           characterName = otherCharacterComponentData.name,
+                           message = newMessage.message,
+                           speakerLocation = otherPosition,
+                           myLocation = currentLocation,
+                           time = newMessage.sentSimulationTime
                         )
-                     }
+                     )
                   }
                }
             }
