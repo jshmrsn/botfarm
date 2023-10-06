@@ -21,7 +21,7 @@ You can [play in the browser](https://botfarm.app) (with AI agents disabled due 
 You can also [watch a replay in the browser](https://botfarm.app/simulation/744F5DA1) of an example interaction with a GPT-4 powered agent (Joe is an agent in this replay).
 
 
-![screenshot](https://github.com/jshmrsn/botfarm/blob/main/docs/screenshots/screenshot-1.png?raw=true)
+![Demo Screenshot](https://github.com/jshmrsn/botfarm/blob/main/docs/screenshots/screenshot-1.png?raw=true)
 
 
 ## Motivations
@@ -42,6 +42,9 @@ You can also [watch a replay in the browser](https://botfarm.app/simulation/744F
 - Playable on mobile browsers.
 
 ## Project Architecture
+
+![Service Diagram](https://github.com/jshmrsn/botfarm/blob/main/docs/images/service-diagram.png?raw=true)
+
 Both client and simulation server are written in type-safe languages (Kotlin and Typescript).
 The first agent implementation is also written in Kotlin, but it communicates with the simulation over HTTP, so other languages could be used to implement agents.
 
