@@ -5,15 +5,19 @@
 <h3>Multiplayer Game Platform for Embodying Generative Agents</h3>
 </div>
 
+## Mission
+Provide a game simulation platform that can be easily used to embody generative agents built with any technology stack via an API.
 
-## Goals
-- Provide a game simulation platform that can be used to embody generative agents, and to conduct evaluation of those agents in configured scenarios.
+## Long-Term Research Motivation
+Imagine a simulation where characters need both food and shelter to survive, but individual characters are only able to specialize in the production of a certain subset of goods.
 
-- Decouple game simulations and agent technology stacks via an HTTP API, so that generative agents can be built with any preferred technology stack.
+Would a society of one hundred generative agents develop some form of an economy in this scenario? Would agents demonstrate a desire to survive as individuals? Would reputation-based relationships form? Are current LLM technologies capable of these kinds of intelligent social behaviors?
 
-- Support real time multiplayer, so players can interact with generative agents and other players.
+Could emergent moral dilemmas in these kind of social simulations pose challenges to alignment techniques?
 
-- Prioritize maintainability, code quality, and game development best practices of the game simulation code base, so that it can be extended or remixed for various research use cases.
+By embodying generative agents in relatable social simulations and allowing players to interact with agents in real-time, could we uncover latent artificial intelligence capabilities in current models?
+
+Given service costs, rate limits, and generation speeds, is it practical to run these types of simulations? What kind of techniques can be developed to mitigate current costs and limitations?
 
 ## Demo
 You can [play in the browser](https://botfarm.app) (with AI agents disabled due to high API costs).
@@ -24,20 +28,11 @@ You can also [watch a replay in the browser](https://botfarm.app/simulation/744F
 ![Demo Screenshot](https://github.com/jshmrsn/botfarm/blob/main/docs/screenshots/screenshot-1.png?raw=true)
 
 
-## Motivations
-- Research whether or not virtually embodying generative agents allows them to be more convincingly intelligent compared to disembodied agents (e.g. chat bots and virtual assistants).
-
-- Research emergent social behavior of generative agents, both among other agents and human players.
-
-- Research cost feasibility of using generative agents in video games.
-
-- Explore UX and game design challenges of games that utilize generative agents.
-
-
 ## Current Features
 - A playable browser-based 2D game with a basic implementation of harvesting, crafting, and farming mechanics.
 - Characters in the game can be controlled either by human players or generative agents.
-- Supports server-authorative real time multiplayer.
+- TypeScript/JavaScript based character scripting system, which allows agents to express desired behavior in terms of logical multi-step conditional scripts.
+- Server-authorative real-time multiplayer.
 - Replay system with timeline scrubbing support.
 - Playable on mobile browsers.
 
@@ -94,17 +89,17 @@ This project was developed with IntelliJ IDEA for both the Kotlin and TypeScript
 
 ## Running Locally
 
-## !WARNING REGARDING API COSTS!
-If you provide an OpenAI API key and play with agents, the API costs can add up very quickly.  
-This is especially true if you play with agents that use GPT-4 (30x more expensive than GPT-3).  
-The cost multiplies for each agent that you spawn into a scene.  
-That said, you can initially play the game without any agents to avoid incurring API costs.
+> ## API Cost Warning
+> If you provide an OpenAI API key and run a simulation with agents, the API costs can add up very quickly. 
+> GPT-4 based agents currently cost about $0.50 USD per minute, per agent. 
+> The cost multiplies for each agent that you add to a simulation.  
+> That said, you can initially play the game without any agents to avoid incurring API costs.
 
 ### 1. **Simulation Server**
 #### Running from IntelliJ (recommended)
 Open the `simulation-server` directory as an IntelliJ project.
 Use the Gradle tab to reload all gradle projects.
-Run the "Simulation Server" configuration.
+Run the "Game Simulation Server" configuration.
 
 #### Running from the terminal (slower iteration)
 In the `simulation-server` directory.
@@ -117,7 +112,8 @@ java -jar ./build/libs/botfarm-simulation-server-all.jar
 #### Running from IntelliJ (recommended)
 Open the `agent-servers/agent-server-kotlin` directory as an IntelliJ project.
 Use the Gradle tab to reload all gradle projects.
-Run the "Agent Server" configuration.
+Run the "Game Agent Server" configuration.
+> **NOTE:** If you want to integrate your OpenAI key, then duplicate the Game Agent Server run configuration, and add BOTFARM_OPENAI_API_KEY environment variable to your new run configuration. To avoid checking your API key into the repository, leave the "Store as project file" checkbox ***disabled*** for this run configuration.
 
 #### Running from the terminal (slower iteration)
 In the `agent-servers/agent-server-kotlin` directory.
@@ -163,8 +159,6 @@ Along with continuing broad development on the existing functionality, the follo
 
 - Building additional simulation features that could be useful for exploring emergent social behavior of generative agents.
 
-- More decoupling of the specific game simulation from the simulation framework, so entirely different games could be supported (note: there is already a significant amount of decoupling, just not 100% there yet).
-
 - Database backup of active game simulations, so they can be resumed if a server is restarted. Useful for local development iteration on simulation logic, handling spot instance interruptions, or long living simulations that live through multiple deployments.
 
 - Add support for signed requests from simulation server to the agent servers, using a secret key known to both servers.
@@ -177,13 +171,13 @@ Along with continuing broad development on the existing functionality, the follo
 
 - Player authentication system. Currently, if someone is able to connect to a simulation server, they have unlimited ability to create and play simulations. In other words, it would be bad to deploy this system to the internet with access to a funded OpenAI API key.
 
-- Not sure what the best path forward is here, but it would be nice if non-technical people could experience generative agents in game worlds before they become mainstream in commercial products. Currently running high quality agents is extremely expensive. So if a generative agent simulation was deployed as a public product, it would need to support allowing users to pay for the cost of running generative agents. Since the simulations are ran on the server, and not in the user’s browser, it would be against OpenAI’s terms of service for users to share their API keys with the server.
+- It it would be nice if people could experience generative agents in game worlds before they become mainstream in commercial products without having to manually run these systems locally. Conceivably, these systems could just be deployed on a public server, but currently running high quality agents is very expensive. Therefore, such as a service would need to support allowing users to pay for the cost of running generative agents. It would be against OpenAI’s terms of service for users to share their own API keys with the service.
 
-- Pause agents once a configurable total simulation cost is reached.
+- Suport for automatically pausing agent integration once a configurable total simulation cost is reached.
 
 - Basic combat mechanics (so we can evaluate which situations agents would choose to engage in violence)
 
-- Hunger mechanics to drive problem-solving of food productions
+- Basic hunger/shelter/survival mechanics to drive problem-solving of food productions
 
 - Clothing items, and integration into entity description provided to agents
 
