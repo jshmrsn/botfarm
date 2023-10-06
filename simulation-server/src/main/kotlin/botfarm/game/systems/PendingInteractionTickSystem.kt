@@ -33,18 +33,17 @@ fun pendingInteractionTickSystem(
       }
    }
 
+   if (characterComponentData.pendingUseEquippedToolItemRequest == null &&
+      characterComponentData.pendingInteractionTargetEntityId == null
+   ) {
+      return
+   }
 
    val position = positionComponent.entity.resolvePosition()
    val lastKeyFrame = positionComponent.data.positionAnimation.keyFrames.last()
    val hasFinishedMoving = simulationTime >= lastKeyFrame.time
 
    if (!hasFinishedMoving) {
-      return
-   }
-
-   if (characterComponentData.pendingUseEquippedToolItemRequest == null &&
-      characterComponentData.pendingInteractionTargetEntityId == null
-   ) {
       return
    }
 

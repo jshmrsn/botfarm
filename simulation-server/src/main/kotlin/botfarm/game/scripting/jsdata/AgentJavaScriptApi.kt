@@ -17,7 +17,8 @@ import kotlinx.serialization.json.Json
 import org.graalvm.polyglot.HostAccess
 
 class AgentJavaScriptApi(
-   val agentIntegration: AgentIntegration
+   val agentIntegration: AgentIntegration,
+   val fastSleep: Boolean
 ) {
    val simulation = this.agentIntegration.simulation
    val entity = this.agentIntegration.entity
@@ -207,7 +208,6 @@ class AgentJavaScriptApi(
             resultExceptionVar = it
          }
       )
-      println("AgentJavaScriptApi.waitForSimulationRequest: Returned from addRequestFromBackgroundThread")
 
       while (true) {
          val resultException = resultExceptionVar

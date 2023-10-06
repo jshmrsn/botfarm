@@ -112,9 +112,7 @@ fun Application.configureRouting(
                         wasCreatedByAdmin = isAdmin,
                         createdByUserSecret = request.userSecret,
                         scenario = scenario,
-                        coroutineDelayImplementation = {
-                           delay(it.toLong())
-                        },
+                        shouldMinimizeSleep = false,
                         coroutineScope = coroutineScope
                      )
 
@@ -144,6 +142,7 @@ fun Application.configureRouting(
                         simulationInfo = simulationInfo
                      )
                   )
+                  break
                } else {
                   delay(50)
                }

@@ -54,6 +54,8 @@ class GameSimulationTestHelper(
       maxSeconds: Double = 60.0,
       until: () -> Boolean = { false }
    ) {
+      println("simulateUntil: $description")
+
       var didSucceed = false
       simulateSeconds(
          duration = maxSeconds,
@@ -61,6 +63,7 @@ class GameSimulationTestHelper(
          shouldStop = {
             if (until()) {
                didSucceed = true
+               println("simulateUntil succeeded: $description")
                true
             } else {
                false
@@ -84,61 +87,42 @@ fun simulationTest(
    },
    test: suspend GameSimulationTestHelper.() -> Unit
 ) {
-   val agentService = createTestAgentService(
-      buildMockAgent = buildMockAgent
-   )
-
    val configs = mutableListOf<Config>()
    addCharacterConfigs(configs)
    addItemConfigs(configs)
-
-   val simulationData = SimulationData(
-      scenarioInfo = ScenarioInfo(
-         identifier = "test",
-         gameIdentifier = "game"
-      ),
-      simulationId = SimulationId(value = "test-simulation-1"),
-      configs = configs
-   )
 
    val simulationContainer = SimulationContainer(
       scenarioRegistration = ScenarioRegistration()
    )
 
    val scenario = GameScenario(
-      identifier = "test"
-   )
-
-   val simulationContext = SimulationContext(
-      wasCreatedByAdmin = true,
-      simulationContainer = simulationContainer,
-      createdByUserSecret = UserSecret("test"),
-      scenario = scenario,
-      noClientsConnectedTerminationTimeoutSeconds = null,
-      coroutineDelayImplementation = {
-//         println("test delay: " + it)
-         delay(1)
-      }
-   )
-
-
-   val simulation = GameSimulation(
-      context = simulationContext,
-      data = simulationData,
-      agentService = agentService,
-      gameScenario = scenario
-   )
-
-   simulationContainer.createSimulation(simulation, shouldTickInBackground = false)
-
-   val gameSimulationTestHelper = GameSimulationTestHelper(
-      simulation = simulation,
-      simulationContainer = simulationContainer
+      identifier = "test",
+      buildMockAgent = buildMockAgent
    )
 
    runBlocking {
+      val simulation = simulationContainer.createSimulation(
+         wasCreatedByAdmin = true,
+         createdByUserSecret = UserSecret("test"),
+         scenario = scenario,
+         noClientsConnectedTerminationTimeoutSeconds = null,
+         shouldMinimizeSleep = true,
+         coroutineScope = this
+      ) as GameSimulation
+
+      val gameSimulationTestHelper = GameSimulationTestHelper(
+         simulation = simulation,
+         simulationContainer = simulationContainer
+      )
+
+      println("simulationTest: Calling test callback")
       test(gameSimulationTestHelper)
+      println("simulationTest: Test callback complete")
+      simulation.handleTermination()
+      println("simulationTest: simulation.handleTermination returned")
    }
+
+   println("simulationTest: After runBlocking")
 }
 
 

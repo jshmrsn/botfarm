@@ -20,6 +20,7 @@ import botfarmshared.game.GameSimulationInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.graalvm.polyglot.Context
@@ -55,7 +56,8 @@ class AgentIntegration(
    val simulation: GameSimulation,
    val entity: Entity,
    val agentType: String,
-   val agentId: AgentId
+   val agentId: AgentId,
+   val fastJavaScriptThreadSleep: Boolean
 ) {
    private val allObservedMessageIds = mutableSetOf<String>()
    private val startedActionUniqueIds = mutableSetOf<String>()
@@ -72,7 +74,7 @@ class AgentIntegration(
    private var activeAction: Action? = null
    private val pendingActions = mutableListOf<Action>()
 
-   private val agentJavaScriptApi = AgentJavaScriptApi(this)
+   private val agentJavaScriptApi = AgentJavaScriptApi(this, fastSleep = this.fastJavaScriptThreadSleep)
 
    class RunningScript(
       val thread: Thread,
@@ -335,6 +337,53 @@ class AgentIntegration(
       }
    }
 
+   suspend fun endJavaScriptThread(
+      coroutineSystemContext: CoroutineSystemContext
+   ) {
+      val threadStateLock = this
+
+      val previousRunningScript = synchronized(threadStateLock) {
+         val runningScript = this.runningScript
+         runningScript?.agentJavaScriptApi?.shouldEndScript = true
+         runningScript
+      }
+
+      if (previousRunningScript != null) {
+         val scriptId = previousRunningScript.scriptToRun.scriptId
+
+         if (previousRunningScript.thread.isAlive) {
+            println("Agent script thread exists and is active, so attempting to end now ($scriptId)")
+
+            val waitStartTime = getCurrentUnixTimeSeconds()
+            val timeout = 5.0
+
+            while (true) {
+               val waitedTime = getCurrentUnixTimeSeconds() - waitStartTime
+               if (!previousRunningScript.thread.isAlive) {
+                  println("Agent script thread has now ended after waiting $waitedTime seconds ($scriptId)")
+                  break
+               } else if (waitedTime > timeout) {
+                  println("Agent script thread did not end after $timeout seconds, so interrupting ($scriptId)")
+                  previousRunningScript.thread.interrupt()
+                  break
+               } else {
+                  coroutineSystemContext.delay(200)
+               }
+            }
+
+            coroutineSystemContext.delay(200)
+         } else {
+            println("Agent script thread exists, but is not active, so not interrupting ($scriptId)")
+         }
+      } else {
+         println("No previous agent script thread exists, starting a new one now")
+      }
+
+      synchronized(threadStateLock) {
+         this.runningScript = null
+      }
+   }
+
    fun recordObservationsForAgent() {
       val entity = this.entity
       val simulation = this.simulation
@@ -475,44 +524,7 @@ class AgentIntegration(
 
          val threadStateLock: Any = this
 
-         val previousRunningScript = synchronized(threadStateLock) {
-            val runningScript = this.runningScript
-            runningScript?.agentJavaScriptApi?.shouldEndScript = true
-            runningScript
-         }
-
-         if (previousRunningScript != null) {
-            if (previousRunningScript.thread.isAlive) {
-               println("Agent script thread exists and is active, so attempting to end now ($scriptId)")
-
-               val waitStartTime = getCurrentUnixTimeSeconds()
-               val timeout = 5.0
-
-               while (true) {
-                  val waitedTime = getCurrentUnixTimeSeconds() - waitStartTime
-                  if (!previousRunningScript.thread.isAlive) {
-                     println("Agent script thread has now ended after waiting $waitedTime seconds ($scriptId)")
-                     break
-                  } else if (waitedTime > timeout) {
-                     println("Agent script thread did not end after $timeout seconds, so interrupting ($scriptId)")
-                     previousRunningScript.thread.interrupt()
-                     break
-                  } else {
-                     coroutineSystemContext.delay(200)
-                  }
-               }
-
-               coroutineSystemContext.delay(200)
-            } else {
-               println("Agent script thread exists, but is not active, so not interrupting ($scriptId)")
-            }
-         } else {
-            println("No previous agent script thread exists, starting a new one now ($scriptId)")
-         }
-
-         synchronized(threadStateLock) {
-            this.runningScript = null
-         }
+         this.endJavaScriptThread(coroutineSystemContext)
 
          val wrappedResponseScript = """
          (function() {
@@ -546,10 +558,12 @@ class AgentIntegration(
                for (craftingRecipeInfo in craftingRecipeInfos) {
                   val variableName = "crafting_recipe_${craftingRecipeInfo.itemConfigKey.replace("-", "_")}"
 
-                  bindings.putMember(variableName, agentJavaScriptApi.buildJsCraftingRecipe(
-                     craftingRecipeInfo = craftingRecipeInfo,
-                     jsConversionContext = jsConversionContext
-                  ))
+                  bindings.putMember(
+                     variableName, agentJavaScriptApi.buildJsCraftingRecipe(
+                        craftingRecipeInfo = craftingRecipeInfo,
+                        jsConversionContext = jsConversionContext
+                     )
+                  )
                }
 
                val inventoryItemStacks = agentJavaScriptApi.getCurrentInventoryItemStacks()
@@ -621,20 +635,23 @@ class AgentIntegration(
                            this.runningScript = null
                            this.mostRecentCompletedScriptId = scriptId
 
-//                           synchronized(simulation) {
-//                              agentControlledComponent.modifyData {
-//                                 it.copy(
-//                                    scriptExecutionError = polyglotException.stackTraceToString()
-//                                 )
-//                              }
-//
-//                              this.pendingObservations.scriptExecutionErrors.add(
-//                                 ScriptExecutionError(
-//                                    scriptId = scriptId,
-//                                    error = polyglotException.stackTraceToString()
-//                                 )
-//                              )
-//                           }
+                           simulation.addRequestFromBackgroundThread(
+                              task = {
+                                 agentControlledComponent.modifyData {
+                                    it.copy(
+                                       scriptExecutionError = polyglotException.stackTraceToString()
+                                    )
+                                 }
+
+                                 this.pendingObservations.scriptExecutionErrors.add(
+                                    ScriptExecutionError(
+                                       scriptId = scriptId,
+                                       error = polyglotException.stackTraceToString()
+                                    )
+                                 )
+                              },
+                              handleException = {}
+                           )
                         }
                      }
                   }
@@ -646,23 +663,32 @@ class AgentIntegration(
                         this.runningScript = null
                         this.mostRecentCompletedScriptId = scriptId
 
+                        simulation.addRequestFromBackgroundThread(
+                           task = {
+                              this.pendingObservations.scriptExecutionErrors.add(
+                                 ScriptExecutionError(
+                                    scriptId = scriptId,
+                                    error = exception.stackTraceToString()
+                                 )
+                              )
 
-//                        synchronized(simulation) {
-//                           this.pendingObservations.scriptExecutionErrors.add(
-//                              ScriptExecutionError(
-//                                 scriptId = scriptId,
-//                                 error = exception.stackTraceToString()
-//                              )
-//                           )
-//
-//                           agentControlledComponent.modifyData {
-//                              it.copy(
-//                                 scriptExecutionError = exception.stackTraceToString()
-//                              )
-//                           }
-//                        }
+                              agentControlledComponent.modifyData {
+                                 it.copy(
+                                    scriptExecutionError = exception.stackTraceToString()
+                                 )
+                              }
+                           },
+                           handleException = {}
+                        )
                      }
                   }
+               }
+            }
+
+            coroutineSystemContext.setOnCancelCallback {
+               println("Ending JavaScript thread due to coroutine system cancellation")
+               runBlocking {
+                  this@AgentIntegration.endJavaScriptThread(coroutineSystemContext)
                }
             }
 

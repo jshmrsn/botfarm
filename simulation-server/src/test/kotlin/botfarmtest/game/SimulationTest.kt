@@ -99,7 +99,9 @@ class SimulationTest {
             )
          )
 
-         simulateUntil {
+         simulateUntil(
+            description = "picked up axe",
+         ) {
             character.getComponent<InventoryComponentData>().data.inventory.itemStacks.any {
                it.itemConfigKey == "axe"
             }
@@ -130,7 +132,9 @@ class SimulationTest {
             )
          )
 
-         simulateUntil {
+         simulateUntil(
+            description = "character finished walking to tree"
+         ) {
             !character.isMoving
          }
 
@@ -144,7 +148,9 @@ class SimulationTest {
 
          assertNull(tree.getComponent<DamageableComponentData>().data.killedAtTime)
 
-         simulateUntil {
+         simulateUntil(
+            description = "tree killed"
+         ) {
             tree.getComponent<DamageableComponentData>().data.killedAtTime != null
          }
 
@@ -152,7 +158,9 @@ class SimulationTest {
          assertTrue(tree.exists)
          assertTrue(getWoodEntities().isNotEmpty())
 
-         simulateUntil {
+         simulateUntil(
+            description = "tree cleaned up"
+         ) {
             !tree.exists
          }
 
@@ -160,12 +168,31 @@ class SimulationTest {
 
          val woodCountStart = getWoodEntities().size
 
-         simulation.pickUpItem(
-            pickingUpEntity = character,
-            targetEntity = getWoodEntities().first()
+
+         val firstWood = getWoodEntities().first()
+         assertIs<GameSimulation.MoveToResult.Success>(
+            simulation.startEntityMovement(
+               entity = character,
+               endPoint = firstWood.resolvePosition()
+            )
          )
 
-         simulateUntil {
+         simulateUntil(
+            description = "character finished walking to wood"
+         ) {
+            !character.isMoving
+         }
+
+         assertEquals(
+            GameSimulation.PickUpItemResult.Success, simulation.pickUpItem(
+               pickingUpEntity = character,
+               targetEntity = firstWood
+            )
+         )
+
+         simulateUntil(
+            description = "wood no longer exists after pickup"
+         ) {
             getWoodEntities().size < woodCountStart
          }
 

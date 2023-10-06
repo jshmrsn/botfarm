@@ -4,11 +4,12 @@ import botfarm.engine.ktorplugins.AdminRequest
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.buildShortRandomIdentifier
-import botfarmshared.misc.getCurrentUnixTimeSeconds
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.delay as coroutineDelay
 import kotlinx.serialization.Serializable
 import java.util.concurrent.Executors
-import kotlin.concurrent.thread
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
@@ -21,10 +22,12 @@ class TickSystemContext(
 class CoroutineSystemContext(
    val entity: Entity,
    val simulation: Simulation,
-   val delayImplementation: suspend (milliseconds: Int) -> Unit
+   val shouldMinimizeSleep: Boolean
 ) {
    var coroutineShouldStop = false
       private set
+
+   private var onCancelCallback: () -> Unit = {}
 
    fun unwindIfNeeded() {
       if (this.coroutineShouldStop) {
@@ -32,7 +35,12 @@ class CoroutineSystemContext(
       }
    }
 
+   fun setOnCancelCallback(onCancelCallback: () -> Unit) {
+      this.onCancelCallback = onCancelCallback
+   }
+
    fun cancel() {
+      this.onCancelCallback()
       this.coroutineShouldStop = true
    }
 
@@ -45,7 +53,11 @@ class CoroutineSystemContext(
    }
 
    suspend fun delay(milliseconds: Int) {
-      this.delayImplementation(milliseconds)
+      if (this.shouldMinimizeSleep) {
+         coroutineDelay(1)
+      } else {
+         coroutineDelay(milliseconds.toLong())
+      }
    }
 }
 
@@ -311,7 +323,7 @@ class SimulationContainer(
       wasCreatedByAdmin: Boolean,
       createdByUserSecret: UserSecret,
       scenario: Scenario,
-      coroutineDelayImplementation: suspend (milliseconds: Int) -> Unit,
+      shouldMinimizeSleep: Boolean,
       coroutineScope: CoroutineScope
    ): Simulation {
       val simulationContext = SimulationContext(
@@ -323,7 +335,7 @@ class SimulationContainer(
          simulationContainer = this,
          createdByUserSecret = createdByUserSecret,
          scenario = scenario,
-         coroutineDelayImplementation = coroutineDelayImplementation
+         shouldMinimizeSleep = shouldMinimizeSleep
       )
 
       val simulation = scenario.createSimulation(
@@ -346,23 +358,15 @@ class SimulationContainer(
       }
 
       val simulationsToTerminate = simulations.filter { simulation ->
-         val tickResult = synchronized(simulation) {
-            runBlocking {
-               simulation.tick(
-                  deltaTime = deltaTime
-               )
-            }
-         }
+         val tickResult = simulation.tick(
+            deltaTime = deltaTime
+         )
 
          tickResult.shouldTerminate
       }
 
       simulationsToTerminate.forEach { simulationToRemove ->
-         runBlocking {
-            this@SimulationContainer.terminateSimulation(
-               simulationId = simulationToRemove.simulationId
-            )
-         }
+         simulationToRemove.handleTermination()
       }
    }
 
@@ -431,7 +435,7 @@ class SimulationContainer(
             }
          }
 
-         delay(50)
+         coroutineDelay(50)
       }
    }
 }

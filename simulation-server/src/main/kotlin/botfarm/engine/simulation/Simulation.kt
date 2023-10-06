@@ -100,7 +100,7 @@ class SimulationContext(
    val simulationContainer: SimulationContainer,
    val createdByUserSecret: UserSecret,
    val scenario: Scenario,
-   val coroutineDelayImplementation: suspend (milliseconds: Int) -> Unit
+   val shouldMinimizeSleep: Boolean
 )
 
 open class Simulation(
@@ -713,7 +713,7 @@ open class Simulation(
    var isTerminated = false
       private set
 
-   private fun handleTermination() {
+   fun handleTermination() {
       this.isTerminated = true
 
       this.entities.forEach {

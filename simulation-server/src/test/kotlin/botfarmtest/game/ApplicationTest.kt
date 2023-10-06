@@ -33,10 +33,14 @@ suspend fun ApplicationTestBuilder.sendCreateSimulationRequest(
       scenarioIdentifier = scenarioIdentifier
    )
 
+   println("sendCreateSimulationRequest: calling api")
+
    val response = client.post("/api/create-simulation") {
       contentType(ContentType.Application.Json)
       setBody(Json.encodeToString(request))
    }
+
+   println("sendCreateSimulationRequest: got response")
 
    val responseText = response.bodyAsText()
    val createSimulationResponse = Json.decodeFromString<CreateSimulationResponse>(responseText)
@@ -73,22 +77,6 @@ suspend fun ApplicationTestBuilder.sendGetSimulationInfoRequest(
    println("getSimulationInfoResponse: " + pretty.encodeToString(getSimulationInfoResponse))
 
    return getSimulationInfoResponse
-}
-
-fun createTestAgentService(
-   buildMockAgent: ((context: MockAgentContext) -> MockAgent) = {
-      MockAgent {
-         AgentSyncResponse(
-            outputs = listOf()
-         )
-      }
-   }
-): AgentService {
-   val testAgentServerPort = 0
-   return AgentService(
-      agentServerEndpoint = "http://localhost:$testAgentServerPort",
-      buildMockAgent = buildMockAgent
-   )
 }
 
 class ApplicationTest {

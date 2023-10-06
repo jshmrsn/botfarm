@@ -55,3 +55,4 @@ const speak = api.speak;
 const setFacialExpressionEmoji = api.setFacialExpressionEmoji;
 const interactWithEntity = api.interactWithEntity;
 const getSelfEntity = api.getSelfEntity;
+const equipItem = api.equipItem;

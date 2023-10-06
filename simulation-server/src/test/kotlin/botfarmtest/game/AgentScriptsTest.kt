@@ -1,5 +1,6 @@
 package botfarmtest.game
 
+import botfarm.game.agentintegration.scriptSequenceMockAgentBuilder
 import botfarm.game.components.InventoryComponentData
 import botfarm.game.components.getEquippedItemConfig
 import botfarm.game.components.killedAtTime
@@ -61,7 +62,8 @@ class AgentScriptsTest {
       assertTrue(character.getComponent<InventoryComponentData>().data.inventory.itemStacks.isEmpty())
 
       simulateUntil(
-         delayMsPerTick = 10
+         description = "equip axe",
+         delayMsPerTick = 100
       ) {
          character.getEquippedItemConfig(EquipmentSlot.Tool)?.key == "axe"
       }

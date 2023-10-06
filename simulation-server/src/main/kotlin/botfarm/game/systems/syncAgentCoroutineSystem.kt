@@ -21,7 +21,8 @@ suspend fun syncAgentCoroutineSystem(
       simulation = simulation,
       agentType = agentType,
       entity = entity,
-      agentId = agentId
+      agentId = agentId,
+      fastJavaScriptThreadSleep = context.shouldMinimizeSleep
    )
 
    var lastAgentSyncSimulationTime = 0.0

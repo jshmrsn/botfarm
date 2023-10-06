@@ -9,15 +9,19 @@ fun cleanupKilledEntitiesTickSystem(
    context: TickSystemContext,
    killableComponent: EntityComponent<DamageableComponentData>
 ) {
+   val killableComponentData = killableComponent.data
+
+   if (killableComponentData.killedAtTime == null) {
+      return
+   }
+
    val simulation = context.simulation as GameSimulation
 
    val simulationTime = simulation.getCurrentSimulationTime()
 
-   val killableComponentData = killableComponent.data
+   val timeSinceKilled = simulationTime - killableComponentData.killedAtTime
 
-   if (killableComponentData.killedAtTime != null &&
-      simulationTime - killableComponentData.killedAtTime > 2.0
-   ) {
+   if (timeSinceKilled > 2.0) {
       context.simulation.queueCallbackWithoutDelay {
          context.entity.destroy()
       }
