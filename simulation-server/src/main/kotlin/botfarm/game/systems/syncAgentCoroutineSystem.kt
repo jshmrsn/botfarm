@@ -50,13 +50,11 @@ suspend fun syncAgentCoroutineSystem(
 
          context.delay(100)
       } catch (connectException: ConnectException) {
-         context.synchronizeSimulation {
-            agentControlledComponent.modifyData {
-               it.copy(
-                  agentIntegrationStatus = "exception",
-                  agentError = "Agent connection refused (syncId = $syncId)"
-               )
-            }
+         agentControlledComponent.modifyData {
+            it.copy(
+               agentIntegrationStatus = "exception",
+               agentError = "Agent connection refused (syncId = $syncId)"
+            )
          }
 
          context.delay(3000)
@@ -65,13 +63,11 @@ suspend fun syncAgentCoroutineSystem(
          simulation.broadcastAlertAsGameMessage("Exception in agent sync (errorId = $errorId, syncId = $syncId)")
          println("Exception in character agent logic (errorId = $errorId, syncId = $syncId):\n${exception.stackTraceToString()}")
 
-         context.synchronizeSimulation {
-            agentControlledComponent.modifyData {
-               it.copy(
-                  agentIntegrationStatus = "exception",
-                  agentError = "Exception in character agent logic (errorId = $errorId, syncId = $syncId)"
-               )
-            }
+         agentControlledComponent.modifyData {
+            it.copy(
+               agentIntegrationStatus = "exception",
+               agentError = "Exception in character agent logic (errorId = $errorId, syncId = $syncId)"
+            )
          }
 
          context.delay(3000)

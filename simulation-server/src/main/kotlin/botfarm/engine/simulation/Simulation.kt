@@ -10,10 +10,7 @@ import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.websocket.Frame
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -94,8 +91,8 @@ class PendingReplayData {
 }
 
 
-
 class SimulationContext(
+   val coroutineScope: CoroutineScope,
    val clientReceiveInteractionTimeoutSeconds: Double? = 60.0,
    val clientReceiveMessageTimeoutSeconds: Double? = 60.0,
    val noClientsConnectedTerminationTimeoutSeconds: Double? = 120.0,
@@ -237,6 +234,33 @@ open class Simulation(
 
    open fun onStart() {
 
+   }
+
+   suspend fun startTickingInBackground(
+      backgroundTickIntervalMillis: Int = 100
+   ) {
+      var lastTickUnixTime = getCurrentUnixTimeSeconds()
+      while (true) {
+         val currentUnixTime = getCurrentUnixTimeSeconds()
+         val deltaTime = Math.max(0.0001, currentUnixTime - lastTickUnixTime)
+         lastTickUnixTime = currentUnixTime
+         val tickResult = this.tick(deltaTime)
+
+         if (tickResult.shouldTerminate) {
+            if (!this.isTerminated) {
+               this.handleTermination()
+               synchronized(this.simulationContainer) {
+                  this.simulationContainer.handleSimulationTerminated(
+                     simulation = this
+                  )
+               }
+            }
+
+            break
+         } else {
+            delay(backgroundTickIntervalMillis.toLong())
+         }
+      }
    }
 
    private fun sendWebSocketMessage(
@@ -471,7 +495,7 @@ open class Simulation(
    }
 
    @OptIn(DelicateCoroutinesApi::class)
-   fun saveReplay() {
+   fun saveReplay(): Boolean {
       val replayUploadBucket = Companion.replayS3UploadBucket
 
       val replayData = this.buildReplayData()
@@ -479,11 +503,7 @@ open class Simulation(
          Json.encodeToString(replayData)
       } catch (exception: Exception) {
          println("Failed to serialize replay data as JSON: " + exception.stackTraceToString())
-         null
-      }
-
-      if (replayDataJson == null) {
-         return
+         return false
       }
 
       val replayFileName = "replay-" + this.simulationId.value + ".json"
@@ -515,10 +535,19 @@ open class Simulation(
 
          replayFilePath.writeText(replayDataJson)
       }
+
+      return true
    }
 
    fun tick(deltaTime: Double): TickResult {
       if (this.isTerminated) {
+         return TickResult(
+            shouldTerminate = false
+         )
+      }
+
+      if (this.shouldTerminate) {
+         this.handleTermination()
          return TickResult(
             shouldTerminate = false
          )
@@ -597,7 +626,8 @@ open class Simulation(
          val timeSinceAnyClientsConnected = getCurrentUnixTimeSeconds() - this.lastAnyClientsConnectedUnixTime
 
          if (context.noClientsConnectedTerminationTimeoutSeconds != null &&
-            timeSinceAnyClientsConnected > context.noClientsConnectedTerminationTimeoutSeconds) {
+            timeSinceAnyClientsConnected > context.noClientsConnectedTerminationTimeoutSeconds
+         ) {
             println("Terminating simulation because not clients connected for ${timeSinceAnyClientsConnected.roundToInt()} seconds")
 
             return TickResult(
@@ -642,19 +672,21 @@ open class Simulation(
    var isTerminated = false
       private set
 
-   fun handleTermination() {
-      synchronized(this) {
-         this.isTerminated = true
+   private fun handleTermination() {
+      this.isTerminated = true
 
-         this.entities.forEach {
-            it.stop()
-         }
+      this.entities.forEach {
+         it.stop()
+      }
 
-         this.coroutineSystems.forEach { system ->
-            system.handleTermination()
-         }
+      this.coroutineSystems.forEach { system ->
+         system.handleTermination()
+      }
 
-         this.saveReplay()
+      this.saveReplay()
+
+      synchronized(this.simulationContainer) {
+         this.simulationContainer.handleSimulationTerminated(this)
       }
    }
 
@@ -669,8 +701,7 @@ open class Simulation(
 
       this.coroutineSystems.forEach { system ->
          system.activateForEntity(
-            entity = entity,
-            simulationContainer = this.simulationContainer
+            entity = entity
          )
       }
    }
@@ -830,13 +861,23 @@ open class Simulation(
    }
 
    fun buildInfo(checkBelongsToUserSecret: UserSecret?): SimulationInfo {
-      return SimulationInfo(
-         simulationId = this.simulationId,
-         scenarioInfo = this.scenarioInfo,
-         isTerminated = this.isTerminated,
-         startedAtUnixTime = this.startedAtUnixTime,
-         belongsToUser = checkBelongsToUserSecret == this.context.createdByUserSecret,
-         wasCreatedByAdmin = this.context.wasCreatedByAdmin
-      )
+      synchronized(this) {
+         return SimulationInfo(
+            simulationId = this.simulationId,
+            scenarioInfo = this.scenarioInfo,
+            isTerminated = this.isTerminated,
+            startedAtUnixTime = this.startedAtUnixTime,
+            belongsToUser = checkBelongsToUserSecret == this.context.createdByUserSecret,
+            wasCreatedByAdmin = this.context.wasCreatedByAdmin
+         )
+      }
+   }
+
+   private var shouldTerminate = false
+
+   fun requestTermination() {
+      synchronized(this) {
+         this.shouldTerminate = true
+      }
    }
 }

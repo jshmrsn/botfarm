@@ -35,7 +35,7 @@ fun configureSimulationServerModule(
          val deltaTime = Math.max(currentUnixTimeSeconds - lastTickUnixTime, 0.00001)
          lastTickUnixTime = currentUnixTimeSeconds
 
-         simulationContainer.tick(deltaTime)
+         simulationContainer.tickOnCurrentThread(deltaTime)
 
          val tickIntervalSeconds = 1.0 / 30.0
          Thread.sleep((tickIntervalSeconds * 1000).toLong())

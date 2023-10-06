@@ -36,7 +36,7 @@ class GameSimulationTestHelper(
       while (durationRemaining >= 0.00001) {
          val deltaTime = min(0.2, durationRemaining)
          durationRemaining -= deltaTime
-         this.simulationContainer.tick(
+         this.simulationContainer.tickOnCurrentThread(
             deltaTime = deltaTime
          )
 
@@ -129,7 +129,7 @@ fun simulationTest(
       gameScenario = scenario
    )
 
-   simulationContainer.addSimulation(simulation)
+   simulationContainer.createSimulation(simulation, shouldTickInBackground = false)
 
    val gameSimulationTestHelper = GameSimulationTestHelper(
       simulation = simulation,

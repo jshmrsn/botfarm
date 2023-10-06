@@ -14,8 +14,10 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import java.io.File
+import kotlin.concurrent.thread
 import kotlin.io.path.absolutePathString
 import io.ktor.server.routing.post as routingPost
 
@@ -91,7 +93,7 @@ fun Application.configureRouting(
 
          val scenario = simulationContainer.scenarioRegistration.registeredScenarios.find {
             it.identifier == request.scenarioIdentifier &&
-            it.gameIdentifier == request.scenarioGameIdentifier
+                    it.gameIdentifier == request.scenarioGameIdentifier
          }
 
          if (scenario == null) {
@@ -99,38 +101,53 @@ fun Application.configureRouting(
          } else if (scenario.requiresAdmin && !isAdmin) {
             throw Exception("Scenario requires admin: " + request.scenarioIdentifier)
          } else {
-            val simulationContext = SimulationContext(
-               wasCreatedByAdmin = isAdmin,
-               simulationContainer = simulationContainer,
-               createdByUserSecret = request.userSecret,
-               scenario = scenario,
-               coroutineDelayImplementation = {
-                  delay(it.toLong())
+            var createdSimulationVar: Simulation? = null
+            var backgroundExceptionVar: Exception? = null
+
+            thread {
+               runBlocking {
+                  val coroutineScope = this
+                  try {
+                     val createdSimulation = simulationContainer.createSimulation(
+                        wasCreatedByAdmin = isAdmin,
+                        createdByUserSecret = request.userSecret,
+                        scenario = scenario,
+                        coroutineDelayImplementation = {
+                           delay(it.toLong())
+                        },
+                        coroutineScope = coroutineScope
+                     )
+
+                     createdSimulationVar = createdSimulation
+
+                     createdSimulation.startTickingInBackground()
+                  } catch (exception: Exception) {
+                     println("Exception calling simulationContainer.createSimulation:  ${exception.stackTraceToString()}")
+                     backgroundExceptionVar = exception
+                  }
                }
-            )
-
-            val simulation = scenario.createSimulation(
-               context = simulationContext
-            )
-
-            try {
-               simulationContainer.addSimulation(simulation)
-            } catch (exception: Exception) {
-               println("Exception calling simulationContainer.addSimulation:  ${exception.stackTraceToString()}")
-               throw exception
             }
 
-            val simulationInfo = synchronized(simulation) {
-               simulation.buildInfo(
-                  checkBelongsToUserSecret = request.userSecret
-               )
-            }
+            while (true) {
+               val createdSimulation = createdSimulationVar
+               val backgroundException = backgroundExceptionVar
 
-            call.respond(
-               CreateSimulationResponse(
-                  simulationInfo = simulationInfo
-               )
-            )
+               if (backgroundException != null) {
+                  throw Exception("Exception in background while creating simulation", backgroundException)
+               } else if (createdSimulation != null) {
+                  val simulationInfo = createdSimulation.buildInfo(
+                     checkBelongsToUserSecret = request.userSecret
+                  )
+
+                  call.respond(
+                     CreateSimulationResponse(
+                        simulationInfo = simulationInfo
+                     )
+                  )
+               } else {
+                  delay(50)
+               }
+            }
          }
       }
    }

@@ -19,8 +19,7 @@ class CoroutineSystem(
    private val entries = mutableListOf<Entry>()
 
    fun activateForEntity(
-      entity: Entity,
-      simulationContainer: SimulationContainer
+      entity: Entity
    ) {
       val callback = this.registeredCoroutineSystem.checkEntity(entity)
 
@@ -30,11 +29,10 @@ class CoroutineSystem(
          val context = CoroutineSystemContext(
             entity = entity,
             simulation = simulation,
-            simulationContainer = simulationContainer,
             delayImplementation = simulation.context.coroutineDelayImplementation
          )
 
-         val job = CoroutineScope(simulationContainer.coroutineDispatcher).launch {
+         val job = simulation.context.coroutineScope.launch {
             try {
                callback(context)
             } catch (end: EndCoroutineThrowable) {

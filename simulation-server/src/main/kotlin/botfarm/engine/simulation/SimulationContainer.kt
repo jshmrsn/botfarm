@@ -4,10 +4,11 @@ import botfarm.engine.ktorplugins.AdminRequest
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.buildShortRandomIdentifier
-import kotlinx.coroutines.ExecutorCoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
+import botfarmshared.misc.getCurrentUnixTimeSeconds
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import java.util.concurrent.Executors
+import kotlin.concurrent.thread
 import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 
@@ -20,7 +21,6 @@ class TickSystemContext(
 class CoroutineSystemContext(
    val entity: Entity,
    val simulation: Simulation,
-   val simulationContainer: SimulationContainer,
    val delayImplementation: suspend (milliseconds: Int) -> Unit
 ) {
    var coroutineShouldStop = false
@@ -293,9 +293,7 @@ data class ClientSimulationData(
    val simulationTime: Double
 )
 
-class StartContext(
-   val simulationContainer: SimulationContainer
-)
+class StartContext()
 
 class SimulationContainer(
    val scenarioRegistration: ScenarioRegistration
@@ -306,39 +304,65 @@ class SimulationContainer(
    private val simulations = mutableListOf<Simulation>()
    private val terminatedSimulations = mutableListOf<Simulation>()
 
-   fun addSimulation(
-      simulation: Simulation
-   ) {
+   fun createSimulation(
+      clientReceiveInteractionTimeoutSeconds: Double? = 60.0,
+      clientReceiveMessageTimeoutSeconds: Double? = 60.0,
+      noClientsConnectedTerminationTimeoutSeconds: Double? = 120.0,
+      wasCreatedByAdmin: Boolean,
+      createdByUserSecret: UserSecret,
+      scenario: Scenario,
+      coroutineDelayImplementation: suspend (milliseconds: Int) -> Unit,
+      coroutineScope: CoroutineScope
+   ): Simulation {
+      val simulationContext = SimulationContext(
+         coroutineScope = coroutineScope,
+         clientReceiveInteractionTimeoutSeconds = clientReceiveInteractionTimeoutSeconds,
+         clientReceiveMessageTimeoutSeconds = clientReceiveMessageTimeoutSeconds,
+         noClientsConnectedTerminationTimeoutSeconds = noClientsConnectedTerminationTimeoutSeconds,
+         wasCreatedByAdmin = wasCreatedByAdmin,
+         simulationContainer = this,
+         createdByUserSecret = createdByUserSecret,
+         scenario = scenario,
+         coroutineDelayImplementation = coroutineDelayImplementation
+      )
+
+      val simulation = scenario.createSimulation(
+         context = simulationContext
+      )
+
       synchronized(this) {
          this.simulations.add(simulation)
-
-         val startContext = StartContext(
-            simulationContainer = this
-         )
-
-         simulation.start(startContext)
       }
+
+      val startContext = StartContext()
+      simulation.start(startContext)
+
+      return simulation
    }
 
-   fun tick(deltaTime: Double) {
+   fun tickOnCurrentThread(deltaTime: Double) {
       val simulations = synchronized(this) {
          this.simulations.toList()
       }
 
       val simulationsToTerminate = simulations.filter { simulation ->
          val tickResult = synchronized(simulation) {
-            simulation.tick(
-               deltaTime = deltaTime
-            )
+            runBlocking {
+               simulation.tick(
+                  deltaTime = deltaTime
+               )
+            }
          }
 
          tickResult.shouldTerminate
       }
 
       simulationsToTerminate.forEach { simulationToRemove ->
-         this.terminateSimulation(
-            simulationId = simulationToRemove.simulationId
-         )
+         runBlocking {
+            this@SimulationContainer.terminateSimulation(
+               simulationId = simulationToRemove.simulationId
+            )
+         }
       }
    }
 
@@ -386,23 +410,28 @@ class SimulationContainer(
       val success: Boolean
    )
 
-   fun terminateSimulation(simulationId: SimulationId): TerminateSimulationResult {
+   fun handleSimulationTerminated(simulation: Simulation) {
       synchronized(this) {
-         val simulation = this.getSimulation(simulationId)
+         this.simulations.remove(simulation)
+         this.terminatedSimulations.add(simulation)
+      }
+   }
 
-         if (simulation != null) {
-            synchronized(simulation) {
-               if (!simulation.isTerminated) {
-                  simulation.handleTermination()
-                  this.simulations.remove(simulation)
-                  this.terminatedSimulations.add(simulation)
-               }
+   suspend fun terminateSimulation(simulationId: SimulationId): TerminateSimulationResult {
+      val simulation = synchronized(this) {
+         this.getSimulation(simulationId)
+      } ?: return TerminateSimulationResult(success = false)
 
+      simulation.requestTermination()
+
+      while (true) {
+         synchronized(simulation) {
+            if (simulation.isTerminated) {
                return TerminateSimulationResult(success = true)
             }
-         } else {
-            return TerminateSimulationResult(success = false)
          }
+
+         delay(50)
       }
    }
 }
