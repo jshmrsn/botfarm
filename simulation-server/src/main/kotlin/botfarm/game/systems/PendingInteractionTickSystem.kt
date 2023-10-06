@@ -73,7 +73,11 @@ fun pendingInteractionTickSystem(
       val targetEntity =
          context.simulation.getEntityOrNull(characterComponentData.pendingInteractionTargetEntityId)
 
-      if (targetEntity != null && !targetEntity.isDead) {
+      if (targetEntity == null) {
+         pendingCallback(AutoInteractType.TargetNoLongerExists)
+      } else if (targetEntity.isDead) {
+         pendingCallback(AutoInteractType.TargetAlreadyDead)
+      } else {
          val targetPosition = targetEntity.resolvePosition()
 
          val distance = targetPosition.distance(position)
@@ -141,6 +145,8 @@ fun pendingInteractionTickSystem(
                   }
                }
             }
+         } else {
+            pendingCallback(AutoInteractType.StillTooFarAfterMoving)
          }
       }
    }

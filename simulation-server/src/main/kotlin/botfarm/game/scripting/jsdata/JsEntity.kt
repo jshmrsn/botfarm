@@ -1,4 +1,4 @@
-package botfarm.game.codeexecution.jsdata
+package botfarm.game.scripting.jsdata
 
 import botfarmshared.game.apidata.ActiveGrowthInfo
 import botfarmshared.game.apidata.EntityInfo
@@ -6,33 +6,33 @@ import botfarmshared.game.apidata.ItemInfo
 import org.graalvm.polyglot.HostAccess
 
 class JsEntity(
-   val api: AgentJavaScriptApi,
+   val api: AgentJavaScriptApi?,
    val entityInfo: EntityInfo
 ) {
    @HostAccess.Export
    @JvmField
-   val location: JsVector2 = entityInfo.location.roundedToJs()
+   val location: JsVector2 = this.entityInfo.location.roundedToJs()
 
    @HostAccess.Export
    @JvmField
-   val entityId: String = entityInfo.entityId.value
+   val entityId: String = this.entityInfo.entityId.value
 
    @HostAccess.Export
    @JvmField
-   val grower: JsGrowerComponent? = entityInfo.growerInfo?.let { growerInfo ->
+   val grower: JsGrowerComponent? = this.entityInfo.growerInfo?.let { growerInfo ->
       JsGrowerComponent(
-         api = api,
-         entityInfo = entityInfo,
+         api = this.api,
+         entityInfo = this.entityInfo,
          activeGrowth = growerInfo.activeGrowthInfo?.let { JsActiveGrowth(it) }
       )
    }
 
    @HostAccess.Export
    @JvmField
-   val itemOnGround: JsItemOnGroundComponent? = entityInfo.itemInfo?.let { itemInfo ->
+   val itemOnGround: JsItemOnGroundComponent? = this.entityInfo.itemInfo?.let { itemInfo ->
       JsItemOnGroundComponent(
-         api = api,
-         entityInfo = entityInfo,
+         api = this.api,
+         entityInfo = this.entityInfo,
          description = itemInfo.description,
          name = itemInfo.itemName,
          itemTypeId = itemInfo.itemConfigKey,
@@ -43,10 +43,10 @@ class JsEntity(
 
    @HostAccess.Export
    @JvmField
-   val damageable: JsDamageableComponent? = entityInfo.damageableInfo?.let { damageableInfo ->
+   val damageable: JsDamageableComponent? = this.entityInfo.damageableInfo?.let { damageableInfo ->
       JsDamageableComponent(
-         api = api,
-         entityInfo = entityInfo,
+         api = this.api,
+         entityInfo = this.entityInfo,
          canBeDamagedByEquippedItemTypeId = damageableInfo.damageableByEquippedToolItemConfigKey,
          hp = damageableInfo.hp
       )
@@ -54,10 +54,9 @@ class JsEntity(
 
    @HostAccess.Export
    @JvmField
-   val character: JsCharacterComponent? = entityInfo.characterInfo?.let {
+   val character: JsCharacterComponent? = this.entityInfo.characterInfo?.let {
       JsCharacterComponent(
-         api = api,
-         entityInfo = entityInfo,
+         entityInfo = this.entityInfo,
          name = it.name,
          gender = it.gender,
          skinColor = it.skinColor,
@@ -72,7 +71,6 @@ class JsEntity(
 
 
 class JsCharacterComponent(
-   val api: AgentJavaScriptApi,
    val entityInfo: EntityInfo,
 
    @HostAccess.Export @JvmField val name: String,
@@ -86,7 +84,7 @@ class JsCharacterComponent(
 )
 
 class JsItemOnGroundComponent(
-   val api: AgentJavaScriptApi,
+   val api: AgentJavaScriptApi?,
    val entityInfo: EntityInfo,
    @HostAccess.Export @JvmField val description: String,
    @HostAccess.Export @JvmField val name: String,
@@ -96,6 +94,10 @@ class JsItemOnGroundComponent(
 ) {
    @HostAccess.Export
    fun pickUp(reason: String?) {
+      if (this.api == null) {
+         throw Exception("JsItemOnGroundComponent.pickUp: api is null")
+      }
+
       this.api.pickUpItem(
          entityId = this.entityInfo.entityId.value,
          reason = reason
@@ -109,13 +111,17 @@ class JsItemOnGroundComponent(
 }
 
 class JsDamageableComponent(
-   val api: AgentJavaScriptApi,
+   val api: AgentJavaScriptApi?,
    val entityInfo: EntityInfo,
    @HostAccess.Export @JvmField val hp: Int,
    @HostAccess.Export @JvmField val canBeDamagedByEquippedItemTypeId: String?
 ) {
    @HostAccess.Export
    fun attackWithEquippedItem(reason: String?) {
+      if (this.api == null) {
+         throw Exception("JsDamageableComponent.attackWithEquippedItem: api is null")
+      }
+
       this.api.interactWithEntity(
          entityId = this.entityInfo.entityId.value,
          reason = reason
@@ -151,12 +157,16 @@ class JsActiveGrowth(
 }
 
 class JsGrowerComponent(
-   val api: AgentJavaScriptApi,
+   val api: AgentJavaScriptApi?,
    val entityInfo: EntityInfo,
    @HostAccess.Export @JvmField val activeGrowth: JsActiveGrowth?
 ) {
    @HostAccess.Export
    fun startGrowingEquippedItem(reason: String?) {
+      if (this.api == null) {
+         throw Exception("JsGrowerComponent.startGrowingEquippedItem: api is null")
+      }
+
       this.api.interactWithEntity(
          entityId = this.entityInfo.entityId.value,
          reason = reason

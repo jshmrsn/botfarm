@@ -110,6 +110,8 @@ open class Simulation(
 ) {
    private var lastAnyClientsConnectedUnixTime = getCurrentUnixTimeSeconds()
 
+   val simulationThread = Thread.currentThread()
+
    companion object {
       val replayS3UploadBucket = System.getenv()["BOTFARM_S3_REPLAY_BUCKET"]
       val replayS3UploadRegion = System.getenv()["BOTFARM_S3_REPLAY_REGION"] ?: "us-west-2"
@@ -145,12 +147,31 @@ open class Simulation(
    private val mutableEntitiesById = mutableMapOf<EntityId, Entity>()
    private val mutableDestroyedEntitiesById = mutableMapOf<EntityId, Entity>()
 
-   val entitiesById: Map<EntityId, Entity> = this.mutableEntitiesById
-   val destroyedEntitiesById: Map<EntityId, Entity> = this.mutableDestroyedEntitiesById
+   private val entitiesById: Map<EntityId, Entity> = this.mutableEntitiesById
+   private val destroyedEntitiesById: Map<EntityId, Entity> = this.mutableDestroyedEntitiesById
 
-   val queuedCallbacks = QueuedCallbacks()
+   private val queuedCallbacks = QueuedCallbacks()
 
-   val pendingReplayData = PendingReplayData()
+   private val pendingReplayData = PendingReplayData()
+
+   private class RequestFromBackgroundThread(
+      val task: () -> Unit,
+      val handleException: (Exception) -> Unit
+   )
+
+   private val requestsFromBackgroundThread = mutableListOf<RequestFromBackgroundThread>()
+
+   fun addRequestFromBackgroundThread(
+      task: () -> Unit,
+      handleException: (Exception) -> Unit
+   ) {
+      synchronized(this) {
+         this.requestsFromBackgroundThread.add(RequestFromBackgroundThread(
+            task = task,
+            handleException = handleException
+         ))
+      }
+   }
 
    fun queueCallbackAfterSimulationTimeDelay(
       simulationTimeDelay: Double,
@@ -551,6 +572,26 @@ open class Simulation(
          return TickResult(
             shouldTerminate = false
          )
+      }
+
+      val requestsFromBackgroundThread = synchronized(this) {
+         val result = this.requestsFromBackgroundThread.toList()
+         this.requestsFromBackgroundThread.clear()
+         result
+      }
+
+      for (requestFromBackgroundThread in requestsFromBackgroundThread) {
+         try {
+            requestFromBackgroundThread.task()
+         } catch (exception: Exception) {
+            println("Exception while performing background thread requested: " + exception.stackTraceToString())
+
+            try {
+               requestFromBackgroundThread.handleException(exception)
+            } catch (exception: Exception) {
+               println("requestFromBackgroundThread.handleException threw another exception. Discarding exception to protect simulation thread: " + exception.stackTraceToString())
+            }
+         }
       }
 
       val currentUnixTimeSeconds = getCurrentUnixTimeSeconds()

@@ -26,19 +26,4 @@ fun configureSimulationServerModule(
    application.configureRouting(
       simulationContainer = simulationContainer
    )
-
-   thread {
-      var lastTickUnixTime = getCurrentUnixTimeSeconds()
-
-      while (true) {
-         val currentUnixTimeSeconds = getCurrentUnixTimeSeconds()
-         val deltaTime = Math.max(currentUnixTimeSeconds - lastTickUnixTime, 0.00001)
-         lastTickUnixTime = currentUnixTimeSeconds
-
-         simulationContainer.tickOnCurrentThread(deltaTime)
-
-         val tickIntervalSeconds = 1.0 / 30.0
-         Thread.sleep((tickIntervalSeconds * 1000).toLong())
-      }
-   }
 }

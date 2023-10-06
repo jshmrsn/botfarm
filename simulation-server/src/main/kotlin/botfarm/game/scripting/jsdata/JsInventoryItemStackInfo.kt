@@ -1,11 +1,11 @@
-package botfarm.game.codeexecution.jsdata
+package botfarm.game.scripting.jsdata
 
 import botfarmshared.game.apidata.ItemStackInfo
 import org.graalvm.polyglot.HostAccess
 
 
 class JsInventoryItemStackInfo(
-   val api: AgentJavaScriptApi,
+   val api: AgentJavaScriptApi?,
    val itemStackInfo: ItemStackInfo,
    @HostAccess.Export @JvmField val stackIndex: Int
 ) {
@@ -48,6 +48,10 @@ class JsInventoryItemStackInfo(
 
    @HostAccess.Export
    fun dropAll(reason: String?) {
+      if (this.api == null) {
+         throw Exception("JsInventoryItemStackInfo.dropAll: api is null")
+      }
+
       this.api.dropItem(
          itemConfigKey = this.itemTypeId,
          stackIndex = this.stackIndex,
@@ -63,6 +67,10 @@ class JsInventoryItemStackInfo(
 
    @HostAccess.Export
    fun dropAmount(amount: Int, reason: String?) {
+      if (this.api == null) {
+         throw Exception("JsInventoryItemStackInfo.dropAmount: api is null")
+      }
+
       this.api.dropItem(
          itemConfigKey = this.itemTypeId,
          stackIndex = this.stackIndex,
@@ -78,6 +86,10 @@ class JsInventoryItemStackInfo(
 
    @HostAccess.Export
    fun equip(reason: String?) {
+      if (this.api == null) {
+         throw Exception("JsInventoryItemStackInfo.equip: api is null")
+      }
+
       this.api.equipItem(
          itemConfigKey = this.itemTypeId,
          stackIndex = this.stackIndex,
@@ -92,6 +104,10 @@ class JsInventoryItemStackInfo(
 
    @HostAccess.Export
    fun use(reason: String?) {
+      if (this.api == null) {
+         throw Exception("JsInventoryItemStackInfo.use: api is null")
+      }
+
       this.api.useEquippedToolItem(
          reason = reason
       )

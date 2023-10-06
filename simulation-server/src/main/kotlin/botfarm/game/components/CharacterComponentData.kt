@@ -86,6 +86,7 @@ class CompositeAnimationSelection(
 )
 
 data class SpokenMessage(
+   val messageId: String,
    val message: String,
    val sentSimulationTime: Double
 ) : EntityComponentData()

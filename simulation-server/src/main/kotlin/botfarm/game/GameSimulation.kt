@@ -164,6 +164,7 @@ class GameSimulation(
                   val age = currentTime - spokenMessage.sentSimulationTime
                   age < 30.0
                } + SpokenMessage(
+                  messageId = buildShortRandomIdentifier(),
                   sentSimulationTime = currentTime,
                   message = message
                ))

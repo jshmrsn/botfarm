@@ -1,4 +1,4 @@
-package botfarm.game.codeexecution.jsdata
+package botfarm.game.scripting.jsdata
 
 import botfarmshared.misc.Vector2
 import org.graalvm.polyglot.HostAccess

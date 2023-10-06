@@ -1,6 +1,6 @@
-package botfarm.game.codeexecution.jsdata
+package botfarm.game.scripting.jsdata
 
-import botfarm.game.codeexecution.JavaScriptCodeSerialization
+import botfarm.game.scripting.JavaScriptCodeSerialization
 import botfarm.game.components.ItemStack
 import botfarm.game.config.ItemConfig
 import botfarmshared.game.apidata.EntityInfo
@@ -22,7 +22,7 @@ fun ItemStack.buildInfo(itemConfig: ItemConfig): ItemStackInfo {
 
 fun EntityInfo.buildWrapper(
    javaScriptVariableName: String,
-   api: AgentJavaScriptApi
+   api: AgentJavaScriptApi?
 ): EntityInfoWrapper {
    return EntityInfoWrapper(
       entityInfo = this,

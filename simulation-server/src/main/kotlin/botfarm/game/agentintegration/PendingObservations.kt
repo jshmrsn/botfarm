@@ -1,8 +1,8 @@
 package botfarm.game.agentintegration
 
-import botfarm.game.codeexecution.JavaScriptCodeSerialization
-import botfarm.game.codeexecution.jsdata.AgentJavaScriptApi
-import botfarm.game.codeexecution.jsdata.JsEntity
+import botfarm.game.scripting.JavaScriptCodeSerialization
+import botfarm.game.scripting.jsdata.AgentJavaScriptApi
+import botfarm.game.scripting.jsdata.JsEntity
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*
 import kotlinx.serialization.Serializable
@@ -22,7 +22,7 @@ class PendingObservations {
    val startedActionUniqueIds: MutableList<String> = mutableListOf()
    val scriptExecutionErrors: MutableList<ScriptExecutionError> = mutableListOf()
 
-   fun toObservations(api: AgentJavaScriptApi): Observations = Observations(
+   fun toObservations(): Observations = Observations(
       scriptExecutionErrors = this.scriptExecutionErrors.toList(),
       spokenMessages = this.spokenMessages.toList(),
       selfSpokenMessages = this.selfSpokenMessages.toList(),
@@ -40,7 +40,7 @@ class PendingObservations {
          val entityVariableName = "${variableTypeName}_entity_${entityInfo.entityId.value}"
 
          EntityInfoWrapper(
-            serializedAsJavaScript = JavaScriptCodeSerialization.serialize(JsEntity(api, entityInfo)),
+            serializedAsJavaScript = JavaScriptCodeSerialization.serialize(JsEntity(api = null, entityInfo = entityInfo)),
             javaScriptVariableName = entityVariableName,
             entityInfo = it.value
          )

@@ -8,9 +8,9 @@ import botfarm.engine.simulation.CoroutineSystemContext
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
-import botfarm.game.codeexecution.JavaScriptCodeSerialization
-import botfarm.game.codeexecution.UnwindScriptThreadThrowable
-import botfarm.game.codeexecution.jsdata.*
+import botfarm.game.scripting.JavaScriptCodeSerialization
+import botfarm.game.scripting.UnwindScriptThreadThrowable
+import botfarm.game.scripting.jsdata.*
 import botfarm.game.components.*
 import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
@@ -27,12 +27,37 @@ import org.graalvm.polyglot.PolyglotException
 import org.graalvm.polyglot.Source
 import kotlin.concurrent.thread
 
+class AgentJavaScriptRuntime(
+   val agentJavaScriptApi: AgentJavaScriptApi
+) {
+   val javaScriptContext: Context =
+      Context.newBuilder("js")
+         .option("js.strict", "true")
+         .build()
+
+   val bindings = this.javaScriptContext.getBindings("js").also {
+      it.putMember("api", this.agentJavaScriptApi)
+   }
+
+   init {
+      val sourceName = "scripted-agent-runtime.js"
+
+      val runtimeSource =
+         this::class.java.getResource("/$sourceName")?.readText()
+            ?: throw Exception("Scripted agent runtime JavaScript resource not found")
+
+      val javaScriptSource = Source.newBuilder("js", runtimeSource, sourceName).build()
+      this.javaScriptContext.eval(javaScriptSource)
+   }
+}
+
 class AgentIntegration(
    val simulation: GameSimulation,
    val entity: Entity,
    val agentType: String,
    val agentId: AgentId
 ) {
+   private val allObservedMessageIds = mutableSetOf<String>()
    private val startedActionUniqueIds = mutableSetOf<String>()
    private val agentControlledComponent = this.entity.getComponent<AgentControlledComponentData>()
    private val actionResultsByActionUniqueId = mutableMapOf<String, ActionResult>()
@@ -47,39 +72,25 @@ class AgentIntegration(
    private var activeAction: Action? = null
    private val pendingActions = mutableListOf<Action>()
 
-   private var activeScriptThread: Thread? = null
+   private val agentJavaScriptApi = AgentJavaScriptApi(this)
 
-   private var activeScriptToRun: ScriptToRun? = null
+   class RunningScript(
+      val thread: Thread,
+      val agentJavaScriptApi: AgentJavaScriptApi,
+      val scriptToRun: ScriptToRun
+   )
+
+   private var runningScript: RunningScript? = null
+
    private var mostRecentCompletedScriptId: String? = null
 
-   private val javaScriptContext: Context =
-      Context.newBuilder("js")
-         .option("js.strict", "true")
-         .build()
-
-   private val agentJavaScriptApi: AgentJavaScriptApi
+   val agentJavaScriptRuntime = AgentJavaScriptRuntime(
+      agentJavaScriptApi = this.agentJavaScriptApi
+   )
 
    private val agentTypeScriptInterfaceString =
       this::class.java.getResource("/scripted-agent-interfaces.ts")?.readText()
          ?: throw Exception("Scripted agent interfaces resource not found")
-
-   init {
-      val javaScriptBindings = this.javaScriptContext.getBindings("js")
-      val agentJavaScriptApi = AgentJavaScriptApi(this)
-      this.agentJavaScriptApi = agentJavaScriptApi
-      javaScriptBindings.putMember("api", agentJavaScriptApi)
-
-      val sourceName = "helpers"
-
-      run {
-         val runtimeSource =
-            this::class.java.getResource("/scripted-agent-runtime.js")?.readText()
-               ?: throw Exception("Scripted agent runtime JavaScript resource not found")
-
-         val javaScriptSource = Source.newBuilder("js", runtimeSource, sourceName).build()
-         this.javaScriptContext.eval(javaScriptSource)
-      }
-   }
 
    fun hasStartedAction(actionUniqueId: String) = this.startedActionUniqueIds.contains(actionUniqueId)
 
@@ -179,36 +190,34 @@ class AgentIntegration(
 
       coroutineSystemContext.unwindIfNeeded()
 
-      val agentJavaScriptApi = this.agentJavaScriptApi
-
-      val newObservationsForInput = this.pendingObservations.toObservations(api = agentJavaScriptApi)
+      val newObservationsForInput = this.pendingObservations.toObservations()
       this.pendingObservations = PendingObservations()
 
-      val agentSyncInput: AgentSyncInput
 
       val agentControlledComponent = this.agentControlledComponent
 
-      synchronized(simulation) {
-         if (simulation.shouldPauseAi) {
-            agentControlledComponent.modifyData {
-               it.copy(
-                  agentIntegrationStatus = "paused",
-                  agentStatus = null,
-                  agentError = null,
-                  wasRateLimited = false
-               )
-            }
-
-            return
+      if (simulation.shouldPauseAi) {
+         agentControlledComponent.modifyData {
+            it.copy(
+               agentIntegrationStatus = "paused",
+               agentStatus = null,
+               agentError = null,
+               wasRateLimited = false
+            )
          }
 
+         return
+      }
+
+
+      val selfEntityInfo = buildEntityInfoForAgent(
+         entity = entity,
+         simulationTime = simulation.getCurrentSimulationTime()
+      )
+
+      val agentSyncInput = run {
          val craftingRecipeInfos = simulation.getCraftingRecipeInfos(
             crafterEntity = entity
-         )
-
-         val selfEntityInfo = buildEntityInfoForAgent(
-            entity = entity,
-            simulationTime = simulation.getCurrentSimulationTime()
          )
 
          val inventoryComponentData = entity.getComponent<InventoryComponentData>().data
@@ -227,7 +236,7 @@ class AgentIntegration(
                   itemStackInfo = itemStackInfo,
                   serializedAsJavaScript = JavaScriptCodeSerialization.serialize(
                      JsInventoryItemStackInfo(
-                        api = agentJavaScriptApi,
+                        api = null,
                         itemStackInfo = itemStackInfo,
                         stackIndex = stackIndex
                      )
@@ -242,7 +251,7 @@ class AgentIntegration(
          val selfInfo = SelfInfo(
             entityInfoWrapper = selfEntityInfo.buildWrapper(
                javaScriptVariableName = "self",
-               api = agentJavaScriptApi
+               api = null
             ),
             corePersonality = agentControlledComponent.data.corePersonality,
             initialMemories = agentControlledComponent.data.initialMemories,
@@ -259,14 +268,14 @@ class AgentIntegration(
                javaScriptVariableName = variableName,
                serializedAsJavaScript = JavaScriptCodeSerialization.serialize(
                   JsCraftingRecipe(
-                     api = agentJavaScriptApi,
+                     api = null,
                      craftingRecipeInfo = craftingRecipeInfo
                   )
                )
             )
          }
 
-         agentSyncInput = AgentSyncInput(
+         AgentSyncInput(
             syncId = syncId,
             agentId = agentId,
             agentType = agentControlledComponent.data.agentType,
@@ -282,26 +291,24 @@ class AgentIntegration(
             agentTypeScriptInterfaceString = this.agentTypeScriptInterfaceString,
             mostRecentCompletedScriptId = this.mostRecentCompletedScriptId
          )
+      }
 
-         agentControlledComponent.modifyData {
-            it.copy(
-               agentIntegrationStatus = "waiting_for_agent",
-               totalRemoteAgentRequests = it.totalRemoteAgentRequests + 1,
-               agentError = null
-            )
-         }
+      agentControlledComponent.modifyData {
+         it.copy(
+            agentIntegrationStatus = "waiting_for_agent",
+            totalRemoteAgentRequests = it.totalRemoteAgentRequests + 1,
+            agentError = null
+         )
       }
 
       this.mostRecentSyncInput = agentSyncInput
       val agentSyncOutputs = agentServerIntegration.sendSyncRequest(agentSyncInput)
       coroutineSystemContext.unwindIfNeeded()
 
-      synchronized(simulation) {
-         agentControlledComponent.modifyData {
-            it.copy(
-               agentIntegrationStatus = "idle"
-            )
-         }
+      agentControlledComponent.modifyData {
+         it.copy(
+            agentIntegrationStatus = "idle"
+         )
       }
 
       agentSyncOutputs.forEach { agentSyncOutput ->
@@ -360,13 +367,17 @@ class AgentIntegration(
 
                   if (otherCharacterComponentData != null) {
                      val newMessages = otherCharacterComponentData.recentSpokenMessages.filter {
-                        it.sentSimulationTime > this.previousNewEventCheckSimulationTime
+                        val messageAge = simulation.simulationTime - it.sentSimulationTime
+                        messageAge < 15.0 && !this.allObservedMessageIds.contains(it.messageId)
                      }
 
                      newMessages.forEach { newMessage ->
                         println("Adding spoken message observation: " + newMessage.message)
+                        this.allObservedMessageIds.add(newMessage.messageId)
+
                         this.pendingObservations.spokenMessages.add(
                            ObservedSpokenMessage(
+                              messageId = newMessage.messageId,
                               entityId = otherEntity.entityId,
                               characterName = otherCharacterComponentData.name,
                               message = newMessage.message,
@@ -462,12 +473,16 @@ class AgentIntegration(
          this.activeAction = null
          this.pendingActions.clear()
 
-         val previousThread = this.activeScriptThread
+         val threadStateLock: Any = this
 
-         this.agentJavaScriptApi.shouldEndScript = true
+         val previousRunningScript = synchronized(threadStateLock) {
+            val runningScript = this.runningScript
+            runningScript?.agentJavaScriptApi?.shouldEndScript = true
+            runningScript
+         }
 
-         if (previousThread != null) {
-            if (previousThread.isAlive) {
+         if (previousRunningScript != null) {
+            if (previousRunningScript.thread.isAlive) {
                println("Agent script thread exists and is active, so attempting to end now ($scriptId)")
 
                val waitStartTime = getCurrentUnixTimeSeconds()
@@ -475,12 +490,12 @@ class AgentIntegration(
 
                while (true) {
                   val waitedTime = getCurrentUnixTimeSeconds() - waitStartTime
-                  if (!previousThread.isAlive) {
+                  if (!previousRunningScript.thread.isAlive) {
                      println("Agent script thread has now ended after waiting $waitedTime seconds ($scriptId)")
                      break
                   } else if (waitedTime > timeout) {
                      println("Agent script thread did not end after $timeout seconds, so interrupting ($scriptId)")
-                     previousThread.interrupt()
+                     previousRunningScript.thread.interrupt()
                      break
                   } else {
                      coroutineSystemContext.delay(200)
@@ -491,6 +506,12 @@ class AgentIntegration(
             } else {
                println("Agent script thread exists, but is not active, so not interrupting ($scriptId)")
             }
+         } else {
+            println("No previous agent script thread exists, starting a new one now ($scriptId)")
+         }
+
+         synchronized(threadStateLock) {
+            this.runningScript = null
          }
 
          val wrappedResponseScript = """
@@ -498,8 +519,6 @@ class AgentIntegration(
          $script
          })()
       """.trimIndent()
-
-         val agentJavaScriptApi = this.agentJavaScriptApi
 
          agentControlledComponent.modifyData {
             it.copy(
@@ -510,84 +529,71 @@ class AgentIntegration(
             )
          }
 
-         val bindingsToAdd = mutableListOf<Pair<String, (conversionContext: JsConversionContext) -> Any>>()
-
          val craftingRecipeInfos = simulation.getCraftingRecipeInfos(
             crafterEntity = entity
          )
 
-         for (craftingRecipeInfo in craftingRecipeInfos) {
-            val variableName = "crafting_recipe_${craftingRecipeInfo.itemConfigKey.replace("-", "_")}"
-
-            bindingsToAdd.add(variableName to {
-               agentJavaScriptApi.buildJsCraftingRecipe(
-                  craftingRecipeInfo = craftingRecipeInfo,
-                  jsConversionContext = it
-               )
-            })
-         }
-
-         val inventoryItemStacks = agentJavaScriptApi.getCurrentInventoryItemStacks()
-
-         for (jsInventoryItemStackInfo in inventoryItemStacks.values) {
-            val stackIndex = jsInventoryItemStackInfo.stackIndex
-
-            val itemStackVariableName = "inventory_item_${stackIndex}"
-
-            bindingsToAdd.add(itemStackVariableName to {
-               jsInventoryItemStackInfo
-            })
-         }
-
-         val selfJsEntity = agentJavaScriptApi.buildJsEntity(agentSyncInput.selfInfo.entityInfoWrapper.entityInfo)
-
-         bindingsToAdd.add("self" to {
-            selfJsEntity
-         })
-
-         for (entityInfoWrapper in agentSyncInput.newObservations.entitiesById.values) {
-            val entityInfo = entityInfoWrapper.entityInfo
-            val jsEntity = agentJavaScriptApi.buildJsEntity(entityInfo)
-
-            val entityVariableName = entityInfoWrapper.javaScriptVariableName
-
-            bindingsToAdd.add(entityVariableName to {
-               jsEntity
-            })
-         }
-
-         val threadStateLock: Any = this
-
          synchronized(threadStateLock) {
-            this.activeScriptToRun = scriptToRun
-            this.agentJavaScriptApi.shouldEndScript = false
+            val agentJavaScriptApi = this.agentJavaScriptApi
 
-            this.activeScriptThread = thread {
-               val bindings = this.javaScriptContext.getBindings("js")
+            val newThread = thread {
+               println("In activeScriptThread")
+               agentJavaScriptApi.notifyJavaScriptThreadStarted()
+               val bindings = this.agentJavaScriptRuntime.bindings
 
                val jsConversionContext = JsConversionContext(bindings)
 
-               bindingsToAdd.forEach {
-                  bindings.putMember(it.first, it.second(jsConversionContext))
+               for (craftingRecipeInfo in craftingRecipeInfos) {
+                  val variableName = "crafting_recipe_${craftingRecipeInfo.itemConfigKey.replace("-", "_")}"
+
+                  bindings.putMember(variableName, agentJavaScriptApi.buildJsCraftingRecipe(
+                     craftingRecipeInfo = craftingRecipeInfo,
+                     jsConversionContext = jsConversionContext
+                  ))
+               }
+
+               val inventoryItemStacks = agentJavaScriptApi.getCurrentInventoryItemStacks()
+
+               for (jsInventoryItemStackInfo in inventoryItemStacks.values) {
+                  val stackIndex = jsInventoryItemStackInfo.stackIndex
+
+                  val itemStackVariableName = "inventory_item_${stackIndex}"
+
+                  bindings.putMember(itemStackVariableName, jsInventoryItemStackInfo)
+               }
+
+               val selfJsEntity = agentJavaScriptApi.buildJsEntity(agentSyncInput.selfInfo.entityInfoWrapper.entityInfo)
+
+               bindings.putMember("self", selfJsEntity)
+
+               for (entityInfoWrapper in agentSyncInput.newObservations.entitiesById.values) {
+                  val entityInfo = entityInfoWrapper.entityInfo
+                  val jsEntity = agentJavaScriptApi.buildJsEntity(entityInfo)
+
+                  val entityVariableName = entityInfoWrapper.javaScriptVariableName
+
+                  bindings.putMember(entityVariableName, jsEntity)
                }
 
                val sourceName = "agent"
                val javaScriptSource = Source.newBuilder("js", wrappedResponseScript, sourceName).build()
 
                try {
-                  this.javaScriptContext.eval(javaScriptSource)
+                  println("Calling javaScriptContext.eval")
+                  this.agentJavaScriptRuntime.javaScriptContext.eval(javaScriptSource)
+
                   synchronized(threadStateLock) {
                      println("Agent script thread complete: $scriptId")
-                     if (this.activeScriptToRun?.scriptId == scriptId) {
-                        this.activeScriptToRun = null
+                     if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
+                        this.runningScript = null
                         this.mostRecentCompletedScriptId = scriptId
                      }
                   }
                } catch (unwindScriptThreadThrowable: UnwindScriptThreadThrowable) {
                   println("Got unwind agent script thread throwable ($scriptId): ${unwindScriptThreadThrowable.reason}")
                   synchronized(threadStateLock) {
-                     if (this.activeScriptToRun?.scriptId == scriptId) {
-                        this.activeScriptToRun = null
+                     if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
+                        this.runningScript = null
                         this.mostRecentCompletedScriptId = scriptId
                      }
                   }
@@ -602,8 +608,8 @@ class AgentIntegration(
                      println("Got unwind agent script thread throwable via PolyglotException ($scriptId): ${resolvedException.reason}")
 
                      synchronized(threadStateLock) {
-                        if (this.activeScriptToRun?.scriptId == scriptId) {
-                           this.activeScriptToRun = null
+                        if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
+                           this.runningScript = null
                            this.mostRecentCompletedScriptId = scriptId
                         }
                      }
@@ -611,24 +617,24 @@ class AgentIntegration(
                      println("Polyglot exception evaluating agent JavaScript ($scriptId): " + polyglotException.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
 
                      synchronized(threadStateLock) {
-                        if (this.activeScriptToRun?.scriptId == scriptId) {
-                           this.activeScriptToRun = null
+                        if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
+                           this.runningScript = null
                            this.mostRecentCompletedScriptId = scriptId
 
-                           synchronized(simulation) {
-                              agentControlledComponent.modifyData {
-                                 it.copy(
-                                    scriptExecutionError = polyglotException.stackTraceToString()
-                                 )
-                              }
-
-                              this.pendingObservations.scriptExecutionErrors.add(
-                                 ScriptExecutionError(
-                                    scriptId = scriptId,
-                                    error = polyglotException.stackTraceToString()
-                                 )
-                              )
-                           }
+//                           synchronized(simulation) {
+//                              agentControlledComponent.modifyData {
+//                                 it.copy(
+//                                    scriptExecutionError = polyglotException.stackTraceToString()
+//                                 )
+//                              }
+//
+//                              this.pendingObservations.scriptExecutionErrors.add(
+//                                 ScriptExecutionError(
+//                                    scriptId = scriptId,
+//                                    error = polyglotException.stackTraceToString()
+//                                 )
+//                              )
+//                           }
                         }
                      }
                   }
@@ -636,46 +642,48 @@ class AgentIntegration(
                   println("Exception evaluating agent JavaScript ($scriptId): " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
 
                   synchronized(threadStateLock) {
-                     if (this.activeScriptToRun?.scriptId == scriptId) {
-                        this.activeScriptToRun = null
+                     if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
+                        this.runningScript = null
                         this.mostRecentCompletedScriptId = scriptId
 
 
-                        synchronized(simulation) {
-                           this.pendingObservations.scriptExecutionErrors.add(
-                              ScriptExecutionError(
-                                 scriptId = scriptId,
-                                 error = exception.stackTraceToString()
-                              )
-                           )
-
-                           agentControlledComponent.modifyData {
-                              it.copy(
-                                 scriptExecutionError = exception.stackTraceToString()
-                              )
-                           }
-                        }
+//                        synchronized(simulation) {
+//                           this.pendingObservations.scriptExecutionErrors.add(
+//                              ScriptExecutionError(
+//                                 scriptId = scriptId,
+//                                 error = exception.stackTraceToString()
+//                              )
+//                           )
+//
+//                           agentControlledComponent.modifyData {
+//                              it.copy(
+//                                 scriptExecutionError = exception.stackTraceToString()
+//                              )
+//                           }
+//                        }
                      }
                   }
                }
             }
+
+            this.runningScript = RunningScript(
+               thread = newThread,
+               scriptToRun = scriptToRun,
+               agentJavaScriptApi = agentJavaScriptApi
+            )
          }
-      }
+      } else if (actions != null) {
+         if (entity.isMoving) {
+            simulation.startEntityMovement(
+               entity = entity,
+               endPoint = entity.resolvePosition()
+            )
+         }
 
-      if (actions != null) {
-         synchronized(simulation) {
-            if (entity.isMoving) {
-               simulation.startEntityMovement(
-                  entity = entity,
-                  endPoint = entity.resolvePosition()
-               )
-            }
-
-            agentControlledComponent.modifyData {
-               it.copy(
-                  currentActionTimeline = null
-               )
-            }
+         agentControlledComponent.modifyData {
+            it.copy(
+               currentActionTimeline = null
+            )
          }
 
          this.activeAction = null

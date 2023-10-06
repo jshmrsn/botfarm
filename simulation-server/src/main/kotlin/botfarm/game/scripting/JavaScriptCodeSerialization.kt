@@ -1,6 +1,6 @@
-package botfarm.game.codeexecution
+package botfarm.game.scripting
 
-import botfarm.game.codeexecution.jsdata.JsArray
+import botfarm.game.scripting.jsdata.JsArray
 import botfarmshared.misc.DynamicSerialization
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

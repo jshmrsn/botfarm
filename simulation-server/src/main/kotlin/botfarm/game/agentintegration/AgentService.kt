@@ -23,6 +23,18 @@ class AgentService(
 ) {
    private val mockAgentsByKey = mutableMapOf<String, MockAgent>()
 
+   private val httpClient = HttpClient {
+      install(HttpTimeout) {
+         requestTimeoutMillis = 10000
+      }
+      install(ContentNegotiation) {
+         json(Json {
+            prettyPrint = true
+            isLenient = true
+         })
+      }
+   }
+
    suspend fun sendSyncRequest(inputs: AgentSyncInput): List<AgentSyncOutput> {
       val request = AgentSyncRequest(
          input = inputs
@@ -46,22 +58,10 @@ class AgentService(
       } else {
          val agentServerEndpoint = this.agentServerEndpoint
 
-         val httpResponse = HttpClient {
-            install(HttpTimeout) {
-               requestTimeoutMillis = 10000
-            }
-            install(ContentNegotiation) {
-               json(Json {
-                  prettyPrint = true
-                  isLenient = true
-               })
-            }
-         }.use {
-            it.post(agentServerEndpoint + "/api/sync") {
-               contentType(ContentType.Application.Json)
-               val bodyString = Json.encodeToString(request)
-               setBody(bodyString)
-            }
+         val httpResponse = this.httpClient.post("$agentServerEndpoint/api/sync") {
+            contentType(ContentType.Application.Json)
+            val bodyString = Json.encodeToString(request)
+            setBody(bodyString)
          }
 
          val response = try {

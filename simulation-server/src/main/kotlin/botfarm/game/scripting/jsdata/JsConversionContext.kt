@@ -1,4 +1,4 @@
-package botfarm.game.codeexecution.jsdata
+package botfarm.game.scripting.jsdata
 
 import org.graalvm.polyglot.Value
 

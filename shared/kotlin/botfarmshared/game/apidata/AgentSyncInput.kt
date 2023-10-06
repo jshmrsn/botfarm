@@ -22,6 +22,7 @@ class ItemCollection(
 @Serializable
 class ObservedSpokenMessage(
    val entityId: EntityId,
+   val messageId: String,
    val characterName: String,
    val message: String,
    val time: Double,
@@ -243,8 +244,14 @@ class AgentSyncInput(
 
 
 enum class AutoInteractType {
+   // Results
    Failed,
+   StillTooFarAfterMoving,
    FailedToMove,
+   TargetNoLongerExists,
+   TargetAlreadyDead,
+
+   // Behaviors
    PickUp,
    AttackWithEquippedTool,
    UseEquippedTool,

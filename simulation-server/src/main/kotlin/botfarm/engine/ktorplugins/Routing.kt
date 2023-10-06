@@ -122,7 +122,7 @@ fun Application.configureRouting(
 
                      createdSimulation.startTickingInBackground()
                   } catch (exception: Exception) {
-                     println("Exception calling simulationContainer.createSimulation:  ${exception.stackTraceToString()}")
+                     println("Exception in simulation background thread: ${exception.stackTraceToString()}")
                      backgroundExceptionVar = exception
                   }
                }

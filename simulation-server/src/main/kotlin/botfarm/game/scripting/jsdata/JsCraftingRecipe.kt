@@ -1,4 +1,4 @@
-package botfarm.game.codeexecution.jsdata
+package botfarm.game.scripting.jsdata
 
 import botfarmshared.game.apidata.CraftingRecipeInfo
 import org.graalvm.polyglot.HostAccess
@@ -10,7 +10,7 @@ class JsItemCostEntry(
 
 
 class JsCraftingRecipe(
-   val api: AgentJavaScriptApi,
+   val api: AgentJavaScriptApi?,
    val craftingRecipeInfo: CraftingRecipeInfo,
    jsConversionContext: JsConversionContext? = null
 ) {
@@ -37,6 +37,10 @@ class JsCraftingRecipe(
 
    @HostAccess.Export
    fun craft(reason: String?) {
+      if (this.api == null) {
+         throw Exception("JsCraftingRecipe.craft: api is null")
+      }
+
       this.api.craftItem(
          itemConfigKey = this.craftingRecipeInfo.itemConfigKey,
          reason = reason

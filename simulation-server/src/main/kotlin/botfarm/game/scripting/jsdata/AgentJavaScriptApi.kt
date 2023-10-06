@@ -1,10 +1,10 @@
-package botfarm.game.codeexecution.jsdata
+package botfarm.game.scripting.jsdata
 
 import botfarm.common.PositionComponentData
 import botfarm.common.resolvePosition
 import botfarm.game.agentintegration.AgentIntegration
 import botfarm.game.agentintegration.buildEntityInfoForAgent
-import botfarm.game.codeexecution.UnwindScriptThreadThrowable
+import botfarm.game.scripting.UnwindScriptThreadThrowable
 import botfarm.game.components.AgentControlledComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.InventoryComponentData
@@ -27,7 +27,23 @@ class AgentJavaScriptApi(
 
    var shouldEndScript = false
 
+   private var javaScriptThread: Thread? = null
+
+   fun notifyJavaScriptThreadStarted() {
+      this.javaScriptThread = Thread.currentThread()
+   }
+
+   private fun validateInJavaScriptThread() {
+      if (this.javaScriptThread == null) {
+         throw Exception("AgentJavaScriptApi.validateInJavaScriptThread: javaScriptThread hasn't been set")
+      } else if (Thread.currentThread() != this.javaScriptThread) {
+         throw Exception("AgentJavaScriptApi.validateInJavaScriptThread: Current thread is not javaScriptThread")
+      }
+   }
+
    fun endIfRequested() {
+      this.validateInJavaScriptThread()
+
       if (this.shouldEndScript) {
          throw UnwindScriptThreadThrowable()
       }
@@ -48,18 +64,6 @@ class AgentJavaScriptApi(
    fun makeVector2(x: Double, y: Double): JsVector2 {
       this.endIfRequested()
       return JsVector2(Vector2(x, y))
-   }
-
-   fun buildJsInventoryItemStackInfo(
-      itemStackInfo: ItemStackInfo,
-      stackIndex: Int
-   ): JsInventoryItemStackInfo {
-      this.endIfRequested()
-      return JsInventoryItemStackInfo(
-         api = this,
-         stackIndex = stackIndex,
-         itemStackInfo = itemStackInfo
-      )
    }
 
    @HostAccess.Export
@@ -90,9 +94,11 @@ class AgentJavaScriptApi(
    fun getAllCraftingRecipes(): JsArray<JsCraftingRecipe> {
       this.endIfRequested()
 
-      val craftingRecipeInfos = this.agentIntegration.simulation.getCraftingRecipeInfos(
-         crafterEntity = this.entity
-      )
+      val craftingRecipeInfos = this.waitForSimulationRequestResult {
+         this.simulation.getCraftingRecipeInfos(
+            crafterEntity = this.entity
+         )
+      }
 
       return craftingRecipeInfos.map {
          this.buildJsCraftingRecipe(it)
@@ -110,12 +116,10 @@ class AgentJavaScriptApi(
    fun getCurrentInventoryItemStacks(): JsArray<JsInventoryItemStackInfo> {
       this.endIfRequested()
 
-      synchronized(this.simulation) {
-         this.endIfRequested()
-
+      return this.waitForSimulationRequestResult {
          val inventory = this.inventoryComponent.data.inventory
 
-         return inventory.itemStacks.mapIndexed { stackIndex, itemStack ->
+         inventory.itemStacks.mapIndexed { stackIndex, itemStack ->
             val itemConfig = this.simulation.getConfig<ItemConfig>(itemStack.itemConfigKey)
 
             JsInventoryItemStackInfo(
@@ -131,30 +135,34 @@ class AgentJavaScriptApi(
 
    @HostAccess.Export
    fun getSelfEntity(): JsEntity {
-      val entityInfo = buildEntityInfoForAgent(this.entity, this.simulation.simulationTime)
-      return this.buildJsEntity(entityInfo)
+      return this.waitForSimulationRequestResult {
+         val entityInfo = buildEntityInfoForAgent(this.entity, this.simulation.simulationTime)
+         this.buildJsEntity(entityInfo)
+      }
    }
 
    @HostAccess.Export
    fun getCurrentNearbyEntities(): JsArray<JsEntity> {
-      this.endIfRequested()
-      val selfPosition = this.entity.resolvePosition()
-      val observationDistance = this.agentControlledComponent.data.observationDistance
+      return this.waitForSimulationRequestResult {
+         val selfPosition = this.entity.resolvePosition()
+         val observationDistance = this.agentControlledComponent.data.observationDistance
 
-      val observedEntities = this.simulation.entities.filter {
-         if (it.getComponentOrNull<PositionComponentData>() != null &&
-            it.entityId != this.entity.entityId) {
-            val distance = it.resolvePosition().distance(selfPosition)
-            distance <= observationDistance
-         } else {
-            false
+         val observedEntities = this.simulation.entities.filter {
+            if (it.getComponentOrNull<PositionComponentData>() != null &&
+               it.entityId != this.entity.entityId
+            ) {
+               val distance = it.resolvePosition().distance(selfPosition)
+               distance <= observationDistance
+            } else {
+               false
+            }
          }
-      }
 
-      return observedEntities.map { observedEntity ->
-         val entityInfo = buildEntityInfoForAgent(observedEntity, this.simulation.simulationTime)
-         this.buildJsEntity(entityInfo)
-      }.toList().toJs()
+         observedEntities.map { observedEntity ->
+            val entityInfo = buildEntityInfoForAgent(observedEntity, this.simulation.simulationTime)
+            this.buildJsEntity(entityInfo)
+         }.toList().toJs()
+      }
    }
 
    @HostAccess.Export
@@ -164,9 +172,74 @@ class AgentJavaScriptApi(
       this.endIfRequested()
    }
 
-   private fun addPendingActionAndWaitForResult(action: Action): ActionResult {
-      val simulation = this.simulation
+   private fun <T : Any> waitForSimulationRequestResultOrNull(
+      sleepIntervalMs: Int = 25,
+      task: () -> T?
+   ): T? {
+      var resultVar: T? = null
 
+      this.waitForSimulationRequest(
+         sleepIntervalMs = sleepIntervalMs,
+         task = {
+            resultVar = task()
+         }
+      )
+
+      return resultVar
+   }
+
+   private fun waitForSimulationRequest(
+      sleepIntervalMs: Int = 25,
+      task: () -> Unit
+   ) {
+      this.endIfRequested()
+
+      var didFinishTask = false
+      var resultExceptionVar: Exception? = null
+
+      this.simulation.addRequestFromBackgroundThread(
+         task = {
+            task()
+            didFinishTask = true
+         },
+         handleException = {
+            println("AgentJavaScriptApi.waitForSimulationRequest: Got exception: " + it.stackTraceToString())
+            resultExceptionVar = it
+         }
+      )
+      println("AgentJavaScriptApi.waitForSimulationRequest: Returned from addRequestFromBackgroundThread")
+
+      while (true) {
+         val resultException = resultExceptionVar
+
+         if (resultException != null) {
+            println("AgentJavaScriptApi.waitForSimulationRequest: Re-throwing task exception")
+            throw Exception("Exception from waitForSimulationRequest", resultException)
+         } else if (didFinishTask) {
+            return
+         } else {
+            this.sleep(sleepIntervalMs.toLong())
+         }
+      }
+   }
+
+   private fun <T : Any> waitForSimulationRequestResult(
+      sleepIntervalMs: Int = 25,
+      task: () -> T
+   ): T {
+      var resultVar: T? = null
+
+      this.waitForSimulationRequest(
+         sleepIntervalMs = sleepIntervalMs,
+         task = {
+            resultVar = task()
+         }
+      )
+
+      return resultVar ?: throw Exception("resultVar is null (should not be possible?)")
+   }
+
+   private fun addPendingActionAndWaitForResult(action: Action): ActionResult {
       this.endIfRequested()
 
       val actionUniqueId = action.actionUniqueId
@@ -179,7 +252,7 @@ class AgentJavaScriptApi(
 
       println("AgentJavaScriptApi: Added action: ($actionUniqueId)\n${actionJsonString}")
 
-      synchronized(simulation) {
+      this.waitForSimulationRequest {
          this.agentIntegration.addPendingAction(action)
       }
 
@@ -189,20 +262,22 @@ class AgentJavaScriptApi(
             ++waitingCounter
             this.sleep(200)
 
-            synchronized(simulation) {
-               val actionHasStarted = this.agentIntegration.hasStartedAction(actionUniqueId)
+            val actionHasStarted = this.waitForSimulationRequestResult {
+               this.agentIntegration.hasStartedAction(actionUniqueId)
+            }
 
-               if (!actionHasStarted) {
-                  println("AgentJavaScriptApi: Action has not yet started, waiting... $actionUniqueId ($waitingCounter)")
+            if (!actionHasStarted) {
+               println("AgentJavaScriptApi: Action has not yet started, waiting... $actionUniqueId ($waitingCounter)")
+            } else {
+               val actionResult = this.waitForSimulationRequestResultOrNull {
+                  this.agentIntegration.getActionResult(actionUniqueId)
+               }
+
+               if (actionResult != null) {
+                  println("AgentJavaScriptApi: Got action result $actionUniqueId ($waitingCounter)")
+                  return actionResult
                } else {
-                  val actionResult = this.agentIntegration.getActionResult(actionUniqueId)
-
-                  if (actionResult != null) {
-                     println("AgentJavaScriptApi: Got action result $actionUniqueId ($waitingCounter)")
-                     return actionResult
-                  } else {
-                     println("AgentJavaScriptApi: Action has not yet completed, waiting... $actionUniqueId ($waitingCounter)")
-                  }
+                  println("AgentJavaScriptApi: Action has not yet completed, waiting... $actionUniqueId ($waitingCounter)")
                }
             }
          }
@@ -360,8 +435,8 @@ class AgentJavaScriptApi(
    ) {
       this.addPendingActionAndWaitForResult(
          Action(
-         recordThought = thought
-      )
+            recordThought = thought
+         )
       )
    }
 
