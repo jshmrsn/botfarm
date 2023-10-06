@@ -21,7 +21,7 @@ class AgentSyncOutput(
    val statusStartUnixTime: Double? = null,
    val statusDuration: Double? = null,
    val agentStatus: String? = null,
-   val debugInfo: String? = null,
+   val debugInfoByKey: Map<String, String>? = null,
    val actions: List<Action>? = null,
    val scriptToRun: ScriptToRun? = null,
    val error: String? = null,
@@ -71,7 +71,6 @@ class WalkAction(
 
 @Serializable
 class UseEquippedToolItem(
-   val reason: String? = null
 )
 
 @Serializable

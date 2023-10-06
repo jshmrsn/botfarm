@@ -188,7 +188,6 @@ class GameSimulation(
       val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
 
       if (entity == null) {
-         sendAlertMessage(client, "No controlled entity")
          return
       }
 
@@ -672,18 +671,18 @@ class GameSimulation(
       interactingEntity: Entity,
       expectedItemConfigKey: String?
    ): UseEquippedItemResult {
+      val equippedToolItemConfigAndStackIndex = interactingEntity.getEquippedItemConfigAndStackIndex(EquipmentSlot.Tool)
+
+      if (equippedToolItemConfigAndStackIndex == null) {
+         return UseEquippedItemResult.NoToolItemEquipped
+      }
+
       if (interactingEntity.isDead) {
          return UseEquippedItemResult.Dead
       }
 
       if (!interactingEntity.isAvailableToPerformAction) {
          return UseEquippedItemResult.Busy
-      }
-
-      val equippedToolItemConfigAndStackIndex = interactingEntity.getEquippedItemConfigAndStackIndex(EquipmentSlot.Tool)
-
-      if (equippedToolItemConfigAndStackIndex == null) {
-         return UseEquippedItemResult.NoToolItemEquipped
       }
 
       val equippedToolItemConfig = equippedToolItemConfigAndStackIndex.second
@@ -1390,6 +1389,10 @@ class GameSimulation(
             client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<MoveToPointRequest>(messageData)
             this.handleMoveToPointRequest(client, request)
+         }
+
+         "NotifyClientActive" -> {
+            client.notifyInteractionReceived()
          }
 
          "UseEquippedToolItemRequest" -> {

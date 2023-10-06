@@ -41,18 +41,31 @@ class MovementRecord(
 @Serializable
 class ActionOnEntityRecord(
    val startedAtTime: Double,
-   val autoInteractType: AutoInteractType,
+   val desiredAutoInteractType: AutoInteractType,
+   val resultAutoInteractType: AutoInteractType,
    val targetEntityId: EntityId,
    val reason: String?
 )
 
+enum class ActionOnInventoryType {
+   Failed,
+   NoToolItemEquipped,
+   NoActionForEquippedTool,
+   ItemNotInInventory,
+
+   Drop,
+   Equip,
+   Use
+}
+
 @Serializable
 class ActionOnInventoryItemRecord(
    val startedAtTime: Double,
-   val itemConfigKey: String,
-   val actionId: String,
-   val reason: String?,
-   val amount: Int?
+   val itemConfigKey: String?,
+   val desiredActionOnInventoryType: ActionOnInventoryType,
+   val resultActionOnInventoryType: ActionOnInventoryType,
+   val reason: String? = null,
+   val amount: Int? = null
 )
 
 @Serializable

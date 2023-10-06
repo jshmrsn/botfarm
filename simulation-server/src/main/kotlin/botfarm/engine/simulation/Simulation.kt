@@ -93,8 +93,8 @@ class PendingReplayData {
 
 class SimulationContext(
    val coroutineScope: CoroutineScope,
-   val clientReceiveInteractionTimeoutSeconds: Double? = 60.0,
-   val clientReceiveMessageTimeoutSeconds: Double? = 60.0,
+   val clientReceiveInteractionTimeoutSeconds: Double? = 180.0,
+   val clientReceiveMessageTimeoutSeconds: Double? = 180.0,
    val noClientsConnectedTerminationTimeoutSeconds: Double? = 120.0,
    val wasCreatedByAdmin: Boolean,
    val simulationContainer: SimulationContainer,
@@ -640,7 +640,7 @@ open class Simulation(
             val timeSinceInteraction = getCurrentUnixTimeSeconds() - client.lastReceivedInteractionUnixTime
 
             if (timeSinceInteraction > context.clientReceiveInteractionTimeoutSeconds) {
-               this.sendAlertMessage(client, "Disconnecting for inactivity.")
+               this.sendAlertMessage(client, "Disconnecting for inactivity (${timeSinceInteraction.roundToInt()}).")
                this.queueCallbackWithoutDelay {
                   this.disconnectClient(client, reason = "Interaction timeout: ${timeSinceInteraction.roundToInt()}")
                }
@@ -652,7 +652,7 @@ open class Simulation(
             val timeSinceMessage = getCurrentUnixTimeSeconds() - client.lastReceivedMessageUnixTime
 
             if (timeSinceMessage > context.clientReceiveMessageTimeoutSeconds) {
-               this.sendAlertMessage(client, "Disconnecting for not receiving message.")
+               this.sendAlertMessage(client, "Disconnecting for not receiving message  (${timeSinceMessage.roundToInt()}).")
                this.queueCallbackWithoutDelay {
                   this.disconnectClient(client, reason = "Message timeout: ${timeSinceMessage.roundToInt()}")
                }

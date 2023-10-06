@@ -389,9 +389,8 @@ class AgentJavaScriptApi(
    ) {
       this.addPendingActionAndWaitForResult(
          Action(
-            useEquippedToolItem = UseEquippedToolItem(
-               reason = reason
-            )
+            reason = reason,
+            useEquippedToolItem = UseEquippedToolItem()
          )
       )
    }

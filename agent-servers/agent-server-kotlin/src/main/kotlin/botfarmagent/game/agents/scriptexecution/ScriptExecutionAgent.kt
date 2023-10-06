@@ -9,6 +9,7 @@ import botfarmshared.engine.apidata.PromptUsageInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 class ScriptExecutionAgent(
@@ -24,7 +25,6 @@ class ScriptExecutionAgent(
       val initialInputs = this.initialSyncInput
       val simulationTime = initialInputs.simulationTime
       val selfInfo = initialInputs.selfInfo
-
 
       val initialLongTermMemories = selfInfo.initialMemories.mapIndexed { initialMemoryIndex, initialMemory ->
          LongTermMemory(
@@ -60,6 +60,16 @@ class ScriptExecutionAgent(
 
       addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemories, newShortTermMemories)
       addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemoriesSinceLastPrompt, newShortTermMemories)
+
+      val pendingNewActivityDebugString = this.memoryState.automaticShortTermMemoriesSinceLastPrompt.joinToString("\n") { it.summary }
+
+      this.addPendingOutput(
+         AgentSyncOutput(
+            debugInfoByKey = mapOf(
+               "Pending New Activity" to pendingNewActivityDebugString
+            )
+         )
+      )
    }
 
    override suspend fun step(
@@ -74,7 +84,7 @@ class ScriptExecutionAgent(
       val modelInfo = if (this.useGpt4) {
          ModelInfo.gpt_4
       } else {
-         ModelInfo.gpt_3_5_turbo_instruct
+         ModelInfo.gpt_3_5_turbo
       }
 
       val simulationId = input.simulationId
@@ -135,7 +145,7 @@ class ScriptExecutionAgent(
          (entry.time > this.previousPromptSendSimulationTime) && !entry.forcePreviousActivity
       }
 
-      val automaticShortTermMemoriesSinceLastPrompt = this.memoryState.automaticShortTermMemoriesSinceLastPrompt
+      val automaticShortTermMemoriesSinceLastPrompt = this.memoryState.automaticShortTermMemoriesSinceLastPrompt.toList()
 
       val hasHighPriorityMemorySinceLastPrompt = automaticShortTermMemoriesSinceLastPrompt.find {
          it.isHighPriority
@@ -147,11 +157,11 @@ class ScriptExecutionAgent(
               this.mostRecentSentScriptId == this.mostRecentSyncInput.mostRecentCompletedScriptId
 
       val newPromptTimeLimit = if (hasHighPriorityMemorySinceLastPrompt) {
-         5.0
-      } else if (hasCompletedScript) {
          15.0
+      } else if (hasCompletedScript) {
+         20.0
       } else {
-         90.0
+         60.0
       }
 
       val shouldPrompt = timeSincePrompt > newPromptTimeLimit
@@ -204,9 +214,6 @@ class ScriptExecutionAgent(
             As you take actions, the simulation will automatically change values dynamically.
             Your code should not try to directly modify the values of entities or items.
 
-            If you have a thought, observation, or reflection you'd like to remember for later, use the recordThought function to remember it.
-            If you don't use the recordThought function, you will forget it.
-            
             Other people you meet in this world may or may not be acting your interest.
             Act in accordance to your own values and experiences.
             Limit your knowledge to things that you've learned while living in this world, don't talk about the outside world that you've been trained on.
@@ -244,9 +251,11 @@ class ScriptExecutionAgent(
       }
 
       builder.addSection("shortTermMemory") {
-         it.addLine("## YOUR MEMORY")
-         it.addLine(this.memoryState.shortTermMemory)
-         it.addLine("")
+         if (this.memoryState.shortTermMemory.isNotBlank()) {
+            it.addLine("## YOUR MEMORY")
+            it.addLine(this.memoryState.shortTermMemory)
+            it.addLine("")
+         }
       }
 
       // jshmrsn: Add sections in order first, so we can add critical tokens before adding less critical tokens if they fit
@@ -254,13 +263,22 @@ class ScriptExecutionAgent(
       val newActivitySection = builder.addSection("newActivity")
 
       builder.addSection("codeBlockStartSection").also {
+         it.addLine("The following TypeScript defines the interfaces/API you can use to interact with the world.")
          it.addLine("```ts")
       }
 
-      val interfacesSection = builder.addSection("interfaces")
-      val interfacesSource = input.agentTypeScriptInterfaceString
+      builder.addSection("interfaces").also {
+         val interfacesSource = input.agentTypeScriptInterfaceString
+         it.addLine(interfacesSource)
+         it.addLine("```")
+      }
 
-      interfacesSection.addLine(interfacesSource)
+      builder.addSection("worldAsCodeSection").also {
+         it.addLine("")
+         it.addLine("And this TypeScript below represents the known world state according to your observations.")
+         it.addLine("Note that some data is summarized in comments to reduce tokens, so you might need to use the API to query for the full state.")
+         it.addLine("```ts")
+      }
 
       val craftingRecipesSection = builder.addSection(
          "craftingRecipesSection"
@@ -277,13 +295,17 @@ class ScriptExecutionAgent(
 
       val uniqueEntityListSection = builder.addSection(
          "uniqueEntityListSection",
-         reserveTokens = (modelInfo.maxTokenCount * 0.333).roundToInt()
+         reserveTokens = if (modelInfo == ModelInfo.gpt_3_5_turbo) {
+            850
+         } else {
+            (modelInfo.maxTokenCount * 0.333).roundToInt()
+         }
       )
 
-      val nonUniqueEntityListSection = builder.addSection(
-         "nonUniqueEntityListSection",
-         reserveTokens = 300
-      )
+//      val nonUniqueEntityListSection = builder.addSection(
+//         "nonUniqueEntityListSection",
+//         reserveTokens = 300
+//      )
 
       val omittedEntityIntroSection = builder.addSection(
          "omittedEntityIntroSection",
@@ -299,8 +321,8 @@ class ScriptExecutionAgent(
          it.addLine("")
       }
 
-      val inventoryListSection = builder.addSection("inventoryListSection", reserveTokens = 700)
-      val inventorySummarySection = builder.addSection("inventorySummarySection", reserveTokens = 300)
+      val inventoryListSection = builder.addSection("inventoryListSection", reserveTokens = (modelInfo.maxTokenCount * 0.0875).roundToInt())
+      val inventorySummarySection = builder.addSection("inventorySummarySection", reserveTokens = (modelInfo.maxTokenCount * 0.0375).roundToInt())
 
       builder.addSection("after inventoryListSection").also {
          it.addLine("")
@@ -321,17 +343,16 @@ class ScriptExecutionAgent(
 
       val finalInstructionsSection = builder.addSection("finalInstructionsSection")
 
-      finalInstructionsSection.addLine("Respond with a block of JavaScript code that uses the interfaces and objects provided by the TypeScript representation of world, in order to interact with the world, carry out your intentions, and express yourself socially.")
-      finalInstructionsSection.addLine("Only respond with the block of JavaScript code, don't explain it.")
+      finalInstructionsSection.addLine("First, write 1-3 sentences in English what you would like to do and achieve next, and how you would like to interact socially.")
+      finalInstructionsSection.addLine("After your English description of your desires and intentions, then write a block of JavaScript using the provided TypeScript interfaces to best carry out your intentions.")
       finalInstructionsSection.addLine("Surround your code block with markdown tags.")
       finalInstructionsSection.addLine("Write your code as top-level statements.")
-      finalInstructionsSection.addLine("Your output JavaScript should be about 1-20 lines long.")
+      finalInstructionsSection.addLine("Your output JavaScript should be about 1-15 lines long.")
       finalInstructionsSection.addLine("Your output can perform multiple steps to achieve a more complex compound action.")
-      finalInstructionsSection.addLine("Your output can involve loops to repeat repetitive tasks.")
+      finalInstructionsSection.addLine("It is best to achieve as many useful actions per script as possible, so you might want to use loops to repeat repetitive tasks.")
       finalInstructionsSection.addLine("When you call functions to perform actions, those actions will complete before the function returns, so you can safely call multiple action functions without manually waiting for actions to complete.")
-      finalInstructionsSection.addLine("For example, if you want to chop down many trees, your code could loop through them and attack each one, instead of only attacking then nearest tree.")
-      finalInstructionsSection.addLine("Other people cannot see your code or comments in your code. If you want to express something to other people, you need to use the speak() function.")
-      finalInstructionsSection.addLine("You will not remember your code or your comments in your next prompt. If you want to remember something, use the recordThought() function.")
+      finalInstructionsSection.addLine("Other people cannot see your code or comments in your code. If you want to express something to other people, you need to use the speak function.")
+      finalInstructionsSection.addLine("You will not remember your code or your comments in your next prompt. If you want to remember something, use the recordThought function.")
 
       val completionPrefix = ""
 
@@ -532,6 +553,41 @@ class ScriptExecutionAgent(
       val promptSendTime = getCurrentUnixTimeSeconds()
       val promptId = buildShortRandomIdentifier()
 
+      run {
+         val newDebugInfoLines = mutableListOf<String>()
+         newDebugInfoLines.add("### Prompt ID: $promptId")
+         newDebugInfoLines.add("")
+
+         newDebugInfoLines.add("### Short-Term Memory")
+         newDebugInfoLines.add("")
+         newDebugInfoLines.add(this.memoryState.shortTermMemory)
+
+         newDebugInfoLines.add("")
+
+         newDebugInfoLines.add("### Previous Activity")
+         previousActivity.forEach {
+            newDebugInfoLines.add(it.summary)
+         }
+
+         newDebugInfoLines.add("### New Activity")
+         newActivity.forEach {
+            newDebugInfoLines.add(it.summary)
+         }
+
+         this.addPendingOutput(
+            AgentSyncOutput(
+               debugInfoByKey = mapOf(
+                  "Prompt Run Info" to newDebugInfoLines.joinToString("\n"),
+                  "Pending New Activity" to "<reset after prompt send>"
+               )
+            )
+         )
+      }
+
+      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.clear()
+
+      this.previousPromptSendSimulationTime = simulationTimeForStep
+
 
       val promptResult = runPrompt(
          languageModelService = this.context.languageModelService,
@@ -594,11 +650,16 @@ class ScriptExecutionAgent(
 
 
       this.previousPromptDoneUnixTime = getCurrentUnixTimeSeconds()
-      this.previousPromptSendSimulationTime = simulationTimeForStep
 
-      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.clear()
 
       val codeBlockStartIndex = responseText.indexOf("```")
+
+      val beforeScriptText = if (codeBlockStartIndex >= 0) {
+         responseText.substring(0, codeBlockStartIndex)
+      } else {
+         ""
+      }
+
       val responseScript = if (codeBlockStartIndex >= 0) {
          val textAfterBlockStart = responseText.substring(codeBlockStartIndex + 1)
          val newlineIndex = textAfterBlockStart.indexOf("\n")
@@ -618,24 +679,9 @@ class ScriptExecutionAgent(
       this.mostRecentSentScriptId = scriptId
 
       val newDebugInfoLines = mutableListOf<String>()
-      newDebugInfoLines.add("### Sync ID: $syncId")
-      newDebugInfoLines.add("")
 
-      newDebugInfoLines.add("### Short-Term Memory")
-      newDebugInfoLines.add("")
-      newDebugInfoLines.add(this.memoryState.shortTermMemory)
-
-      newDebugInfoLines.add("")
-
-      newDebugInfoLines.add("### Previous Activity")
-      previousActivity.forEach {
-         newDebugInfoLines.add(it.summary)
-      }
-
-      newDebugInfoLines.add("### New Activity")
-      newActivity.forEach {
-         newDebugInfoLines.add(it.summary)
-      }
+      newDebugInfoLines.add("### Before-Script Text")
+      newDebugInfoLines.add(beforeScriptText)
 
       println("===== RESPONSE SCRIPT ($promptId) ====== \n$responseScript\n===============")
 
@@ -645,7 +691,9 @@ class ScriptExecutionAgent(
                script = responseScript,
                scriptId = scriptId
             ),
-            debugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
+            debugInfoByKey = mapOf(
+               "Prompt Result Info" to newDebugInfoLines.joinToString("\n")
+            ),
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",
             promptUsages = promptUsages,

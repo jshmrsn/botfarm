@@ -142,7 +142,13 @@ fun pendingInteractionTickSystem(
                         pendingCallback(AutoInteractType.Failed)
                      }
                   }
+               } else {
+                  // No valid action
+                  pendingCallback(AutoInteractType.Failed)
                }
+            } else {
+               // Target not an item
+               pendingCallback(AutoInteractType.Failed)
             }
          } else {
             pendingCallback(AutoInteractType.StillTooFarAfterMoving)

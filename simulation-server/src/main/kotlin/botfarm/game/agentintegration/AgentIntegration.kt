@@ -304,6 +304,11 @@ class AgentIntegration(
       }
 
       this.mostRecentSyncInput = agentSyncInput
+
+      newObservationsForInput.spokenMessages.forEach {
+         println(" Sending spoken message observation: " + it.message)
+      }
+
       val agentSyncOutputs = agentServerIntegration.sendSyncRequest(agentSyncInput)
       coroutineSystemContext.unwindIfNeeded()
 
@@ -464,6 +469,8 @@ class AgentIntegration(
       }
    }
 
+   private val debugInfoByKey = mutableMapOf<String, String>()
+
    private suspend fun handleAgentSyncOutput(
       coroutineSystemContext: CoroutineSystemContext,
       agentSyncInput: AgentSyncInput,
@@ -477,9 +484,20 @@ class AgentIntegration(
 
       val agentId = this.agentId
 
+      if (agentSyncOutput.debugInfoByKey != null) {
+         agentSyncOutput.debugInfoByKey.forEach { debugInfoKey, debugInfo ->
+            this.debugInfoByKey[debugInfoKey] = debugInfo
+         }
+      }
+
       agentControlledComponent.modifyData {
          it.copy(
-            agentRemoteDebugInfo = agentSyncOutput.debugInfo ?: it.agentRemoteDebugInfo,
+            agentRemoteDebugInfo = this.debugInfoByKey
+               .entries
+               .sortedBy { it.key }
+               .flatMap {
+                    listOf("", "# ====== ${it.key} ======") + it.value.lines()
+               }.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273,
             agentStatus = agentSyncOutput.agentStatus ?: it.agentStatus,
             wasRateLimited = agentSyncOutput.wasRateLimited,
             statusDuration = agentSyncOutput.statusDuration,
@@ -841,22 +859,28 @@ class AgentIntegration(
             expectedItemConfigKey = null
          )
 
-         if (result !is GameSimulation.UseEquippedItemResult.Success) {
-            addActionResult()
-            simulation.broadcastAlertAsGameMessage("Unable to use equipped item for agent ($debugInfo): actionUniqueId = $actionUniqueId, result ${result::class.simpleName}")
-         } else {
-            addActionResult()
+         addActionResult()
 
-            this.pendingObservations.actionOnInventoryItemActionRecords.add(
-               ActionOnInventoryItemRecord(
-                  startedAtTime = simulationTimeForStep,
-                  reason = useEquippedToolItem.reason,
-                  itemConfigKey = result.equippedToolItemConfig.key,
-                  amount = 1,
-                  actionId = "equip"
-               )
-            )
+         val equippedToolItemConfigAndStackIndex = entity.getEquippedItemConfigAndStackIndex(EquipmentSlot.Tool)
+
+         if (result !is GameSimulation.UseEquippedItemResult.Success) {
+            simulation.broadcastAlertAsGameMessage("Unable to use equipped item for agent ($debugInfo): actionUniqueId = $actionUniqueId, result ${result::class.simpleName}")
          }
+
+         this.pendingObservations.actionOnInventoryItemActionRecords.add(
+            ActionOnInventoryItemRecord(
+               startedAtTime = simulationTimeForStep,
+               reason = reason,
+               itemConfigKey = equippedToolItemConfigAndStackIndex?.second?.key,
+               desiredActionOnInventoryType = ActionOnInventoryType.Use,
+               resultActionOnInventoryType = when (result) {
+                  is GameSimulation.UseEquippedItemResult.Success -> ActionOnInventoryType.Use
+                  is GameSimulation.UseEquippedItemResult.NoActionForEquippedTool -> ActionOnInventoryType.Failed
+                  is GameSimulation.UseEquippedItemResult.NoToolItemEquipped -> ActionOnInventoryType.NoToolItemEquipped
+                  else -> ActionOnInventoryType.Failed
+               }
+            )
+         )
       }
 
       if (equipInventoryItem != null) {
@@ -880,7 +904,12 @@ class AgentIntegration(
                reason = reason,
                itemConfigKey = itemConfigKey,
                amount = 1,
-               actionId = "equip"
+               desiredActionOnInventoryType = ActionOnInventoryType.Equip,
+               resultActionOnInventoryType = when (equipResult) {
+                  GameSimulation.EquipItemResult.Success -> ActionOnInventoryType.Equip
+                  GameSimulation.EquipItemResult.ItemNotInInventory -> ActionOnInventoryType.ItemNotInInventory
+                  else -> ActionOnInventoryType.Failed
+               }
             )
          )
       }
@@ -917,8 +946,9 @@ class AgentIntegration(
 
          addActionResult()
 
-         if (stackIndex == null) {
+         val didDrop = if (stackIndex == null) {
             simulation.broadcastAlertAsGameMessage("Unable to find available item stack to drop ($debugInfo): actionUniqueId = $actionUniqueId, itemConfigKey = $itemConfigKey")
+            false
          } else {
             val didDrop = simulation.dropItemStack(
                droppingEntity = entity,
@@ -930,6 +960,8 @@ class AgentIntegration(
             if (!didDrop) {
                simulation.broadcastAlertAsGameMessage("Unable to drop item stack for agent ($debugInfo): actionUniqueId = $actionUniqueId, stackIndex = $stackIndex, amount = $amount, itemConfigKey = $itemConfigKey")
             }
+
+            didDrop
          }
 
          this.pendingObservations.actionOnInventoryItemActionRecords.add(
@@ -938,7 +970,12 @@ class AgentIntegration(
                reason = reason,
                itemConfigKey = itemConfigKey,
                amount = amount,
-               actionId = "dropItem"
+               desiredActionOnInventoryType = ActionOnInventoryType.Drop,
+               resultActionOnInventoryType = if (didDrop) {
+                  ActionOnInventoryType.Drop
+               } else {
+                  ActionOnInventoryType.Failed
+               }
             )
          )
       }
@@ -967,7 +1004,8 @@ class AgentIntegration(
                   ActionOnEntityRecord(
                      startedAtTime = simulationTimeForStep,
                      targetEntityId = targetEntityId,
-                     autoInteractType = autoInteractResult,
+                     resultAutoInteractType = autoInteractResult,
+                     desiredAutoInteractType = expectedAutoInteractType,
                      reason = reason
                   )
                )

@@ -26,7 +26,7 @@ class DefaultGameScenario : GameScenario(
             skinColor = "light"
          ),
          age = 25,
-         location = Vector2(2000.0, 2000.0)
+         location = Vector2(3000.0, 3000.0)
       )
    }
 }
@@ -53,7 +53,7 @@ class SpectateAgentsGameScenario : GameScenario(
             skinColor = "light"
          ),
          age = 25,
-         location = Vector2(2000.0, 2000.0)
+         location = Vector2(3000.0, 3000.0)
       )
 
       simulation.spawnAgentControlledCharacter(
@@ -64,13 +64,9 @@ class SpectateAgentsGameScenario : GameScenario(
             "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
          ),
          agentType = "script",
-         bodySelections = simulation.buildRandomCharacterBodySelections(
-            bodyType = "female",
-            hairColor = "black",
-            skinColor = "light"
-         ),
+         bodySelections = simulation.buildRandomCharacterBodySelections(),
          age = 25,
-         location = Vector2(2000.0, 2200.0)
+         location = Vector2(2500.0, 2200.0)
       )
    }
 }

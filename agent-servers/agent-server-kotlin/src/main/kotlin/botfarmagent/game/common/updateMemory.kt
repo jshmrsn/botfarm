@@ -60,7 +60,7 @@ suspend fun updateMemory(
    memoryState.automaticShortTermMemories.sortBy { it.time }
 
    for (automaticShortTermMemory in memoryState.automaticShortTermMemories.reversed()) {
-      val tokenCount = getApproximateTokenCountForText(
+      val tokenCount = getTokenCountForText(
          modelType = modelInfo.closestTikTokenModelType,
          text = automaticShortTermMemory.summary
       )
@@ -78,7 +78,7 @@ suspend fun updateMemory(
    val protectedShortTermMemoriesThatCanFit = mutableListOf<AutomaticShortTermMemory>()
 
    for (automaticShortTermMemory in memoryState.automaticShortTermMemories.reversed()) {
-      val tokenCount = getApproximateTokenCountForText(
+      val tokenCount = getTokenCountForText(
          modelType = modelInfo.closestTikTokenModelType,
          text = automaticShortTermMemory.summary
       )
@@ -109,7 +109,7 @@ suspend fun updateMemory(
               shouldCutoffForTime
 
       if (shouldSummarize) {
-         val tokenCount = getApproximateTokenCountForText(
+         val tokenCount = getTokenCountForText(
             modelType = modelInfo.closestTikTokenModelType,
             text = automaticShortTermMemory.summary
          )
@@ -229,7 +229,8 @@ suspend fun updateMemory(
       AgentSyncOutput(
          agentStatus = "updating-memory",
          statusStartUnixTime = getCurrentUnixTimeSeconds(),
-         statusDuration = null
+         statusDuration = null,
+         debugInfoByKey = mapOf("Memory Update: Previous Memory" to memoryState.shortTermMemory)
       )
    )
 
@@ -281,7 +282,8 @@ suspend fun updateMemory(
          provideResult(
             AgentSyncOutput(
                agentStatus = "update-memory-success",
-               statusDuration = getCurrentUnixTimeSeconds() - startTime
+               statusDuration = getCurrentUnixTimeSeconds() - startTime,
+               debugInfoByKey = mapOf("Memory Update: New Memory" to updatedShortTermMemory)
             )
          )
 

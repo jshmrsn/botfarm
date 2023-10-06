@@ -625,7 +625,7 @@ class JsonActionAgent(
       this.addPendingOutput(
          AgentSyncOutput(
             actions = listOf(action),
-            debugInfo = newDebugInfoLines.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273
+            debugInfoByKey = mapOf("Prompt Run Info" to newDebugInfoLines.joinToString("\n")),
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",
             promptUsages = promptUsages,

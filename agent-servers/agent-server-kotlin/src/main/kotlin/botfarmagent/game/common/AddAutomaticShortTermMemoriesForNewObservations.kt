@@ -66,24 +66,38 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
          }
 
          newObservations.actionOnEntityRecords.forEach { record ->
+            val reasonSuffix = buildReasonSuffix(record.reason)
+
+            val summary = if (record.resultAutoInteractType == record.desiredAutoInteractType) {
+               "I took the action '${record.resultAutoInteractType.name}' on entity '${record.targetEntityId.value}'$reasonSuffix"
+            } else {
+               "I attempted to take the action '${record.resultAutoInteractType.name}' on entity '${record.targetEntityId.value}'$reasonSuffix, but instead got the outcome ${record.resultAutoInteractType.name}"
+            }
+
             newAutomaticShortTermMemories.add(
                AutomaticShortTermMemory(
                   time = record.startedAtTime,
-                  summary = "I took the action '${record.autoInteractType}' on entity '${record.targetEntityId.value}'" + buildReasonSuffix(
-                     record.reason
-                  ),
+                  summary = summary,
                   forcePreviousActivity = true
                )
             )
          }
 
          newObservations.actionOnInventoryItemActionRecords.forEach { record ->
+            val reasonSuffix = buildReasonSuffix(
+               record.reason
+            )
+
+            val summary = if (record.desiredActionOnInventoryType == record.resultActionOnInventoryType) {
+               "I performed action '${record.resultActionOnInventoryType.name}' on the item '${record.itemConfigKey}' from my inventory$reasonSuffix"
+            } else {
+               "I attempted to perform action '${record.desiredActionOnInventoryType.name}' on the item '${record.itemConfigKey}' from my inventory '${record.itemConfigKey}'$reasonSuffix, but instead got the outcome ${record.resultActionOnInventoryType.name}"
+            }
+
             newAutomaticShortTermMemories.add(
                AutomaticShortTermMemory(
                   time = record.startedAtTime,
-                  summary = "I performed action '${record.actionId}' on the item '${record.itemConfigKey}' from my inventory '${record.itemConfigKey}'" + buildReasonSuffix(
-                     record.reason
-                  ),
+                  summary = summary,
                   forcePreviousActivity = true
                )
             )
@@ -94,6 +108,18 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                AutomaticShortTermMemory(
                   time = record.startedAtTime,
                   summary = "I crafted an '${record.itemConfigKey}' item" + buildReasonSuffix(
+                     record.reason
+                  ),
+                  forcePreviousActivity = true
+               )
+            )
+         }
+
+         newObservations.selfThoughts.forEach { record ->
+            newAutomaticShortTermMemories.add(
+               AutomaticShortTermMemory(
+                  time = record.time,
+                  summary = "I had the thought '${record.thought}'" + buildReasonSuffix(
                      record.reason
                   ),
                   forcePreviousActivity = true

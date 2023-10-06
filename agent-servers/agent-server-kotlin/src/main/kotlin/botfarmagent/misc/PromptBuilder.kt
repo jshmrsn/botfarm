@@ -23,7 +23,7 @@ val registry: EncodingRegistry = Encodings.newDefaultEncodingRegistry()
 var totalTokenCountDurationMs = 0.0
 var totalTokenCount = 0L
 
-fun getApproximateTokenCountForText(
+fun getTokenCountForText(
    modelType: ModelType,
    text: String
 ): Int {
@@ -77,6 +77,20 @@ class PromptBuilder(
       }
    }
 
+   fun getRecursiveAvailableTokensAndReason(): Pair<String, Int> {
+      if (this.reservedTokens != null) {
+         val allocated = this.getRecursiveAllocatedTokens()
+         return "${this.debugName}: reservedTokens (${this.reservedTokens}) - allocated ($allocated)" to this.reservedTokens - allocated
+      }
+
+      return if (this.parentBuilder != null) {
+         this.parentBuilder.getRecursiveAvailableTokensAndReason()
+      } else {
+         val allocated = this.getRecursiveAllocatedTokens()
+         return "${this.debugName}: Model max token count (${this.modelInfo.maxTokenCount}) - reserved output (${this.reservedOutputTokens}) - allocated ($allocated)" to this.modelInfo.maxTokenCount - this.reservedOutputTokens - allocated
+      }
+   }
+
    fun getRecursiveAvailableTokens(): Int {
       if (this.reservedTokens != null) {
          return this.reservedTokens - this.getRecursiveAllocatedTokens()
@@ -98,7 +112,7 @@ class PromptBuilder(
 
       if (reserveTokens != null) {
          if (reserveTokens > availableTokens) {
-            throw Exception("Attempted to add section, but requested reserved tokens exceeds available tokens (requestedReservedTokens = $reserveTokens, availableTokens = $availableTokens)")
+            throw Exception("Attempted to add section '$debugName', but requested reserved tokens exceeds available tokens (requestedReservedTokens = $reserveTokens, availableTokens = $availableTokens)")
          }
       }
 
@@ -184,9 +198,9 @@ class PromptBuilder(
       return stringBuilder.toString()
    }
 
-   fun getApproximateTokenCountForText(
+   fun getTokenCountForText(
       text: String
-   ) = getApproximateTokenCountForText(text = text, modelType = modelInfo.closestTikTokenModelType)
+   ) = getTokenCountForText(text = text, modelType = modelInfo.closestTikTokenModelType)
 
    class AddTextIfFitsResult(
       val didFit: Boolean,
@@ -209,7 +223,7 @@ class PromptBuilder(
       val currentRootRecursiveTokenCount = this.rootBuilder.selfAndRecursiveChildrenTokenCount
 
       val previousAvailableTokens = this.getRecursiveAvailableTokens()
-      val addingTokenCount = this.getApproximateTokenCountForText(text)
+      val addingTokenCount = this.getTokenCountForText(text)
 
       val newAvailableTokens = previousAvailableTokens - addingTokenCount
 
@@ -226,13 +240,15 @@ class PromptBuilder(
          )
       } else if (!optional) {
          val reservedOutputTokens = this.rootBuilder.reservedOutputTokens
+         val availableTokensReason = this.getRecursiveAvailableTokensAndReason().first
 
          throw Exception(
             """Added text does not fit (${this.debugName}):
                currentRootRecursiveTokenCount = $currentRootRecursiveTokenCount
                currentSelfRecursiveTokenCount = ${this.selfAndRecursiveChildrenTokenCount}
                addingTokenCount = $addingTokenCount
-               previousRemainingTokens = $previousAvailableTokens,
+               previousAvailableTokens = $previousAvailableTokens
+               availableTokensReason = $availableTokensReason
                newAvailableTokens = $newAvailableTokens
                reservedOutputTokens = $reservedOutputTokens
                modelInfo.maxTokenCount = ${this.modelInfo.maxTokenCount}
@@ -242,6 +258,8 @@ class PromptBuilder(
                $text
                Previous text:
                ${this.buildText()}
+               Previous root text:
+               ${this.rootBuilder.buildText()}
             """.trimIndent()
          )
       }

@@ -720,6 +720,10 @@ export class SimulationScene extends Phaser.Scene {
     this.simulationContext.sendWebSocketMessage("MoveToPointRequest", moveToPointRequest)
   }
 
+  sendNotifyClientActiveRequest() {
+    this.simulationContext.sendWebSocketMessage("NotifyClientActive", {})
+  }
+
   setupInput() {
     const mainCamera = this.mainCamera
 
@@ -834,10 +838,21 @@ export class SimulationScene extends Phaser.Scene {
           this.lastClickTime = -1;
           this.clearPendingInteractionTargetRequest()
 
-          this.sendMoveToPointRequest({
-            point: worldPoint
+          const playerControlledEntity = this.simulation.entities.find(entity => {
+            const userControlledComponent = entity.getComponentDataOrNull<UserControlledComponentData>("UserControlledComponentData")
+            return userControlledComponent != null && userControlledComponent.userId === this.userId
           })
+
+          if (playerControlledEntity != null) {
+            this.sendMoveToPointRequest({
+              point: worldPoint
+            })
+          } else {
+            this.sendNotifyClientActiveRequest()
+          }
         }
+      } else {
+        this.sendNotifyClientActiveRequest()
       }
 
       clickValid = false
@@ -1119,8 +1134,6 @@ export class SimulationScene extends Phaser.Scene {
     const anyCharacterEntity = this.simulation.entities.find(entity => {
       return CharacterComponent.getOrNull(entity) != null
     })
-
-    console.log("playerControlledEntity", playerControlledEntity)
 
     const centerCameraOnEntity = playerControlledEntity ?? anyCharacterEntity
     if (centerCameraOnEntity != null) {
