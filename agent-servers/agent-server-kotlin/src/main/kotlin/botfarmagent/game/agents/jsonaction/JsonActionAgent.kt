@@ -114,7 +114,6 @@ class JsonActionAgent(
             }
 
             is UpdateMemoryResult.ConnectionError -> {
-               wasRateLimited = true
                errors.add("Memory update prompt connection error: " + updateMemoryResult.errorId)
             }
 
@@ -441,8 +440,7 @@ class JsonActionAgent(
          is RunJsonPromptResult.ConnectionError -> {
             return this.addPendingOutput(
                AgentSyncOutput(
-                  error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true
+                  error = "Connection error running agent prompt (errorId = ${promptResult.errorId})"
                )
             )
          }
@@ -453,7 +451,6 @@ class JsonActionAgent(
             return this.addPendingOutput(
                AgentSyncOutput(
                   error = "Failed to parse json of prompt output (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true,
                   promptUsages = promptUsages
                )
             )

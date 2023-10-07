@@ -195,7 +195,6 @@ class AgentIntegration(
       val newObservationsForInput = this.pendingObservations.toObservations()
       this.pendingObservations = PendingObservations()
 
-
       val agentControlledComponent = this.agentControlledComponent
 
       if (simulation.shouldPauseAi) {
@@ -203,14 +202,12 @@ class AgentIntegration(
             it.copy(
                agentIntegrationStatus = "paused",
                agentStatus = null,
-               agentError = null,
                wasRateLimited = false
             )
          }
 
          return
       }
-
 
       val selfEntityInfo = buildEntityInfoForAgent(
          entity = entity,
@@ -298,8 +295,7 @@ class AgentIntegration(
       agentControlledComponent.modifyData {
          it.copy(
             agentIntegrationStatus = "waiting_for_agent",
-            totalRemoteAgentRequests = it.totalRemoteAgentRequests + 1,
-            agentError = null
+            totalRemoteAgentRequests = it.totalRemoteAgentRequests + 1
          )
       }
 
@@ -562,7 +558,8 @@ class AgentIntegration(
                executingScriptId = scriptId,
                executingScript = script,
                scriptExecutionError = null,
-               currentActionTimeline = null
+               currentActionTimeline = null,
+               agentError = null // joshr: Clear out existing errors once we get a successful response
             )
          }
 
@@ -738,7 +735,8 @@ class AgentIntegration(
 
          agentControlledComponent.modifyData {
             it.copy(
-               currentActionTimeline = null
+               currentActionTimeline = null,
+               agentError = null // joshr: Clear out existing errors once we get a successful response
             )
          }
 

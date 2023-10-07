@@ -126,7 +126,6 @@ class ScriptExecutionAgent(
             }
 
             is UpdateMemoryResult.ConnectionError -> {
-               wasRateLimited = true
                errors.add("Memory update prompt connection error: " + updateMemoryResult.errorId)
             }
 
@@ -656,7 +655,6 @@ class ScriptExecutionAgent(
             return this.addPendingOutput(
                AgentSyncOutput(
                   error = "Connection error running agent prompt (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true,
                   promptUsages = promptUsages
                )
             )
