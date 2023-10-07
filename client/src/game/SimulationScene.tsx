@@ -859,7 +859,8 @@ export class SimulationScene extends Phaser.Scene {
     }, this);
 
     this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number, deltaZ: number) => {
-      mainCamera.setZoom(Math.max(0.75, Math.min(mainCamera.zoom * (1 - deltaY * 0.001), 1.5)))
+      this.zoomValue = Math.max(0.75, Math.min(this.zoomValue * (1 - deltaY * 0.001), 1.5))
+      this.clampCamera()
     });
 
     this.input.on("pointermove", (pointer: any) => {
@@ -896,11 +897,32 @@ export class SimulationScene extends Phaser.Scene {
     this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
   }
 
+  private zoomValue = 1.0
+
   clampCamera() {
     const buffer = 1000.0
     const mainCamera = this.mainCamera
     mainCamera.scrollX = Math.min(Math.max(mainCamera.scrollX, -buffer), this.worldBounds.x + buffer)
     mainCamera.scrollY = Math.min(Math.max(mainCamera.scrollY, -buffer), this.worldBounds.y + buffer)
+
+    console.log("this.game.canvas.width", this.game.canvas.width)
+    var canvasSizeFactor = this.game.canvas.width / 2000.0
+    console.log("canvasSizeFactor", canvasSizeFactor)
+
+    mainCamera.setZoom(this.zoomValue * canvasSizeFactor)
+
+    const backgroundSizeWidth = this.game.canvas.width
+    const backgroundSizeHeight = this.game.canvas.height
+
+    const maxZoomHandlingScale = 1.4 / canvasSizeFactor
+    this.backgroundGrass.setScale(maxZoomHandlingScale, maxZoomHandlingScale)
+    this.backgroundGrass.setX(this.game.canvas.width * 0.5)
+    this.backgroundGrass.setY(this.game.canvas.height * 0.5)
+    this.backgroundGrass.setSize(backgroundSizeWidth, backgroundSizeHeight)
+    const tileScale = 0.2
+    const tileScaleY = 0.7
+    this.backgroundGrass.setTileScale(tileScale / maxZoomHandlingScale, tileScale * tileScaleY / maxZoomHandlingScale)
+    this.backgroundGrass.setTilePosition(this.mainCamera.scrollX / tileScale, this.mainCamera.scrollY / tileScale / tileScaleY)
   }
 
   calculateAutoInteractAction(): AutoInteractAction | null {
@@ -1144,10 +1166,10 @@ export class SimulationScene extends Phaser.Scene {
     }
 
     const backgroundGrass = this.add.tileSprite(
-      this.sys.game.canvas.width * 0.5,
-      this.sys.game.canvas.height * 0.5,
-      this.sys.game.canvas.width * 1.5,
-      this.sys.game.canvas.height * 1.5,
+      this.game.canvas.width * 0.5,
+      this.game.canvas.height * 0.5,
+      this.game.canvas.width * 1.5,
+      this.game.canvas.height * 1.5,
       "background-grass"
     )
     backgroundGrass.setScrollFactor(0, 0)
@@ -1158,6 +1180,7 @@ export class SimulationScene extends Phaser.Scene {
     this.backgroundLayer.add(backgroundGrass)
 
     this.setupInput()
+    this.clampCamera()
   }
 
   getConfig<T extends Config>(configKey: string, serverSerializationTypeName: string): T {
@@ -1833,18 +1856,6 @@ export class SimulationScene extends Phaser.Scene {
   calculatedAutoInteraction: AutoInteractAction | null = null
 
   update(time: number, deltaMs: number) {
-    const backgroundSizeWidth = this.sys.game.canvas.width
-    const backgroundSizeHeight = this.sys.game.canvas.height
-
-    const maxZoomHandlingScale = 1.4
-    this.backgroundGrass.setScale(maxZoomHandlingScale, maxZoomHandlingScale)
-    this.backgroundGrass.setX(this.sys.game.canvas.width * 0.5)
-    this.backgroundGrass.setY(this.sys.game.canvas.height * 0.5)
-    this.backgroundGrass.setSize(backgroundSizeWidth, backgroundSizeHeight)
-    const tileScale = 0.2
-    const tileScaleY = 0.7
-    this.backgroundGrass.setTileScale(tileScale / maxZoomHandlingScale, tileScale * tileScaleY / maxZoomHandlingScale)
-    this.backgroundGrass.setTilePosition(this.mainCamera.scrollX / tileScale, this.mainCamera.scrollY / tileScale / tileScaleY)
 
     const deltaTime = deltaMs / 1000.0
 
@@ -1873,28 +1884,26 @@ export class SimulationScene extends Phaser.Scene {
     if (cursors) {
       if (cursors.left.isDown) {
         mainCamera.scrollX -= camera_speed * deltaTime
-        this.clampCamera()
       }
 
       if (cursors.right.isDown) {
         mainCamera.scrollX += camera_speed * deltaTime
-        this.clampCamera()
       }
 
       if (cursors.up.isDown) {
         mainCamera.scrollY -= camera_speed * deltaTime
-        this.clampCamera()
       }
 
       if (cursors.down.isDown) {
         mainCamera.scrollY += camera_speed * deltaTime
-        this.clampCamera()
       }
     }
 
     if (this.input.keyboard) {
       this.input.keyboard.disableGlobalCapture()
     }
+
+    this.clampCamera()
 
     this.renderEntities()
   }
