@@ -5,17 +5,23 @@ import botfarmagent.game.AgentContext
 import botfarmagent.game.common.*
 import botfarmagent.misc.*
 import botfarmshared.engine.apidata.EntityId
+import botfarmshared.engine.apidata.PromptUsage
 import botfarmshared.engine.apidata.PromptUsageInfo
-import botfarmshared.game.apidata.*
+import botfarmshared.game.apidata.AgentSyncInput
+import botfarmshared.game.apidata.AgentSyncOutput
+import botfarmshared.game.apidata.EntityInfoWrapper
+import botfarmshared.game.apidata.ScriptToRun
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
-import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 class ScriptExecutionAgent(
    context: AgentContext,
-   val useGpt4: Boolean
+   val shouldUseGpt4: Boolean,
+   val shouldUseMockResponses: Boolean
 ) : Agent(context) {
+   var nextMockResponseIndex = 1
+
    var previousPromptSendSimulationTime = -1000.0
    var previousPromptDoneUnixTime = -1000.0
 
@@ -61,7 +67,8 @@ class ScriptExecutionAgent(
       addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemories, newShortTermMemories)
       addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemoriesSinceLastPrompt, newShortTermMemories)
 
-      val pendingNewActivityDebugString = this.memoryState.automaticShortTermMemoriesSinceLastPrompt.joinToString("\n") { it.summary }
+      val pendingNewActivityDebugString =
+         this.memoryState.automaticShortTermMemoriesSinceLastPrompt.joinToString("\n") { it.summary }
 
       this.addPendingOutput(
          AgentSyncOutput(
@@ -81,7 +88,7 @@ class ScriptExecutionAgent(
 
       val simulationTimeForStep = input.simulationTime
 
-      val modelInfo = if (this.useGpt4) {
+      val modelInfo = if (this.shouldUseGpt4) {
          ModelInfo.gpt_4
       } else {
          ModelInfo.gpt_3_5_turbo
@@ -145,7 +152,8 @@ class ScriptExecutionAgent(
          (entry.time > this.previousPromptSendSimulationTime) && !entry.forcePreviousActivity
       }
 
-      val automaticShortTermMemoriesSinceLastPrompt = this.memoryState.automaticShortTermMemoriesSinceLastPrompt.toList()
+      val automaticShortTermMemoriesSinceLastPrompt =
+         this.memoryState.automaticShortTermMemoriesSinceLastPrompt.toList()
 
       val hasHighPriorityMemorySinceLastPrompt = automaticShortTermMemoriesSinceLastPrompt.find {
          it.isHighPriority
@@ -156,7 +164,9 @@ class ScriptExecutionAgent(
       val hasCompletedScript = this.mostRecentSentScriptId == null ||
               this.mostRecentSentScriptId == this.mostRecentSyncInput.mostRecentCompletedScriptId
 
-      val newPromptTimeLimit = if (hasHighPriorityMemorySinceLastPrompt) {
+      val newPromptTimeLimit = if (this.shouldUseMockResponses) {
+         10.0
+      } else if (hasHighPriorityMemorySinceLastPrompt) {
          15.0
       } else if (hasCompletedScript) {
          20.0
@@ -270,14 +280,12 @@ class ScriptExecutionAgent(
       builder.addSection("interfaces").also {
          val interfacesSource = input.agentTypeScriptInterfaceString
          it.addLine(interfacesSource)
-         it.addLine("```")
       }
 
       builder.addSection("worldAsCodeSection").also {
          it.addLine("")
-         it.addLine("And this TypeScript below represents the known world state according to your observations.")
-         it.addLine("Note that some data is summarized in comments to reduce tokens, so you might need to use the API to query for the full state.")
-         it.addLine("```ts")
+         it.addLine("// The code below represents the known world state according to your observations.")
+         it.addLine("// Note that some data is summarized in comments to reduce tokens, so you might need to use the API to query for the full state.")
       }
 
       val craftingRecipesSection = builder.addSection(
@@ -321,8 +329,10 @@ class ScriptExecutionAgent(
          it.addLine("")
       }
 
-      val inventoryListSection = builder.addSection("inventoryListSection", reserveTokens = (modelInfo.maxTokenCount * 0.0875).roundToInt())
-      val inventorySummarySection = builder.addSection("inventorySummarySection", reserveTokens = (modelInfo.maxTokenCount * 0.0375).roundToInt())
+      val inventoryListSection =
+         builder.addSection("inventoryListSection", reserveTokens = (modelInfo.maxTokenCount * 0.0875).roundToInt())
+      val inventorySummarySection =
+         builder.addSection("inventorySummarySection", reserveTokens = (modelInfo.maxTokenCount * 0.0375).roundToInt())
 
       builder.addSection("after inventoryListSection").also {
          it.addLine("")
@@ -589,16 +599,43 @@ class ScriptExecutionAgent(
       this.previousPromptSendSimulationTime = simulationTimeForStep
 
 
-      val promptResult = runPrompt(
-         languageModelService = this.context.languageModelService,
-         modelInfo = modelInfo,
-         promptBuilder = builder,
-         debugInfo = "${input.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
-         completionPrefix = completionPrefix,
-         completionMaxTokens = completionMaxTokens,
-         useFunctionCalling = false,
-         temperature = 0.2
-      )
+      val promptResult = if (this.shouldUseMockResponses) {
+         fun getResponseTextOrNull(): String? {
+            val resourceName = "mock-responses/response-${this.nextMockResponseIndex}.md"
+            return this::class.java.getResource("/$resourceName")?.readText()
+         }
+
+         val initialResourceResult = getResponseTextOrNull()
+
+         val mockResponseText = if (initialResourceResult != null) {
+            initialResourceResult
+         } else {
+            this.nextMockResponseIndex = 1
+            getResponseTextOrNull() ?: ""
+         }
+
+         ++this.nextMockResponseIndex
+
+         RunPromptResult.Success(
+            responseText = mockResponseText,
+            usage = PromptUsage(
+               promptTokens = 0,
+               completionTokens = 0,
+               totalTokens = 0
+            )
+         )
+      } else {
+         runPrompt(
+            languageModelService = this.context.languageModelService,
+            modelInfo = modelInfo,
+            promptBuilder = builder,
+            debugInfo = "${input.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
+            completionPrefix = completionPrefix,
+            completionMaxTokens = completionMaxTokens,
+            useFunctionCalling = false,
+            temperature = 0.2
+         )
+      }
 
       when (promptResult) {
          is RunPromptResult.Success -> {

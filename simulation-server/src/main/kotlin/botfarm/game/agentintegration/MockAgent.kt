@@ -14,7 +14,8 @@ class MockAgent(
 )
 
 fun scriptSequenceMockAgentBuilder(
-   scripts: List<ScriptToRun>
+   scripts: List<ScriptToRun>,
+   shouldRepeat: Boolean = false
 ): (context: MockAgentContext) -> MockAgent {
    return {
       var nextScriptIndex = 0

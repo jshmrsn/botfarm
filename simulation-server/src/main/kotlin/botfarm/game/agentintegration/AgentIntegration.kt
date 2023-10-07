@@ -74,7 +74,7 @@ class AgentIntegration(
    private var activeAction: Action? = null
    private val pendingActions = mutableListOf<Action>()
 
-   private val agentJavaScriptApi = AgentJavaScriptApi(this, fastSleep = this.fastJavaScriptThreadSleep)
+   private val agentJavaScriptApi = AgentJavaScriptApi(this, shouldMinimizeSleep = this.fastJavaScriptThreadSleep)
 
    class RunningScript(
       val thread: Thread,
@@ -349,27 +349,31 @@ class AgentIntegration(
 
       val previousRunningScript = synchronized(threadStateLock) {
          val runningScript = this.runningScript
-         runningScript?.agentJavaScriptApi?.shouldEndScript = true
+         this.agentJavaScriptApi.shouldEndScript = true
          runningScript
       }
 
       if (previousRunningScript != null) {
-         val scriptId = previousRunningScript.scriptToRun.scriptId
+         val previousScriptId = previousRunningScript.scriptToRun.scriptId
 
          if (previousRunningScript.thread.isAlive) {
-            println("Agent script thread exists and is active, so attempting to end now ($scriptId)")
+            println("Agent script thread exists and is active, so attempting to end now ($previousScriptId)")
 
             val waitStartTime = getCurrentUnixTimeSeconds()
-            val timeout = 5.0
+            val timeout = 3.0
 
             while (true) {
                val waitedTime = getCurrentUnixTimeSeconds() - waitStartTime
                if (!previousRunningScript.thread.isAlive) {
-                  println("Agent script thread has now ended after waiting $waitedTime seconds ($scriptId)")
+                  println("Agent script thread has now ended after waiting $waitedTime seconds ($previousScriptId)")
                   break
                } else if (waitedTime > timeout) {
-                  println("Agent script thread did not end after $timeout seconds, so interrupting ($scriptId)")
-                  previousRunningScript.thread.interrupt()
+                  println("Agent script thread did not end after $timeout seconds, so interrupting ($previousScriptId)")
+                  try {
+                     previousRunningScript.thread.interrupt()
+                  } catch (exception: Exception) {
+                     println("Exception while calling thread.interrupt for script ($previousScriptId): " + exception.stackTraceToString())
+                  }
                   break
                } else {
                   coroutineSystemContext.delay(200)
@@ -378,7 +382,7 @@ class AgentIntegration(
 
             coroutineSystemContext.delay(200)
          } else {
-            println("Agent script thread exists, but is not active, so not interrupting ($scriptId)")
+            println("Agent script thread exists, but is not alive, so not interrupting ($previousScriptId)")
          }
       } else {
          println("No previous agent script thread exists, starting a new one now")
@@ -386,6 +390,7 @@ class AgentIntegration(
 
       synchronized(threadStateLock) {
          this.runningScript = null
+         this.agentJavaScriptApi.shouldEndScript = false
       }
    }
 
@@ -529,7 +534,8 @@ class AgentIntegration(
          val scriptId = scriptToRun.scriptId
          val script = scriptToRun.script
 
-         println("Got new script from agent ($agentId, $scriptId)")
+         println("Got new script from agent (${agentId.value}, scriptId = $scriptId):")
+         println(script)
 
          if (entity.isMoving) {
             simulation.startEntityMovement(
@@ -567,8 +573,9 @@ class AgentIntegration(
          synchronized(threadStateLock) {
             val agentJavaScriptApi = this.agentJavaScriptApi
 
+            println("Starting new thread for script $scriptId")
             val newThread = thread {
-               println("In activeScriptThread")
+               println("In thread for script $scriptId (${Thread.currentThread().name})")
                agentJavaScriptApi.notifyJavaScriptThreadStarted()
                val bindings = this.agentJavaScriptRuntime.bindings
 
@@ -612,8 +619,9 @@ class AgentIntegration(
                val javaScriptSource = Source.newBuilder("js", wrappedResponseScript, sourceName).build()
 
                try {
-                  println("Calling javaScriptContext.eval")
+                  println("Calling javaScriptContext.eval for script $scriptId")
                   this.agentJavaScriptRuntime.javaScriptContext.eval(javaScriptSource)
+                  println("Agent script eval complete: $scriptId")
 
                   synchronized(threadStateLock) {
                      println("Agent script thread complete: $scriptId")
@@ -650,6 +658,7 @@ class AgentIntegration(
                      println("Polyglot exception evaluating agent JavaScript ($scriptId): " + polyglotException.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
 
                      synchronized(threadStateLock) {
+                        println("Synchronized for Polyglot exception $scriptId")
                         if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
                            this.runningScript = null
                            this.mostRecentCompletedScriptId = scriptId
@@ -703,6 +712,8 @@ class AgentIntegration(
                   }
                }
             }
+
+            println("Created thread ${Thread.currentThread().name} for script $scriptId")
 
             coroutineSystemContext.setOnCancelCallback {
                println("Ending JavaScript thread due to coroutine system cancellation")

@@ -18,7 +18,7 @@ import org.graalvm.polyglot.HostAccess
 
 class AgentJavaScriptApi(
    val agentIntegration: AgentIntegration,
-   val fastSleep: Boolean
+   val shouldMinimizeSleep: Boolean
 ) {
    val simulation = this.agentIntegration.simulation
    val entity = this.agentIntegration.entity
@@ -46,6 +46,7 @@ class AgentJavaScriptApi(
       this.validateInJavaScriptThread()
 
       if (this.shouldEndScript) {
+         println("AgentJavaScriptApi.endIfRequested: throwing UnwindScriptThreadThrowable")
          throw UnwindScriptThreadThrowable()
       }
    }
@@ -169,7 +170,11 @@ class AgentJavaScriptApi(
    @HostAccess.Export
    fun sleep(millis: Long) {
       this.endIfRequested()
-      Thread.sleep(millis)
+      if (this.shouldMinimizeSleep) {
+         Thread.sleep(1)
+      } else {
+         Thread.sleep(millis)
+      }
       this.endIfRequested()
    }
 

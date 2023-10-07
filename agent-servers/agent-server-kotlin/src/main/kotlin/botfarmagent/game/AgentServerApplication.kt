@@ -3,6 +3,7 @@ package botfarmagent.game
 import botfarmagent.game.ktorplugins.configureMonitoring
 import botfarmagent.game.ktorplugins.configureRouting
 import botfarmagent.game.ktorplugins.configureSerialization
+import botfarmagent.misc.MockLanguageModelService
 import botfarmagent.misc.OpenAiLanguageModelService
 import com.aallam.openai.api.http.Timeout
 import com.aallam.openai.api.logging.LogLevel
@@ -23,16 +24,25 @@ fun main() {
 }
 
 fun Application.module() {
-   val openAI = OpenAI(
-      token = System.getenv("BOTFARM_OPENAI_API_KEY"),
-      timeout = Timeout(socket = 120.seconds),
-      logging = LoggingConfig(
-         logLevel = LogLevel.None
-      )
+   val aiLanguageModelService = System.getenv("BOTFARM_OPENAI_API_KEY")?.let {
+      OpenAiLanguageModelService(OpenAI(
+         token = it,
+         timeout = Timeout(socket = 120.seconds),
+         logging = LoggingConfig(
+            logLevel = LogLevel.None
+         )
+      ))
+   } ?: MockLanguageModelService(
+      handleCompletionRequest = {
+         throw Exception("No OpenAI key provided, reached mock language model.")
+      },
+      handleChatCompletionRequest = {
+         throw Exception("No OpenAI key provided, reached mock language model.")
+      }
    )
 
    val agentContainer = AgentContainer(
-      languageModelService = OpenAiLanguageModelService(openAI)
+      languageModelService = aiLanguageModelService
    )
 
    configureSerialization()

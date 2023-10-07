@@ -9,6 +9,7 @@ fun registerGameScenarios(scenarioRegistration: ScenarioRegistration) {
    scenarioRegistration.registerScenario(SpectateAgentsGameScenario())
    scenarioRegistration.registerScenario(LegacyAgentGameScenario())
 
+   scenarioRegistration.registerScenario(mockPromptResponsesTestScenario)
    scenarioRegistration.registerScenario(mockAgentTestScenario)
 }
 

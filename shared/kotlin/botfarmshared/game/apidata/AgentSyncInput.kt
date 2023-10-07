@@ -255,7 +255,6 @@ class AgentSyncInput(
    val mostRecentCompletedScriptId: String?
 )
 
-
 enum class AutoInteractType {
    // Results
    Failed,

@@ -17,7 +17,8 @@ fun buildAgentForType(
    } else if (agentType.startsWith("script")) {
       return ScriptExecutionAgent(
          context = agentContext,
-         useGpt4 = !agentType.contains("gpt3")
+         shouldUseGpt4 = !agentType.contains("-gpt3"),
+         shouldUseMockResponses = agentType.contains("-mock")
       )
    } else {
       throw Exception("Unknown agent type: $agentType")
