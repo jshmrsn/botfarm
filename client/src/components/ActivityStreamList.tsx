@@ -1,13 +1,11 @@
 import {ActivityStreamEntry} from "../game/ActivityStreamEntry";
 import {ActionIcon, Button, Text} from "@mantine/core";
 import React, {useState} from "react";
-import {apiRequest} from "../api";
-import {IconArrowDown, IconArrowLeft, IconTrashFilled} from "@tabler/icons-react";
-import ReactMarkdown from "react-markdown";
+import {IconArrowDown} from "@tabler/icons-react";
 import {EntityId} from "../simulation/EntityData";
-import {CharacterBodySelections, CharacterComponent, CharacterComponentData} from "../game/CharacterComponentData";
+import {CharacterComponent} from "../game/CharacterComponentData";
 import {Simulation} from "../simulation/Simulation";
-import {SimulationScene} from "../game/SimulationScene";
+import {GameSimulationScene} from "../game/GameSimulationScene";
 import {DynamicState} from "./DynamicState";
 import styled from "styled-components";
 import {resolveEntityPositionForCurrentTime} from "../common/PositionComponentData";
@@ -37,7 +35,7 @@ const ListButton = styled.div`
 function buildDivForProfileIconLayers(
   entityId: EntityId | null,
   simulation: Simulation,
-  phaserScene: SimulationScene
+  phaserScene: GameSimulationScene
 ): JSX.Element | null {
   const entity = entityId != null ? simulation.getEntityOrNull(entityId) : null
 

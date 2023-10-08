@@ -282,7 +282,7 @@ class AgentIntegration(
             simulationTime = simulationTime,
             gameSimulationInfo = GameSimulationInfo(
                craftingRecipeInfoWrappers = craftingRecipeInfoWrappers,
-               worldBounds = simulation.worldBounds
+               worldBounds = simulation.tileWorldBounds
             ),
             gameConstants = GameConstants,
             selfInfo = selfInfo,

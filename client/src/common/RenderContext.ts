@@ -1,5 +1,5 @@
 import {Vector2} from "../misc/Vector2";
-import {SimulationScene} from "../game/SimulationScene";
+import {GameSimulationScene} from "../game/GameSimulationScene";
 import Phaser from "phaser";
 import Graphics = Phaser.GameObjects.Graphics;
 import FilterMode = Phaser.Textures.FilterMode;
@@ -56,12 +56,12 @@ export class RenderedSprite {
 
 
 export class RenderContext {
-  private scene: SimulationScene;
+  private scene: GameSimulationScene;
 
   private renderedGameObjectsByKey: Map<string, RenderedSprite> = new Map<string, RenderedSprite>()
   private unusedRenderedGameObjectKeys: Set<string> = new Set()
 
-  constructor(scene: SimulationScene) {
+  constructor(scene: GameSimulationScene) {
     this.scene = scene
   }
 

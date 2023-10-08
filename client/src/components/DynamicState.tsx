@@ -1,15 +1,15 @@
 import {ClientId, UserId} from "../simulation/Simulation";
-import {SimulationScene} from "../game/SimulationScene";
+import {GameSimulationScene} from "../game/GameSimulationScene";
 import {GameSimulation} from "../game/GameSimulation";
 import {EntityId} from "../simulation/EntityData";
 import {generateId} from "../misc/utils";
-import {AdminRequest, buildAdminRequestForSecret} from "./AdminRequest";
+import {AdminRequest} from "./AdminRequest";
 
 export class DynamicState {
   forceRenderIndex: number = 0
   userId: UserId
   chatTextArea: HTMLTextAreaElement | null = null
-  phaserScene: SimulationScene | null = null
+  phaserScene: GameSimulationScene | null = null
   webSocket: WebSocket | null = null
   simulation: GameSimulation | null = null
   selectedEntityId: EntityId | null = null

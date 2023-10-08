@@ -8,13 +8,22 @@ import {
   resolvePositionForCurrentTime
 } from "../common/PositionComponentData";
 
+import {GameSimulationConfig} from "./GameSimulationConfig";
+
 export class GameSimulation extends Simulation {
+  readonly gameSimulationConfig: GameSimulationConfig
+  readonly worldBounds: Vector2;
+
   constructor(
     initialSimulationData: ClientSimulationData,
     onSimulationDataChanged: () => void,
     sendMessageImplementation: (type: string, data: any) => void
   ) {
     super(initialSimulationData, onSimulationDataChanged, sendMessageImplementation)
+
+    const simulationConfig = this.getConfig<GameSimulationConfig>("game-simulation-config", "GameSimulationConfig")
+    this.gameSimulationConfig = simulationConfig
+    this.worldBounds = simulationConfig.worldBounds
   }
 
 

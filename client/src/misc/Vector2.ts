@@ -13,6 +13,10 @@ export function signedPow(value: number, exponent: number) {
   return Math.pow(Math.abs(value), exponent) * Math.sign(value)
 }
 
+export function vector2FromPhaser(phaserValue: Phaser.Math.Vector2): Vector2 {
+  return new Vector2(phaserValue.x, phaserValue.y)
+}
+
 export class Vector2 {
   static zero = new Vector2(0, 0);
   static one = new Vector2(1, 1);

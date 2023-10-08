@@ -14,3 +14,4 @@ class CharacterBodySelectionsConfig(
    val wrinkles: List<String>,
    val hairs: List<RegisteredCompositeAnimation>
 ) : Config()
+

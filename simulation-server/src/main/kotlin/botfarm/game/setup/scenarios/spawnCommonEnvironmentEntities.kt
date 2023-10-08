@@ -2,10 +2,9 @@ package botfarm.game.setup.scenarios
 
 import botfarm.game.GameSimulation
 import botfarm.game.config.RandomItemQuantity
-import botfarmshared.misc.Vector2
 
 fun spawnCommonEnvironmentEntities(simulation: GameSimulation) {
-   val worldBounds = simulation.worldBounds
+   val worldBounds = simulation.tileWorldBounds
 
    val worldCenter = worldBounds * 0.5
 

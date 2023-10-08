@@ -6,6 +6,7 @@ import botfarm.game.agentintegration.MockAgent
 import botfarm.game.agentintegration.MockAgentContext
 import botfarm.game.components.ItemComponentData
 import botfarm.game.setup.GameScenario
+import botfarm.game.setup.addBasicConfigs
 import botfarm.game.setup.addCharacterConfigs
 import botfarm.game.setup.addItemConfigs
 import botfarmshared.engine.apidata.SimulationId
@@ -88,6 +89,7 @@ fun simulationTest(
    test: suspend GameSimulationTestHelper.() -> Unit
 ) {
    val configs = mutableListOf<Config>()
+   addBasicConfigs(configs)
    addCharacterConfigs(configs)
    addItemConfigs(configs)
 

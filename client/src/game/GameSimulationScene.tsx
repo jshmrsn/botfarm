@@ -1,25 +1,26 @@
-import Phaser from "phaser";
-import {Config, EntityId} from "../simulation/EntityData";
+import Phaser from "phaser"
+import {Config, EntityId} from "../simulation/EntityData"
 
-import {getUnixTimeSeconds, throwError} from "../misc/utils";
-import {Simulation, SimulationId, UserId} from "../simulation/Simulation";
-import {clampZeroOne, lerp, Vector2} from "../misc/Vector2";
-import {Vector2Animation} from "../misc/Vector2Animation";
+import {getUnixTimeSeconds, throwError} from "../misc/utils"
+import {SimulationId, UserId} from "../simulation/Simulation"
+import {clampZeroOne, lerp, Vector2} from "../misc/Vector2"
+import {Vector2Animation} from "../misc/Vector2Animation"
 import {
   CharacterBodySelectionsConfig,
   CompositeAnimationRegistryConfig,
   RegisteredCompositeAnimation,
   SpriteAnimation,
   SpriteConfig
-} from "../common/common";
-import {RenderContext} from "../common/RenderContext";
+} from "../common/common"
+import {RenderContext} from "../common/RenderContext"
 import {
   ActionTypes,
-  CharacterBodySelections, CharacterComponent,
+  CharacterBodySelections,
+  CharacterComponent,
   CharacterComponentData,
   InventoryComponentData,
   UseEquippedToolItemRequest
-} from "./CharacterComponentData";
+} from "./CharacterComponentData"
 import {
   EquipmentSlots,
   GrowerComponent,
@@ -27,24 +28,24 @@ import {
   ItemComponentData,
   ItemConfig,
   KillableComponent
-} from "./ItemComponentData";
-import {Entity} from "../simulation/Entity";
+} from "./ItemComponentData"
+import {Entity} from "../simulation/Entity"
 import {
   PositionComponent,
   PositionComponentData,
   resolveEntityPositionForCurrentTime,
   resolveEntityPositionForTime,
   resolvePositionForTime
-} from "../common/PositionComponentData";
-import {AgentControlledComponent, AgentControlledComponentData} from "./AgentControlledComponentData";
-import {UserControlledComponent, UserControlledComponentData} from "./userControlledComponentData";
-import {IconHandGrab, IconTool} from "@tabler/icons-react";
-import {CompositeAnimationSelection} from "./CompositeAnimationSelection";
-import {GameSimulation} from "./GameSimulation";
-import Layer = Phaser.GameObjects.Layer;
-import FilterMode = Phaser.Textures.FilterMode;
-import {DynamicState} from "../components/DynamicState";
-import {Pinch} from 'phaser3-rex-plugins/plugins/gestures.js';
+} from "../common/PositionComponentData"
+import {AgentControlledComponent, AgentControlledComponentData} from "./AgentControlledComponentData"
+import {UserControlledComponent, UserControlledComponentData} from "./userControlledComponentData"
+import {IconHandGrab, IconTool} from "@tabler/icons-react"
+import {CompositeAnimationSelection} from "./CompositeAnimationSelection"
+import {GameSimulation} from "./GameSimulation"
+import {DynamicState} from "../components/DynamicState"
+import {Pinch} from 'phaser3-rex-plugins/plugins/gestures.js'
+import Layer = Phaser.GameObjects.Layer
+import FilterMode = Phaser.Textures.FilterMode
 
 interface AnimationConfig {
   name: string
@@ -143,10 +144,10 @@ function getAnimationDirectionForRelativeLocation(delta: Vector2): string | null
   }
 }
 
-export class SimulationScene extends Phaser.Scene {
+export class GameSimulationScene extends Phaser.Scene {
   readonly simulationId: SimulationId
   readonly dynamicState: DynamicState
-  readonly simulation: Simulation
+  readonly simulation: GameSimulation
   readonly isReplay: boolean
 
   focusChatTextAreaKey: Phaser.Input.Keyboard.Key | undefined = undefined
@@ -156,7 +157,7 @@ export class SimulationScene extends Phaser.Scene {
   private onCreateFunctions: { (): void } [] = []
   private onLoadCompleteFunctions: { (): void } [] = []
 
-  private context: SimulationSceneContext;
+  private context: SimulationSceneContext
   readonly userId: UserId
 
   uiCamera!: Phaser.Cameras.Scene2D.Camera
@@ -176,16 +177,17 @@ export class SimulationScene extends Phaser.Scene {
   readonly characterBodySelectionsConfig: CharacterBodySelectionsConfig
   private backgroundGrass!: Phaser.GameObjects.TileSprite
 
-  private readonly worldBounds = new Vector2(10000.0, 10000.0)
-  private pinch?: Pinch;
+  private readonly worldBounds: Vector2
+  private pinch?: Pinch
 
   constructor(
-    simulation: Simulation,
+    simulation: GameSimulation,
     context: SimulationSceneContext
   ) {
-    super("SimulationPhaserScene");
+    super("SimulationPhaserScene")
 
     this.simulation = simulation
+    this.worldBounds = simulation.worldBounds
     this.isReplay = simulation.isReplay
     this.userId = context.dynamicState.userId
     this.simulationId = simulation.simulationId
@@ -204,22 +206,22 @@ export class SimulationScene extends Phaser.Scene {
   }
 
   preload() {
-    const uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
+    const uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
     this.uiCamera = uiCamera
-    const mainCamera = this.cameras.main;
+    const mainCamera = this.cameras.main
     this.mainCamera = mainCamera
 
-    var screenWidth = uiCamera.width;
-    var screenHeight = uiCamera.height;
+    var screenWidth = uiCamera.width
+    var screenHeight = uiCamera.height
 
-    var progressBar = this.add.graphics();
-    var progressBox = this.add.graphics();
-    progressBox.fillStyle(0x222222, 0.2);
+    var progressBar = this.add.graphics()
+    var progressBox = this.add.graphics()
+    progressBox.fillStyle(0x222222, 0.2)
     const progressBoxWidth = 320
     const progressBoxHeight = 20
     const progressBoxX = screenWidth / 2 - progressBoxWidth / 2
     const progressBoxY = screenHeight / 2 - progressBoxHeight / 2
-    progressBox.fillRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight);
+    progressBox.fillRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight)
 
     this.load.image("background-grass", "/assets/environment/grass1.png")
 
@@ -232,8 +234,8 @@ export class SimulationScene extends Phaser.Scene {
         color: 'black'
       },
       alpha: 0.5
-    });
-    loadingText.setOrigin(0.5, 0.5);
+    })
+    loadingText.setOrigin(0.5, 0.5)
     mainCamera.ignore(loadingText)
 
     var assetText = this.make.text({
@@ -245,7 +247,7 @@ export class SimulationScene extends Phaser.Scene {
         color: 'black'
       },
       alpha: 0.25
-    });
+    })
     assetText.setOrigin(0.5, 0.5)
     mainCamera.ignore(assetText)
 
@@ -253,39 +255,39 @@ export class SimulationScene extends Phaser.Scene {
       // joshr: Avoid errors modifying text if an error during preload causes simulation scene to be destroyed
       // before progress callbacks stop
       if (this.dynamicState.phaserScene === this) {
-        // percentText.setText((value * 100).toFixed(0) + '%');
-        progressBar.clear();
-        progressBar.fillStyle(0xffffff, 1);
+        // percentText.setText((value * 100).toFixed(0) + '%')
+        progressBar.clear()
+        progressBar.fillStyle(0xffffff, 1)
 
         const progressBarWidth = progressBoxWidth - 2
         const progressBarHeight = progressBoxHeight - 2
         const progressBarX = screenWidth / 2 - progressBarWidth / 2
         const progressBarY = screenHeight / 2 - progressBarHeight / 2
 
-        progressBar.fillRect(progressBarX, progressBarY, progressBarWidth * value, progressBarHeight);
+        progressBar.fillRect(progressBarX, progressBarY, progressBarWidth * value, progressBarHeight)
       }
-    });
+    })
 
     this.load.on('fileprogress', (file: any) => {
       if (this.dynamicState.phaserScene === this) {
-        assetText.setText('Loading asset: ' + file.key);
+        assetText.setText('Loading asset: ' + file.key)
       }
-    });
+    })
 
     this.load.on('complete', () => {
-      progressBar.destroy();
-      progressBox.destroy();
-      // loadingText.destroy();
-      // percentText.destroy();
-      assetText.destroy();
+      progressBar.destroy()
+      progressBox.destroy()
+      // loadingText.destroy()
+      // percentText.destroy()
+      assetText.destroy()
       for (let onLoadCompleteFunction of this.onLoadCompleteFunctions) {
         onLoadCompleteFunction()
       }
-    });
+    })
 
-    this.load.image("circle", "/assets/misc/circle.png");
-    this.load.image("ring", "/assets/misc/ring.png");
-    this.load.image("character-shadow", "/assets/misc/character-shadow.png");
+    this.load.image("circle", "/assets/misc/circle.png")
+    this.load.image("ring", "/assets/misc/ring.png")
+    this.load.image("character-shadow", "/assets/misc/character-shadow.png")
 
     this.preloadJson(() => {
       this.preloadSprites()
@@ -384,7 +386,7 @@ export class SimulationScene extends Phaser.Scene {
         textureKey,
         spriteConfig.textureUrl,
         spriteConfig.atlasUrl
-      );
+      )
     } else {
       this.load.image(textureKey, spriteConfig.textureUrl)
     }
@@ -499,7 +501,7 @@ export class SimulationScene extends Phaser.Scene {
     // variant: "steel"
     // actual asset path: assets/liberated-pixel-cup-characters/spritesheets/arms/armour/plate/female/steel.png
 
-    const includedCategories = this.compositeAnimationRegistryConfig.includedCategories;
+    const includedCategories = this.compositeAnimationRegistryConfig.includedCategories
 
     const layers: SheetDefinitionLayer[] = rawLayers.map((rawLayer, layerIndex) => {
       const partialPathsByIncludedCategory: Record<string, string> = {}
@@ -696,10 +698,10 @@ export class SimulationScene extends Phaser.Scene {
   }
 
   resize(gameSize: any, baseSize: any, displaySize: any, resolution: any) {
-    const width = gameSize.width;
-    const height = gameSize.height;
+    const width = gameSize.width
+    const height = gameSize.height
 
-    this.cameras.resize(width, height);
+    this.cameras.resize(width, height)
   }
 
   sendMoveToPointRequest(moveToPointRequest: MoveToPointRequest) {
@@ -726,10 +728,10 @@ export class SimulationScene extends Phaser.Scene {
   setupInput() {
     const mainCamera = this.mainCamera
 
-    this.pinch = new Pinch(this, {});
+    this.pinch = new Pinch(this, {})
 
     this.pinch.on("drag1", (drag: any) => {
-      const drag1Vector: { x: number, y: number } = drag.drag1Vector;
+      const drag1Vector: { x: number, y: number } = drag.drag1Vector
       const scrollMovement = new Vector2(-drag1Vector.x / mainCamera.zoom, -drag1Vector.y / mainCamera.zoom)
       this.isDragging = true
       const dt = 1.0 / 60.0
@@ -748,16 +750,46 @@ export class SimulationScene extends Phaser.Scene {
     }, this)
 
     this.pinch.on("pinch", (pinch: any) => {
+      const cursor = new Vector2(pinch.centerX, pinch.centerY)
+
+      const worldPointBeforeZoomChange = this.getWorldPointUnderCanvasPoint(cursor)
+
       const scaleFactor: number = pinch.scaleFactor
       this.zoomVelocity = scaleFactor
       this.zoomValue *= scaleFactor
+
+      this.clampCamera()
+
+      const worldPointAfterZoomChange = this.getWorldPointUnderCanvasPoint(cursor)
+
+      const delta = Vector2.minus(worldPointAfterZoomChange, worldPointBeforeZoomChange)
+
+      this.mainCamera.scrollX -= delta.x
+      this.mainCamera.scrollY -= delta.y
+
+      const movementCenter: { x: number, y: number } = {x: pinch.movementCenterX, y: pinch.movementCenterY}
+
+      // jshmrsn: I am not sure why the 0.5 multiplier is needed, but it seems to precisely achieve maintaining
+      // the same world point under the gesture during drag
+      const scrollMovement = Vector2.timesScalar(new Vector2(
+        -movementCenter.x / mainCamera.zoom,
+        -movementCenter.y / mainCamera.zoom
+      ), 0.5)
+
+      mainCamera.scrollX += scrollMovement.x
+      mainCamera.scrollY += scrollMovement.y
+
+      this.isDragging = true
+      const dt = 1.0 / 60.0
+      this.scrollVelocity = Vector2.timesScalar(scrollMovement, 1.0 / dt)
+
+
       this.isZooming = true
       this.clampCamera()
     }, this)
 
-
     if (this.input.mouse) {
-      this.input.mouse.disableContextMenu();
+      this.input.mouse.disableContextMenu()
     }
 
     const slashKey = this.input.keyboard?.addKey("FORWARD_SLASH")
@@ -797,7 +829,7 @@ export class SimulationScene extends Phaser.Scene {
       isDown = true
       clickValid = true
       pointerDownLocation = new Vector2(pointer.x, pointer.y)
-    }, this);
+    }, this)
 
     this.input.on('pointerup', (pointer: any) => {
       isDown = false
@@ -809,9 +841,8 @@ export class SimulationScene extends Phaser.Scene {
       }
 
       if (clickValid) {
-        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
+        const worldPoint = this.getWorldPointUnderCanvasPoint(new Vector2(pointer.x, pointer.y))
 
-        // console.log("Clicked worldPoint", worldPoint)
         const simulationTime = this.getCurrentSimulationTime()
 
         const simulation = this.simulation
@@ -828,7 +859,7 @@ export class SimulationScene extends Phaser.Scene {
               distance: distance
             }
           })
-          .filter(it => it.distance < 65.0)
+          .filter(it => it.distance < 30.0)
 
         entitiesNearCenter.sort((a, b) => {
           if (a.distance < b.distance) {
@@ -863,7 +894,7 @@ export class SimulationScene extends Phaser.Scene {
             this.clearPendingInteractionTargetRequest()
           }
         } else {
-          this.lastClickTime = -1;
+          this.lastClickTime = -1
           this.clearPendingInteractionTargetRequest()
 
           const playerControlledEntity = this.simulation.entities.find(entity => {
@@ -884,15 +915,30 @@ export class SimulationScene extends Phaser.Scene {
       }
 
       clickValid = false
-    }, this);
+    }, this)
 
     this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number, deltaZ: number) => {
+      this.scrollVelocity = Vector2.zero
+
+      const cursor = new Vector2(pointer.x, pointer.y)
+
+      const worldPointBeforeZoomChange = this.getWorldPointUnderCanvasPoint(cursor)
+
       this.zoomValue = this.zoomValue * (1 - deltaY * 0.001)
       this.clampCamera()
-    });
+
+      const worldPointAfterZoomChange = this.getWorldPointUnderCanvasPoint(cursor)
+
+      const delta = Vector2.minus(worldPointAfterZoomChange, worldPointBeforeZoomChange)
+
+      this.mainCamera.scrollX -= delta.x
+      this.mainCamera.scrollY -= delta.y
+
+      this.clampCamera()
+    })
 
     this.input.on("pointermove", (pointer: any) => {
-      if (!pointer.isDown || !isDown) return;
+      if (!pointer.isDown || !isDown) return
 
       const currentPointerLocation = new Vector2(pointer.x, pointer.y)
       const pointerDistanceFromDown = Vector2.distance(currentPointerLocation, pointerDownLocation)
@@ -907,7 +953,24 @@ export class SimulationScene extends Phaser.Scene {
       }
 
       this.clampCamera()
-    });
+    })
+  }
+
+  getWorldPointUnderCanvasPoint(canvasPoint: Vector2) {
+    // jshmrsn: For unknown this reasons, this function generally produces slightly
+    // different result than Phaser3's mainCamera.getWorldPoint. More importantly,
+    // this function produces significantly different results immediately after
+    // camera zoom is changes (within the same frame). The output of this function
+    // behaved in a usable way for maintaining point-under-cursor while off-center
+    // zooming.
+    const mainCamera = this.mainCamera
+    const canvasSize = new Vector2(this.game.canvas.width, this.game.canvas.height)
+    const canvasCenter = Vector2.timesScalar(canvasSize, 0.5)
+    const cameraScroll = new Vector2(mainCamera.scrollX, mainCamera.scrollY)
+    const cameraCenter = Vector2.plus(cameraScroll, Vector2.timesScalar(canvasSize, 0.5))
+    const cursorRelativeToCenter = Vector2.minus(canvasPoint, canvasCenter)
+
+    return Vector2.plus(cameraCenter, Vector2.timesScalar(cursorRelativeToCenter, 1.0 / mainCamera.zoom))
   }
 
   private clearPendingInteractionTargetRequest() {
@@ -923,12 +986,16 @@ export class SimulationScene extends Phaser.Scene {
   readonly minZoom = 0.25
 
   clampCamera() {
+    const canvasSize = new Vector2(this.game.canvas.width, this.game.canvas.height)
+    const canvasBuffer = Vector2.timesScalar(canvasSize, 0.5)
+
+    const extraBuffer = 500.0
+
     this.zoomValue = Math.max(this.minZoom, Math.min(this.zoomValue, this.maxZoom))
 
-    const buffer = 1000.0
     const mainCamera = this.mainCamera
-    mainCamera.scrollX = Math.min(Math.max(mainCamera.scrollX, -buffer), this.worldBounds.x + buffer)
-    mainCamera.scrollY = Math.min(Math.max(mainCamera.scrollY, -buffer), this.worldBounds.y + buffer)
+    mainCamera.scrollX = Math.min(Math.max(mainCamera.scrollX, -canvasBuffer.x - extraBuffer), this.worldBounds.x - canvasBuffer.x + extraBuffer)
+    mainCamera.scrollY = Math.min(Math.max(mainCamera.scrollY, -canvasBuffer.y - extraBuffer), this.worldBounds.y - canvasBuffer.y + extraBuffer)
 
     // console.log("this.game.canvas.width", this.game.canvas.width)
     const canvasSizeFactor = 1.0 //lerp(this.game.canvas.width / 2000.0, 1.0, 0.5)
@@ -1152,7 +1219,7 @@ export class SimulationScene extends Phaser.Scene {
   }
 
   create() {
-    this.scale.on('resize', this.resize, this);
+    this.scale.on('resize', this.resize, this)
 
     this.onCreateFunctions.forEach(it => {
       it()
@@ -1166,12 +1233,12 @@ export class SimulationScene extends Phaser.Scene {
     this.characterNameLayer = this.add.layer()
     this.chatBubbleLayer = this.add.layer()
 
-    const uiCamera = this.uiCamera!;
+    const uiCamera = this.uiCamera!
 
     const worldBounds = this.worldBounds
     this.cursorKeys = this.input.keyboard?.createCursorKeys()
 
-    uiCamera.ignore(this.children.list);
+    uiCamera.ignore(this.children.list)
 
     const playerControlledEntity = this.simulation.entities.find(entity => {
       const userControlledComponent = UserControlledComponent.getOrNull(entity)
@@ -1222,7 +1289,7 @@ export class SimulationScene extends Phaser.Scene {
       return userControlledComponent != null && userControlledComponent.data.userId === this.userId
     })
 
-    const playerCharacterComponent = playerControlledEntity != null ? playerControlledEntity.getComponentOrNull<CharacterComponentData>("CharacterComponentData") : null;
+    const playerCharacterComponent = playerControlledEntity != null ? playerControlledEntity.getComponentOrNull<CharacterComponentData>("CharacterComponentData") : null
 
     this.renderContext.render(() => {
       for (const entity of this.simulation.entities) {
@@ -1282,7 +1349,7 @@ export class SimulationScene extends Phaser.Scene {
             characterComponent.data,
             agentControlledComponentData,
             position
-          );
+          )
         } else if (itemComponent != null) {
           this.renderItem(
             simulationTime,
@@ -1385,7 +1452,7 @@ export class SimulationScene extends Phaser.Scene {
     agentControlledComponentData: AgentControlledComponentData | null,
     position: Vector2,
   ) {
-    const mainCamera = this.mainCamera;
+    const mainCamera = this.mainCamera
 
     positionComponentData.positionAnimation.keyFrames.forEach((keyFrame, index) => {
       if (keyFrame.time > simulationTime) {
@@ -1402,7 +1469,7 @@ export class SimulationScene extends Phaser.Scene {
       }
     })
 
-    const emoji = characterComponentData.facialExpressionEmoji;
+    const emoji = characterComponentData.facialExpressionEmoji
     let statusSuffix = ""
 
     if (agentControlledComponentData != null) {
@@ -1472,7 +1539,7 @@ export class SimulationScene extends Phaser.Scene {
 
     const maxChatBubbleAge = 10
 
-    const spokenMessages = characterComponentData.recentSpokenMessages;
+    const spokenMessages = characterComponentData.recentSpokenMessages
 
     for (let messageIndex = 0; messageIndex < spokenMessages.length; messageIndex++) {
       const message = spokenMessages[messageIndex]
@@ -1504,10 +1571,10 @@ export class SimulationScene extends Phaser.Scene {
 
       var spokenMessageText = message.message
 
-      const maxBubbleWidth = 250;
-      const minBubbleWidth = 70;
-      const bubblePaddingY = 6;
-      const bubblePaddingX = 6;
+      const maxBubbleWidth = 250
+      const minBubbleWidth = 70
+      const bubblePaddingY = 6
+      const bubblePaddingX = 6
 
       const textScale = 1.0
 
@@ -1530,45 +1597,45 @@ export class SimulationScene extends Phaser.Scene {
         alpha: animationAlpha
       })
 
-      const textBounds = content.getBounds();
-      const bubbleWidth = Math.max(minBubbleWidth, Math.min(maxBubbleWidth, textBounds.width + bubblePaddingX * 2));
+      const textBounds = content.getBounds()
+      const bubbleWidth = Math.max(minBubbleWidth, Math.min(maxBubbleWidth, textBounds.width + bubblePaddingX * 2))
 
-      const bubbleHeight = textBounds.height + bubblePaddingY * 2;
-      const arrowHeight = bubbleHeight / 4 + 5;
-      const arrowPointOffsetX = bubbleWidth / 8;
+      const bubbleHeight = textBounds.height + bubblePaddingY * 2
+      const arrowHeight = bubbleHeight / 4 + 5
+      const arrowPointOffsetX = bubbleWidth / 8
 
       const bubble = renderContext.renderGraphics("character-spoken-message-bubble:" + entity.entityId + ":" + spokenMessageText + ":" + messageIndex, this.chatBubbleLayer, bubble => {
         // Bubble shadow
         bubble.clear()
-        bubble.fillStyle(0x222222, 0.35);
-        bubble.fillRoundedRect(3, 3, bubbleWidth, bubbleHeight, 8);
+        bubble.fillStyle(0x222222, 0.35)
+        bubble.fillRoundedRect(3, 3, bubbleWidth, bubbleHeight, 8)
 
         //  Bubble color
-        bubble.fillStyle(0xffffff, 1);
+        bubble.fillStyle(0xffffff, 1)
 
         //  Bubble outline line style
-        bubble.lineStyle(4, 0x565656, 1);
+        bubble.lineStyle(4, 0x565656, 1)
 
         //  Bubble shape and outline
-        bubble.strokeRoundedRect(0, 0, bubbleWidth, bubbleHeight, 8);
-        bubble.fillRoundedRect(0, 0, bubbleWidth, bubbleHeight, 8);
+        bubble.strokeRoundedRect(0, 0, bubbleWidth, bubbleHeight, 8)
+        bubble.fillRoundedRect(0, 0, bubbleWidth, bubbleHeight, 8)
 
-        const point1X = Math.floor(arrowPointOffsetX);
-        const point1Y = bubbleHeight;
-        const point2X = Math.floor(arrowPointOffsetX * 2);
-        const point2Y = bubbleHeight;
-        const point3X = Math.floor(arrowPointOffsetX);
-        const point3Y = Math.floor(bubbleHeight + arrowHeight);
+        const point1X = Math.floor(arrowPointOffsetX)
+        const point1Y = bubbleHeight
+        const point2X = Math.floor(arrowPointOffsetX * 2)
+        const point2Y = bubbleHeight
+        const point3X = Math.floor(arrowPointOffsetX)
+        const point3Y = Math.floor(bubbleHeight + arrowHeight)
 
         //  Bubble arrow shadow (disabled because it causes artifacts)
-        // bubble.lineStyle(4, 0x222222, 0.5);
-        // bubble.lineBetween(point2X - 1, point2Y + 6, point3X + 2, point3Y);
+        // bubble.lineStyle(4, 0x222222, 0.5)
+        // bubble.lineBetween(point2X - 1, point2Y + 6, point3X + 2, point3Y)
 
         //  Bubble arrow fill
-        bubble.fillTriangle(point1X, point1Y, point2X, point2Y, point3X, point3Y);
-        bubble.lineStyle(2, 0x565656, 1);
-        bubble.lineBetween(point2X, point2Y, point3X, point3Y);
-        bubble.lineBetween(point1X, point1Y, point3X, point3Y);
+        bubble.fillTriangle(point1X, point1Y, point2X, point2Y, point3X, point3Y)
+        bubble.lineStyle(2, 0x565656, 1)
+        bubble.lineBetween(point2X, point2Y, point3X, point3Y)
+        bubble.lineBetween(point1X, point1Y, point3X, point3Y)
       })
 
       bubble.setScale(animationScale, animationScale)
@@ -1577,7 +1644,7 @@ export class SimulationScene extends Phaser.Scene {
       bubble.setX(position.x - arrowPointOffsetX)
       bubble.setY(position.y - 35 - bubbleHeight - arrowHeight)
 
-      content.setPosition(bubble.x + (bubbleWidth / 2) - (textBounds.width / 2), bubble.y + (bubbleHeight / 2) - (textBounds.height / 2));
+      content.setPosition(bubble.x + (bubbleWidth / 2) - (textBounds.width / 2), bubble.y + (bubbleHeight / 2) - (textBounds.height / 2))
     }
 
     if (agentControlledComponentData != null && this.dynamicState.selectedEntityId === entity.entityId) {
@@ -1595,7 +1662,7 @@ export class SimulationScene extends Phaser.Scene {
 
     const characterDepth = this.calculateDepthForPosition(position)
 
-    let keyFrames = positionComponentData.positionAnimation.keyFrames;
+    let keyFrames = positionComponentData.positionAnimation.keyFrames
     let animationRepeat = -1
 
     let isMoving = false
@@ -1657,11 +1724,13 @@ export class SimulationScene extends Phaser.Scene {
         if (itemStack.isEquipped) {
           const equippedItemConfig = this.simulation.getConfig<ItemConfig>(itemStack.itemConfigKey, "ItemConfig")
 
-          if (equippedItemConfig.equippableConfig && equippedItemConfig.equippableConfig.equipmentSlot == EquipmentSlots.Tool) {
+          if (equippedItemConfig.equippableConfig &&
+            equippedItemConfig.equippableConfig.equipmentSlot === EquipmentSlots.Tool) {
             equippedToolItemConfig = equippedItemConfig
           }
 
-          if (equippedItemConfig.equippableConfig != null && equippedItemConfig.equippableConfig.equippedCompositeAnimation == null) {
+          if (equippedItemConfig.equippableConfig != null &&
+            equippedItemConfig.equippableConfig.equippedCompositeAnimation == null) {
             const spriteConfig = this.getConfig<SpriteConfig>(equippedItemConfig.spriteConfigKey, "SpriteConfig")
 
             const holdOffset = movementAnimationDirection === "left"
@@ -1756,7 +1825,6 @@ export class SimulationScene extends Phaser.Scene {
 
 
     const preferredCompositeAnimationCategory = characterComponentData.bodySelections.bodyType
-
     const offset = new Vector2(0.0, -20.0)
     const scale = new Vector2(1.2, 1.2)
 
@@ -1905,7 +1973,7 @@ export class SimulationScene extends Phaser.Scene {
 
     const autoInteraction = this.calculateAutoInteractAction()
 
-    const previousAutoInteraction = this.calculatedAutoInteraction;
+    const previousAutoInteraction = this.calculatedAutoInteraction
     this.calculatedAutoInteraction = autoInteraction
 
     if (autoInteraction != null) {
@@ -1919,7 +1987,7 @@ export class SimulationScene extends Phaser.Scene {
       this.dynamicState.forceUpdate()
     }
 
-    const camera_speed = 800;
+    const camera_speed = 800
     const cursors = this.cursorKeys
     const mainCamera = this.cameras.main
 

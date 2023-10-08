@@ -33,6 +33,7 @@ open class GameScenario(
    ): Simulation {
       val configs = mutableListOf<Config>()
 
+      addBasicConfigs(configs)
       addCharacterConfigs(configs)
       addItemConfigs(configs)
 

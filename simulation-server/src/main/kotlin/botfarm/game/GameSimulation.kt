@@ -8,10 +8,7 @@ import botfarm.engine.ktorplugins.AdminRequest
 import botfarm.engine.simulation.*
 import botfarm.game.agentintegration.AgentService
 import botfarm.game.components.*
-import botfarm.game.config.CharacterBodySelectionsConfig
-import botfarm.game.config.EquipmentSlot
-import botfarm.game.config.ItemConfig
-import botfarm.game.config.RandomItemQuantity
+import botfarm.game.config.*
 import botfarm.game.setup.GameScenario
 import botfarm.game.setup.SpawnPlayersMode
 import botfarm.game.setup.gameSystems
@@ -24,6 +21,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlin.math.roundToInt
 
 @Serializable
 class MoveToPointRequest(
@@ -93,11 +91,20 @@ class GameSimulation(
    val collisionMapRowCount: Int
    val collisionMapColumnCount: Int
 
+   val gameSimulationConfig: GameSimulationConfig
+
+   val tileWorldBounds: Vector2
    val worldBounds: Vector2
 
    init {
-      val rowCount = 200
-      val columnCount = 200
+      this.gameSimulationConfig = this.getConfig<GameSimulationConfig>(GameSimulationConfig.defaultKey)
+      this.worldBounds = this.gameSimulationConfig.worldBounds
+
+      val tileWidth = 32
+      val tileHeight = 32
+
+      val rowCount = (this.worldBounds.y / tileHeight).toInt()
+      val columnCount = (this.worldBounds.x / tileWidth).toInt()
 
       val collisionMap = mutableListOf<List<Boolean>>()
 
@@ -106,15 +113,13 @@ class GameSimulation(
          collisionMap.add(row)
       }
 
-      val tilewidth = 32
-      val tileheight = 32
       this.collisionMap = collisionMap
       this.collisionMapRowCount = rowCount
       this.collisionMapColumnCount = columnCount
 
-      this.worldBounds = Vector2(
-         columnCount * tilewidth.toDouble(),
-         rowCount * tileheight.toDouble()
+      this.tileWorldBounds = Vector2(
+         columnCount * tileWidth.toDouble(),
+         rowCount * tileHeight.toDouble()
       )
 
       this.createEntity(
@@ -1657,8 +1662,8 @@ class GameSimulation(
    }
 
    fun indexPairToPoint(indexPair: IndexPair): Vector2 {
-      val tileWidth = this.worldBounds.x / this.collisionMapColumnCount
-      val tileHeight = this.worldBounds.y / this.collisionMapRowCount
+      val tileWidth = this.tileWorldBounds.x / this.collisionMapColumnCount
+      val tileHeight = this.tileWorldBounds.y / this.collisionMapRowCount
 
       return Vector2(
          x = tileWidth * (indexPair.col + 0.5),
@@ -1668,8 +1673,8 @@ class GameSimulation(
 
    fun pointToIndexPair(point: Vector2): IndexPair {
       return IndexPair(
-         row = (point.y / this.worldBounds.y * this.collisionMapRowCount).toInt(),
-         col = (point.x / this.worldBounds.x * this.collisionMapColumnCount).toInt()
+         row = (point.y / this.tileWorldBounds.y * this.collisionMapRowCount).toInt(),
+         col = (point.x / this.tileWorldBounds.x * this.collisionMapColumnCount).toInt()
       )
    }
 
@@ -1679,8 +1684,8 @@ class GameSimulation(
 
    fun clampPoint(point: Vector2): Vector2 {
       return Vector2(
-         x = Math.min(Math.max(point.x, 0.0), this.worldBounds.x),
-         y = Math.min(Math.max(point.y, 0.0), this.worldBounds.y),
+         x = Math.min(Math.max(point.x, 0.0), this.tileWorldBounds.x),
+         y = Math.min(Math.max(point.y, 0.0), this.tileWorldBounds.y),
       )
    }
 

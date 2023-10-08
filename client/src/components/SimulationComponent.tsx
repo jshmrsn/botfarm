@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react";
 import {ActionIcon, Button, Text} from "@mantine/core";
 import {IconHammer, IconInfoCircle, IconMenu2, IconMessages, IconQuestionMark} from "@tabler/icons-react";
 import Phaser from "phaser";
-import {AutoInteractActionType, SimulationScene, SimulationSceneContext} from "../game/SimulationScene";
+import {AutoInteractActionType, GameSimulationScene, SimulationSceneContext} from "../game/GameSimulationScene";
 import {ClientSimulationData, ReplayData} from "../simulation/EntityData";
 import useWebSocket from "react-use-websocket";
 import {useWindowSize} from "@react-hook/window-size";
@@ -57,7 +57,6 @@ interface SimulationProps {
 export interface GetSimulationInfoResponse {
   simulationInfo: SimulationInfo | null
 }
-
 
 
 export const SimulationComponent = (props: SimulationProps) => {
@@ -320,7 +319,7 @@ export const SimulationComponent = (props: SimulationProps) => {
         }
       }
 
-      const newPhaserScene = new SimulationScene(dynamicState.simulation, sceneContext)
+      const newPhaserScene = new GameSimulationScene(dynamicState.simulation, sceneContext)
       newPhaserScene.onLoadComplete(() => {
         setSceneLoadComplete(true)
       })
@@ -343,7 +342,7 @@ export const SimulationComponent = (props: SimulationProps) => {
   let totalCost = 0.0
   if (dynamicState.simulation != null) {
     for (let entity of dynamicState.simulation.entities) {
-      const agentControlledComponent =  AgentControlledComponent.getOrNull(entity)
+      const agentControlledComponent = AgentControlledComponent.getOrNull(entity)
 
       if (agentControlledComponent != null) {
         totalCost += agentControlledComponent.data.costDollars
@@ -540,30 +539,6 @@ export const SimulationComponent = (props: SimulationProps) => {
     const debugOverlayValueKeys = Object.keys(dynamicState.debugOverlayValuesByKey).sort()
 
     return <React.Fragment>
-      {debugOverlayValueKeys.length > 0 ? <div
-        key="debug-overlay"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          top: 20,
-          right: 70,
-          left: 70,
-          position: "absolute",
-          gap: 2,
-          pointerEvents: "none"
-        }}
-      >
-        {debugOverlayValueKeys.map(debugOverlayValueKey => {
-          const debugValue = dynamicState.debugOverlayValuesByKey[debugOverlayValueKey]
-
-          return <Text key={debugOverlayValueKey}>
-            <pre>
-              {debugOverlayValueKey + ": " + debugValue}
-            </pre>
-          </Text>
-        })}
-      </div> : null}
-
       <div
         key="right-header"
         style={{
@@ -720,6 +695,39 @@ export const SimulationComponent = (props: SimulationProps) => {
           notifyChatInputIsFocused={(value) => setChatInputIsFocused(value)}
         /> : null}
       </div>
+
+      {debugOverlayValueKeys.length > 0 ? <div
+        key="debug-overlay"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          top: 20,
+          right: 70,
+          left: 70,
+          position: "absolute",
+          gap: 2,
+          pointerEvents: "none",
+          backgroundColor: "rgba(0, 0, 0, 0.65)",
+          borderRadius: 5,
+          padding: 5,
+          paddingTop: 3,
+          paddingBottom: 3
+        }}
+      >
+        {debugOverlayValueKeys.map(debugOverlayValueKey => {
+          const debugValue = dynamicState.debugOverlayValuesByKey[debugOverlayValueKey]
+
+          return <Text
+            style={{
+              flexGrow: 0
+            }}
+            color={"white"}
+            key={debugOverlayValueKey}
+          >
+            {debugOverlayValueKey + ": " + debugValue}
+          </Text>
+        })}
+      </div> : null}
     </React.Fragment>
   }
 
