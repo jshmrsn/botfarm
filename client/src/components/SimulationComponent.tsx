@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import {ActionIcon, Button, Text} from "@mantine/core";
-import {IconGridDots, IconHammer, IconInfoCircle, IconMenu2, IconMessages, IconQuestionMark} from "@tabler/icons-react";
+import {IconHammer, IconInfoCircle, IconMenu2, IconMessages, IconQuestionMark} from "@tabler/icons-react";
 import Phaser from "phaser";
 import {AutoInteractActionType, SimulationScene, SimulationSceneContext} from "../game/SimulationScene";
 import {ClientSimulationData, ReplayData} from "../simulation/EntityData";
@@ -102,7 +102,6 @@ export const SimulationComponent = (props: SimulationProps) => {
     return userControlledComponent != null && userControlledComponent.data?.userId === dynamicState.userId
   }) ?? null
     : null
-
 
   const navigate = useNavigate();
 
@@ -469,7 +468,8 @@ export const SimulationComponent = (props: SimulationProps) => {
         backdropFilter: "blur(5px)",
         WebkitBackdropFilter: "blur(5px)",
         borderRadius: 5,
-        gap: 10
+        gap: 10,
+        pointerEvents: "auto"
       }}
     >
       <ActionIcon
@@ -516,7 +516,8 @@ export const SimulationComponent = (props: SimulationProps) => {
       variant={"filled"}
       leftIcon={autoInteraction.actionIcon}
       style={{
-        height: 44
+        height: 44,
+        pointerEvents: "auto"
       }}
       onClick={() => {
         actionButtonRef?.blur()
@@ -536,7 +537,33 @@ export const SimulationComponent = (props: SimulationProps) => {
   var helpButtonRef: HTMLButtonElement | null = null
 
   function renderGameUi() {
+    const debugOverlayValueKeys = Object.keys(dynamicState.debugOverlayValuesByKey).sort()
+
     return <React.Fragment>
+      {debugOverlayValueKeys.length > 0 ? <div
+        key="debug-overlay"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          top: 20,
+          right: 70,
+          left: 70,
+          position: "absolute",
+          gap: 2,
+          pointerEvents: "none"
+        }}
+      >
+        {debugOverlayValueKeys.map(debugOverlayValueKey => {
+          const debugValue = dynamicState.debugOverlayValuesByKey[debugOverlayValueKey]
+
+          return <Text key={debugOverlayValueKey}>
+            <pre>
+              {debugOverlayValueKey + ": " + debugValue}
+            </pre>
+          </Text>
+        })}
+      </div> : null}
+
       <div
         key="right-header"
         style={{
@@ -545,7 +572,8 @@ export const SimulationComponent = (props: SimulationProps) => {
           top: 5,
           right: 5,
           position: "absolute",
-          gap: 10
+          gap: 10,
+          pointerEvents: "none"
         }}
       >
         <div style={{
@@ -579,7 +607,8 @@ export const SimulationComponent = (props: SimulationProps) => {
             backdropFilter: "blur(5px)",
             WebkitBackdropFilter: "blur(5px)",
             borderRadius: 5,
-            gap: 10
+            gap: 10,
+            pointerEvents: "auto"
           }}
         >
           <ActionIcon ref={button => helpButtonRef = button} size={35} variant={"subtle"} onClick={() => {
@@ -628,6 +657,7 @@ export const SimulationComponent = (props: SimulationProps) => {
                     selectedEntityId={selectedEntityId}/> : null}
 
       <div
+        key={"bottom-center-ui"}
         style={{
           top: "auto",
           position: "absolute",
@@ -637,7 +667,8 @@ export const SimulationComponent = (props: SimulationProps) => {
           display: "flex",
           flexDirection: "column",
           gap: 5,
-          paddingBottom: 5
+          paddingBottom: 5,
+          pointerEvents: "none"
         }}
       >
         {useMobileLayout ? renderInventoryPanel() : null}
@@ -805,7 +836,8 @@ export const SimulationComponent = (props: SimulationProps) => {
             position: "absolute",
             top: 5,
             left: 5,
-            gap: 10
+            gap: 10,
+            pointerEvents: "none"
           }}
         >
           <div
@@ -820,7 +852,8 @@ export const SimulationComponent = (props: SimulationProps) => {
               backdropFilter: "blur(5px)",
               WebkitBackdropFilter: "blur(5px)",
               borderRadius: 5,
-              gap: 10
+              gap: 10,
+              pointerEvents: "auto"
             }}
           >
             <ActionIcon size={35} variant={"subtle"} onClick={() => {
@@ -889,7 +922,8 @@ export function renderPanelButton(
       backdropFilter: "blur(5px)",
       WebkitBackdropFilter: "blur(5px)",
       borderRadius: 5,
-      gap: 10
+      gap: 10,
+      pointerEvents: "auto"
     }}
   >
     <ActionIcon

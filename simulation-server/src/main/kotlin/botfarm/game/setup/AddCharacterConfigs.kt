@@ -25,7 +25,7 @@ fun addCharacterConfigs(configs: MutableList<Config>) {
       skinColors = includedSkinColors,
       bodies = listOf("body"), // skeleton, zombie
       heads = listOf("heads_human_male", "heads_human_female"),
-      noses = listOf("head_nose_straight", "head_nose_elderly", "head_nose_button", "head_nose_big"),
+      noses = listOf("head_nose_straight"),
       eyes = listOf(
          RegisteredCompositeAnimation(
             key = "eyes",

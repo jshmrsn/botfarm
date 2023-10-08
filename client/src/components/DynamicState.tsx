@@ -17,6 +17,8 @@ export class DynamicState {
 
   readonly clientId: ClientId = generateId()
 
+  readonly debugOverlayValuesByKey: Record<string, string> = {}
+
   hasSentGetReplayRequest = false
   buildAdminRequest: () => AdminRequest | null = () => null
 
@@ -40,5 +42,15 @@ export class DynamicState {
   forceUpdate() {
     ++this.forceRenderIndex
     this.setForceUpdateCounter(this.forceRenderIndex)
+  }
+
+  setDebugOverlayValueForKey(key: string, value: any | null) {
+    if (value == null) {
+      delete this.debugOverlayValuesByKey[key]
+    } else {
+      this.debugOverlayValuesByKey[key] = "" + value
+    }
+
+    this.forceUpdate()
   }
 }

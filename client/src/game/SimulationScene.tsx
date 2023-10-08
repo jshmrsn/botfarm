@@ -44,6 +44,7 @@ import {GameSimulation} from "./GameSimulation";
 import Layer = Phaser.GameObjects.Layer;
 import FilterMode = Phaser.Textures.FilterMode;
 import {DynamicState} from "../components/DynamicState";
+import {Pinch} from 'phaser3-rex-plugins/plugins/gestures.js';
 
 interface AnimationConfig {
   name: string
@@ -155,7 +156,7 @@ export class SimulationScene extends Phaser.Scene {
   private onCreateFunctions: { (): void } [] = []
   private onLoadCompleteFunctions: { (): void } [] = []
 
-  private simulationContext: SimulationSceneContext;
+  private context: SimulationSceneContext;
   readonly userId: UserId
 
   uiCamera!: Phaser.Cameras.Scene2D.Camera
@@ -176,6 +177,7 @@ export class SimulationScene extends Phaser.Scene {
   private backgroundGrass!: Phaser.GameObjects.TileSprite
 
   private readonly worldBounds = new Vector2(10000.0, 10000.0)
+  private pinch?: Pinch;
 
   constructor(
     simulation: Simulation,
@@ -188,7 +190,7 @@ export class SimulationScene extends Phaser.Scene {
     this.userId = context.dynamicState.userId
     this.simulationId = simulation.simulationId
 
-    this.simulationContext = context
+    this.context = context
     this.dynamicState = context.dynamicState
     this.compositeAnimationRegistryConfig = this.simulation.getConfig<CompositeAnimationRegistryConfig>("composite-animation-registry", "CompositeAnimationRegistryConfig")
     this.characterBodySelectionsConfig = this.simulation.getConfig<CharacterBodySelectionsConfig>("character-body-selections-config", "CharacterBodySelectionsConfig")
@@ -233,18 +235,6 @@ export class SimulationScene extends Phaser.Scene {
     });
     loadingText.setOrigin(0.5, 0.5);
     mainCamera.ignore(loadingText)
-
-    // var percentText = this.make.text({
-    //   x: screenWidth / 2,
-    //   y: screenHeight / 2,
-    //   text: '0%',
-    //   style: {
-    //     font: '18px monospace',
-    //     color: '#ffffff'
-    //   }
-    // });
-    // percentText.setOrigin(0.5, 0.5);
-    // mainCamera.ignore(percentText)
 
     var assetText = this.make.text({
       x: screenWidth / 2,
@@ -717,15 +707,54 @@ export class SimulationScene extends Phaser.Scene {
       return
     }
 
-    this.simulationContext.sendWebSocketMessage("MoveToPointRequest", moveToPointRequest)
+    this.context.sendWebSocketMessage("MoveToPointRequest", moveToPointRequest)
   }
 
   sendNotifyClientActiveRequest() {
-    this.simulationContext.sendWebSocketMessage("NotifyClientActive", {})
+    this.context.sendWebSocketMessage("NotifyClientActive", {})
   }
+
+  setDebugOverlayValueForKey(key: string, value: any | null) {
+    this.dynamicState.setDebugOverlayValueForKey(key, value)
+  }
+
+  scrollVelocity: Vector2 = Vector2.zero
+  zoomVelocity: number = 0.0
+  isZooming = false
+  isDragging = false
 
   setupInput() {
     const mainCamera = this.mainCamera
+
+    this.pinch = new Pinch(this, {});
+
+    this.pinch.on("drag1", (drag: any) => {
+      const drag1Vector: { x: number, y: number } = drag.drag1Vector;
+      const scrollMovement = new Vector2(-drag1Vector.x / mainCamera.zoom, -drag1Vector.y / mainCamera.zoom)
+      this.isDragging = true
+      const dt = 1.0 / 60.0
+      this.scrollVelocity = Vector2.timesScalar(scrollMovement, 1.0 / dt)
+      mainCamera.scrollX += scrollMovement.x
+      mainCamera.scrollY += scrollMovement.y
+      this.blurChatTextArea()
+    }, this)
+
+    this.pinch.on("drag1end", (drag: any) => {
+      this.isDragging = false
+    }, this)
+
+    this.pinch.on("pinchend", (drag: any) => {
+      this.isZooming = false
+    }, this)
+
+    this.pinch.on("pinch", (pinch: any) => {
+      const scaleFactor: number = pinch.scaleFactor
+      this.zoomVelocity = scaleFactor
+      this.zoomValue *= scaleFactor
+      this.isZooming = true
+      this.clampCamera()
+    }, this)
+
 
     if (this.input.mouse) {
       this.input.mouse.disableContextMenu();
@@ -733,17 +762,17 @@ export class SimulationScene extends Phaser.Scene {
 
     const slashKey = this.input.keyboard?.addKey("FORWARD_SLASH")
     slashKey?.on("down", (event: any) => {
-      this.simulationContext.showHelpPanel()
+      this.context.showHelpPanel()
     })
 
     const escapeKey = this.input.keyboard?.addKey("ESC")
 
     escapeKey?.on("down", (event: any) => {
       if (this.dynamicState.selectedEntityId != null) {
-        this.simulationContext.setSelectedEntityId(null)
+        this.context.setSelectedEntityId(null)
         this.clearPendingInteractionTargetRequest()
       } else {
-        this.simulationContext.showMenuPanel()
+        this.context.showMenuPanel()
       }
     })
 
@@ -763,7 +792,6 @@ export class SimulationScene extends Phaser.Scene {
     let clickValid = false
     const clickThreshold = 3.0
     let isDown = false
-
 
     this.input.on('pointerdown', (pointer: any) => {
       isDown = true
@@ -829,9 +857,9 @@ export class SimulationScene extends Phaser.Scene {
               ? 0
               : selectedIndex + 1
 
-            this.simulationContext.setSelectedEntityId(entitiesNearCenter[nextIndex].entity.entityId)
+            this.context.setSelectedEntityId(entitiesNearCenter[nextIndex].entity.entityId)
           } else {
-            this.simulationContext.setSelectedEntityId(null)
+            this.context.setSelectedEntityId(null)
             this.clearPendingInteractionTargetRequest()
           }
         } else {
@@ -859,7 +887,7 @@ export class SimulationScene extends Phaser.Scene {
     }, this);
 
     this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number, deltaZ: number) => {
-      this.zoomValue = Math.max(0.75, Math.min(this.zoomValue * (1 - deltaY * 0.001), 1.5))
+      this.zoomValue = this.zoomValue * (1 - deltaY * 0.001)
       this.clampCamera()
     });
 
@@ -871,18 +899,11 @@ export class SimulationScene extends Phaser.Scene {
 
       if (clickValid) {
         if (pointerDistanceFromDown > clickThreshold) {
-          mainCamera.scrollX -= (pointer.x - pointerDownLocation.x) / mainCamera.zoom;
-          mainCamera.scrollY -= (pointer.y - pointerDownLocation.y) / mainCamera.zoom;
-
           this.blurChatTextArea()
-
           clickValid = false
         }
       } else if (!clickValid) {
         this.blurChatTextArea()
-
-        mainCamera.scrollX -= (pointer.x - pointer.prevPosition.x) / mainCamera.zoom;
-        mainCamera.scrollY -= (pointer.y - pointer.prevPosition.y) / mainCamera.zoom;
       }
 
       this.clampCamera()
@@ -894,27 +915,31 @@ export class SimulationScene extends Phaser.Scene {
       return
     }
 
-    this.simulationContext.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
+    this.context.sendWebSocketMessage("ClearPendingInteractionTargetRequest", {})
   }
 
   private zoomValue = 1.0
+  readonly maxZoom = 4.0
+  readonly minZoom = 0.25
 
   clampCamera() {
+    this.zoomValue = Math.max(this.minZoom, Math.min(this.zoomValue, this.maxZoom))
+
     const buffer = 1000.0
     const mainCamera = this.mainCamera
     mainCamera.scrollX = Math.min(Math.max(mainCamera.scrollX, -buffer), this.worldBounds.x + buffer)
     mainCamera.scrollY = Math.min(Math.max(mainCamera.scrollY, -buffer), this.worldBounds.y + buffer)
 
-    console.log("this.game.canvas.width", this.game.canvas.width)
-    var canvasSizeFactor = this.game.canvas.width / 2000.0
-    console.log("canvasSizeFactor", canvasSizeFactor)
+    // console.log("this.game.canvas.width", this.game.canvas.width)
+    const canvasSizeFactor = 1.0 //lerp(this.game.canvas.width / 2000.0, 1.0, 0.5)
+    // console.log("canvasSizeFactor", canvasSizeFactor)
 
     mainCamera.setZoom(this.zoomValue * canvasSizeFactor)
 
     const backgroundSizeWidth = this.game.canvas.width
     const backgroundSizeHeight = this.game.canvas.height
 
-    const maxZoomHandlingScale = 1.4 / canvasSizeFactor
+    const maxZoomHandlingScale = 1.0 / this.minZoom / canvasSizeFactor
     this.backgroundGrass.setScale(maxZoomHandlingScale, maxZoomHandlingScale)
     this.backgroundGrass.setX(this.game.canvas.width * 0.5)
     this.backgroundGrass.setY(this.game.canvas.height * 0.5)
@@ -1082,11 +1107,11 @@ export class SimulationScene extends Phaser.Scene {
     const targetEntity = autoInteractAction.targetEntity
 
     if (actionType === AutoInteractActionType.Clear) {
-      this.simulationContext.setSelectedEntityId(null)
+      this.context.setSelectedEntityId(null)
       this.clearPendingInteractionTargetRequest()
     } else if (actionType === AutoInteractActionType.SelectEntity) {
       if (targetEntity != null) {
-        this.simulationContext.setSelectedEntityId(targetEntity.entityId)
+        this.context.setSelectedEntityId(targetEntity.entityId)
         this.clearPendingInteractionTargetRequest()
       }
     } else if (actionType === AutoInteractActionType.UseEquippedTool) {
@@ -1773,7 +1798,7 @@ export class SimulationScene extends Phaser.Scene {
               position: positionWithOffset,
               animation: animationConfig,
               scale: scale,
-              filterMode: FilterMode.NEAREST
+              filterMode: this.zoomValue > 1.25 ? FilterMode.NEAREST : FilterMode.LINEAR
             })
           }
         }
@@ -1856,8 +1881,25 @@ export class SimulationScene extends Phaser.Scene {
   calculatedAutoInteraction: AutoInteractAction | null = null
 
   update(time: number, deltaMs: number) {
-
     const deltaTime = deltaMs / 1000.0
+
+    this.scrollVelocity = Vector2.lerp(this.scrollVelocity, Vector2.zero, deltaTime * 5.0)
+
+    if (!this.isDragging) {
+      if (Vector2.magnitude(this.scrollVelocity) < 3) {
+        this.scrollVelocity = Vector2.zero
+      }
+
+      const scrollMovement = Vector2.timesScalar(this.scrollVelocity, deltaTime)
+      this.mainCamera.scrollX += scrollMovement.x
+      this.mainCamera.scrollY += scrollMovement.y
+    }
+
+    this.zoomVelocity = lerp(this.zoomVelocity, 1.0, deltaTime * 6.0)
+
+    if (!this.isZooming) {
+      this.zoomValue *= this.zoomVelocity
+    }
 
     this.simulation.update(deltaTime)
 

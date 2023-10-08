@@ -162,7 +162,8 @@ export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
       backdropFilter: "blur(5px)",
       WebkitBackdropFilter: "blur(5px)",
       gap: 4,
-      alignItems: "center"
+      alignItems: "center",
+      pointerEvents: "auto"
     }}
   >
     <div

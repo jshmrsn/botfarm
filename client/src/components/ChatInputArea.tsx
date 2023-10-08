@@ -46,7 +46,8 @@ export function ChatInputArea(props: ChatInputAreaProps): JSX.Element {
       WebkitBackdropFilter: "blur(5px)",
       borderRadius: 6,
       left: remainingWindowWidth / 2,
-      width: chatAreaWidth
+      width: chatAreaWidth,
+      pointerEvents: "auto"
     }}
   >
     <div style={{

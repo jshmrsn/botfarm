@@ -9,6 +9,9 @@ export function lerp(a: number, b: number, alpha: number) {
   return a + alpha * (b - a)
 }
 
+export function signedPow(value: number, exponent: number) {
+  return Math.pow(Math.abs(value), exponent) * Math.sign(value)
+}
 
 export class Vector2 {
   static zero = new Vector2(0, 0);
@@ -31,6 +34,10 @@ export class Vector2 {
 
   static timesVector(a: Vector2, b: Vector2): Vector2 {
     return new Vector2(a.x * b.x, a.y * b.y);
+  }
+
+  static signedPow(value: Vector2, exponent: number): Vector2 {
+    return new Vector2(signedPow(value.x, exponent), signedPow(value.y, exponent));
   }
 
   static div(a: Vector2, scalar: number): Vector2 {
