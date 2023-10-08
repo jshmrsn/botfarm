@@ -50,6 +50,7 @@ class ActionOnEntityRecord(
 enum class ActionOnInventoryType {
    Failed,
    NoToolItemEquipped,
+   Obstructed,
    NoActionForEquippedTool,
    ItemNotInInventory,
 

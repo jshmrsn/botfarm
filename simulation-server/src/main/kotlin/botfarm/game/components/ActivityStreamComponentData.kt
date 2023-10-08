@@ -21,3 +21,22 @@ class ActivityStreamEntry(
 data class ActivityStreamComponentData(
    val activityStream: List<ActivityStreamEntry> = listOf()
 ) : EntityComponentData()
+
+class CollisionMapCellDebugInfo(
+   val center: Vector2,
+   val occupied: Boolean,
+   val row: Int,
+   val col: Int
+)
+
+data class CollisionMapDebugInfo(
+   val rowCount: Int,
+   val columnCount: Int,
+   val bounds: Vector2,
+   val cellSize: Vector2,
+   val cells: List<CollisionMapCellDebugInfo> = listOf()
+)
+
+data class DebugInfoComponentData(
+   val collisionMapDebugInfo: CollisionMapDebugInfo
+) : EntityComponentData()

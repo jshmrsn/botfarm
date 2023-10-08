@@ -346,6 +346,14 @@ open class Simulation(
       )
    }
 
+   open fun onEntityCreated(entity: Entity) {
+
+   }
+
+   open fun onEntityDestroyed(entity: Entity) {
+
+   }
+
    fun createEntity(
       components: List<EntityComponentData>,
       entityId: EntityId = EntityId(buildShortRandomIdentifier())
@@ -377,6 +385,8 @@ open class Simulation(
 
          this.activateSystemsForEntity(entity)
 
+         this.onEntityCreated(entity)
+
          return entity
       }
    }
@@ -404,6 +414,8 @@ open class Simulation(
          this.mutableEntitiesById.remove(entity.entityId)
 
          this.mutableDestroyedEntitiesById[entity.entityId] = entity
+
+         this.onEntityDestroyed(entity)
       }
    }
 
@@ -560,6 +572,10 @@ open class Simulation(
       return true
    }
 
+   open fun onTick(deltaTime: Double) {
+
+   }
+
    fun tick(deltaTime: Double): TickResult {
       if (this.isTerminated) {
          return TickResult(
@@ -676,6 +692,8 @@ open class Simulation(
             )
          }
       }
+
+      this.onTick(deltaTime = deltaTime)
 
       return TickResult(
          shouldTerminate = false

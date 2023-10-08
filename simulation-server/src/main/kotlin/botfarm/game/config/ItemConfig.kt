@@ -3,6 +3,7 @@ package botfarm.game.config
 import botfarm.engine.simulation.Config
 import botfarm.game.components.CompositeAnimationSelection
 import botfarmshared.game.apidata.ItemCollection
+import botfarmshared.misc.Vector2
 
 class GrowerConfig(
    val canReceiveGrowableItemConfigKeys: List<String>
@@ -56,6 +57,14 @@ class EquippableConfig(
    val equippedCompositeAnimation: CompositeAnimationSelection? = null
 )
 
+class CollisionConfig(
+   val width: Int,
+   val height: Int,
+   val collisionOffset: Vector2 = Vector2.zero,
+   val cellOffsetY: Int = 0,
+   val cellOffsetX: Int = 0
+)
+
 class ItemConfig(
    override val key: String,
    val name: String,
@@ -63,8 +72,7 @@ class ItemConfig(
    val spriteConfigKey: String,
    val iconUrl: String,
    val useCustomAnimationBaseName: String? = null,
-   val blocksPathfinding: Boolean = false,
-   val blocksPlacement: Boolean = false,
+   val collisionConfig: CollisionConfig? = null,
    val equippableConfig: EquippableConfig? = null,
    val storableConfig: StorableConfig? = null,
    val damageableConfig: DamageableConfig? = null,
@@ -73,5 +81,7 @@ class ItemConfig(
    val growerConfig: GrowerConfig? = null, // farm plots receive and grow carrot seeds
    val growableConfig: GrowableConfig? = null, // carrot seeds grow into carrots
    val spawnItemOnUseConfig: SpawnItemOnUseConfig? = null // hoe spawns farm plots
-) : Config()
+) : Config() {
+   val blocksPlacement = this.collisionConfig != null
+}
 

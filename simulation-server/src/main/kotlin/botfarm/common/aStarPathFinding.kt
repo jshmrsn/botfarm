@@ -14,7 +14,7 @@ data class Node(
 )
 
 fun aStarPathfinding(
-   collisionMap: List<List<Boolean>>,
+   collisionMap: List<List<CollisionMap.Cell>>,
    start: IndexPair,
    end: IndexPair
 ): List<IndexPair> {
@@ -39,7 +39,7 @@ fun aStarPathfinding(
          return false
       }
 
-      return rowArray[col]
+      return rowArray[col].isOpen
    }
 
    while (openList.isNotEmpty()) {

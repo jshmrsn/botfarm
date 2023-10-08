@@ -282,7 +282,7 @@ class AgentIntegration(
             simulationTime = simulationTime,
             gameSimulationInfo = GameSimulationInfo(
                craftingRecipeInfoWrappers = craftingRecipeInfoWrappers,
-               worldBounds = simulation.tileWorldBounds
+               worldBounds = simulation.worldBounds
             ),
             gameConstants = GameConstants,
             selfInfo = selfInfo,
@@ -887,6 +887,7 @@ class AgentIntegration(
                   is GameSimulation.UseEquippedItemResult.Success -> ActionOnInventoryType.Use
                   is GameSimulation.UseEquippedItemResult.NoActionForEquippedTool -> ActionOnInventoryType.Failed
                   is GameSimulation.UseEquippedItemResult.NoToolItemEquipped -> ActionOnInventoryType.NoToolItemEquipped
+                  is GameSimulation.UseEquippedItemResult.Obstructed -> ActionOnInventoryType.Obstructed
                   else -> ActionOnInventoryType.Failed
                }
             )

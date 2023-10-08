@@ -1,8 +1,8 @@
 package botfarm.game
 
+import botfarm.common.CollisionMap
 import botfarm.common.IndexPair
 import botfarm.common.PositionComponentData
-import botfarm.common.aStarPathfinding
 import botfarm.common.resolvePosition
 import botfarm.engine.ktorplugins.AdminRequest
 import botfarm.engine.simulation.*
@@ -21,7 +21,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import kotlin.math.sign
 
 @Serializable
 class MoveToPointRequest(
@@ -87,40 +89,46 @@ class GameSimulation(
       val activityStreamEntityId = EntityId("activity-stream")
    }
 
-   private val collisionMap: List<List<Boolean>>
-   val collisionMapRowCount: Int
-   val collisionMapColumnCount: Int
+   val collisionMap: CollisionMap
 
    val gameSimulationConfig: GameSimulationConfig
 
-   val tileWorldBounds: Vector2
    val worldBounds: Vector2
+
+   val debugInfoComponent: EntityComponent<DebugInfoComponentData>
+
+   var enableDetailedInfo = false
 
    init {
       this.gameSimulationConfig = this.getConfig<GameSimulationConfig>(GameSimulationConfig.defaultKey)
       this.worldBounds = this.gameSimulationConfig.worldBounds
 
-      val tileWidth = 32
-      val tileHeight = 32
+      val cellWidth = 32.0
+      val cellHeight = 32.0
 
-      val rowCount = (this.worldBounds.y / tileHeight).toInt()
-      val columnCount = (this.worldBounds.x / tileWidth).toInt()
+      val rowCount = (this.worldBounds.y / cellHeight).toInt()
+      val columnCount = (this.worldBounds.x / cellWidth).toInt()
 
-      val collisionMap = mutableListOf<List<Boolean>>()
-
-      for (rowIndex in 0..(rowCount - 1)) {
-         val row = (0..(columnCount - 1)).map { true }
-         collisionMap.add(row)
-      }
-
-      this.collisionMap = collisionMap
-      this.collisionMapRowCount = rowCount
-      this.collisionMapColumnCount = columnCount
-
-      this.tileWorldBounds = Vector2(
-         columnCount * tileWidth.toDouble(),
-         rowCount * tileHeight.toDouble()
+      this.collisionMap = CollisionMap(
+         rowCount = rowCount,
+         columnCount = columnCount,
+         cellHeight = cellHeight,
+         cellWidth = cellWidth
       )
+
+      this.debugInfoComponent = this.createEntity(
+         entityId = EntityId("debug-info"),
+         components = listOf(
+            DebugInfoComponentData(
+               collisionMapDebugInfo = CollisionMapDebugInfo(
+                  rowCount = this.collisionMap.rowCount,
+                  columnCount = this.collisionMap.columnCount,
+                  cellSize = Vector2(cellWidth, cellHeight),
+                  bounds = this.collisionMap.bounds
+               )
+            )
+         )
+      ).getComponent<DebugInfoComponentData>()
 
       this.createEntity(
          components = listOf(ActivityStreamComponentData()),
@@ -151,9 +159,150 @@ class GameSimulation(
       }
    }
 
+   fun getEffectiveDistanceFromEntity(
+      location: Vector2,
+      targetEntity: Entity
+   ): Double {
+      val itemConfig = targetEntity.itemConfigOrNull
+      val targetLocation = targetEntity.resolvePosition()
+      val offset = location - targetLocation
+
+      val defaultTargetRadius = 15.0
+
+      if (itemConfig != null) {
+         val collisionConfig = itemConfig.collisionConfig
+
+         if (collisionConfig != null) {
+            val cellWidth = this.collisionMap.cellWidth
+            val collisionGridWidth = cellWidth * collisionConfig.width
+            val cellHeight = this.collisionMap.cellHeight
+            val collisionGridHeight = cellHeight * collisionConfig.height
+
+            val offsetFromCollisionCenter = offset + Vector2(
+               cellWidth * collisionConfig.cellOffsetX,
+               cellHeight * collisionConfig.cellOffsetY
+            )
+
+            val edgeDistances = Vector2(
+               offsetFromCollisionCenter.x.absoluteValue - collisionGridWidth * 0.5,
+               offsetFromCollisionCenter.y.absoluteValue - collisionGridHeight * 0.5
+            )
+
+            return Math.min(edgeDistances.x, edgeDistances.y)
+         } else {
+            return offset.magnitude() - defaultTargetRadius
+         }
+      } else {
+         return offset.magnitude() - defaultTargetRadius
+      }
+   }
 
    override fun onStart() {
+      this.updateCollisionDebugInfoIfNeeded()
+   }
 
+   private var collisionMapDebugInfoIsOutOfDate = false
+
+   fun updateCollisionDebugInfoIfNeeded() {
+      if (!this.collisionMapDebugInfoIsOutOfDate) {
+         return
+      }
+
+      this.collisionMapDebugInfoIsOutOfDate = false
+
+      val cells = mutableListOf<CollisionMapCellDebugInfo>()
+
+      if (this.enableDetailedInfo) {
+         for (row in (0..<this.collisionMap.rowCount)) {
+            for (col in (0..<this.collisionMap.columnCount)) {
+               val isOpen = this.collisionMap.isCellOpen(row = row, col = col)
+
+               val cellCenter = this.collisionMap.indexPairToCellCenter(IndexPair(row = row, col = col))
+
+               cells.add(
+                  CollisionMapCellDebugInfo(
+                     center = cellCenter,
+                     occupied = !isOpen,
+                     row = row,
+                     col = col
+                  )
+               )
+            }
+         }
+      }
+
+      this.debugInfoComponent.modifyData {
+         it.copy(
+            collisionMapDebugInfo = it.collisionMapDebugInfo.copy(
+               cells = cells
+            )
+         )
+      }
+   }
+
+   override fun onEntityCreated(entity: Entity) {
+      val itemConfig = entity.itemConfigOrNull
+
+      if (itemConfig != null) {
+         val collisionConfig = itemConfig.collisionConfig
+
+         if (collisionConfig != null) {
+            val entityPosition = entity.resolvePosition()
+            val anchorPair = this.collisionMap.pointToIndexPair(entityPosition)
+            val anchorCellCenter = this.collisionMap.indexPairToCellCenter(anchorPair)
+
+            val remainderSign = Vector2(
+               (entityPosition.x - anchorCellCenter.x).sign,
+               (entityPosition.y - anchorCellCenter.y).sign
+            )
+
+            val mirroredAdditionalCells = Vector2(
+               (collisionConfig.width - 1) / 2.0,
+               (collisionConfig.height - 1) / 2.0
+            )
+
+            val mirroredAdditionalCols = mirroredAdditionalCells.x.toInt()
+            val mirroredAdditionalRows = mirroredAdditionalCells.y.toInt()
+
+            val remainderAdditionalCols = (mirroredAdditionalCells.x - mirroredAdditionalCols + 0.001).roundToInt()
+            val remainderAdditionalRows = (mirroredAdditionalCells.y - mirroredAdditionalRows + 0.001).roundToInt()
+
+            val topLeftRow = if (remainderSign.y > 0) {
+               anchorPair.row - mirroredAdditionalCells.y.toInt()
+            } else {
+               anchorPair.row - mirroredAdditionalCells.y.toInt() - remainderAdditionalRows
+            }
+
+            val topLeftCol = if (remainderSign.x > 0) {
+               anchorPair.col - mirroredAdditionalCells.x.toInt()
+            } else {
+               anchorPair.col - mirroredAdditionalCells.x.toInt() - remainderAdditionalCols
+            }
+
+            this.collisionMap.addEntity(
+               entityId = entity.entityId,
+               topLeftCol = topLeftCol + collisionConfig.cellOffsetX,
+               topLeftRow = topLeftRow + collisionConfig.cellOffsetY,
+               width = collisionConfig.width,
+               height = collisionConfig.height
+            )
+
+            this.collisionMapDebugInfoIsOutOfDate = true
+         }
+      }
+   }
+
+   override fun onEntityDestroyed(entity: Entity) {
+      val itemConfig = entity.itemConfigOrNull
+
+      if (itemConfig != null) {
+         val collisionConfig = itemConfig.collisionConfig
+
+         if (collisionConfig != null) {
+            this.collisionMap.clearEntity(entityId = entity.entityId)
+            this.collisionMapDebugInfoIsOutOfDate = true
+         }
+      }
    }
 
    fun addCharacterMessage(entity: Entity, message: String) {
@@ -344,6 +493,10 @@ class GameSimulation(
       return EquipItemResult.Success
    }
 
+   override fun onTick(deltaTime: Double) {
+      this.updateCollisionDebugInfoIfNeeded()
+   }
+
    fun unequipItem(
       entity: Entity,
       expectedItemConfigKey: String,
@@ -500,34 +653,6 @@ class GameSimulation(
       }
    }
 
-   fun handlePickUpItemMessage(client: Client, message: PickUpItemMessage) {
-      val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
-
-      if (entity == null) {
-         sendAlertMessage(client, "No controlled entity")
-         return
-      }
-
-      val targetEntity = this.getEntityOrNull(message.targetEntityId)
-
-      if (targetEntity == null) {
-         sendAlertMessage(client, "Item to pickup not found")
-         return
-      }
-
-      val result = this.pickUpItem(
-         pickingUpEntity = entity,
-         targetEntity = targetEntity
-      )
-
-      when (result) {
-         PickUpItemResult.Success -> {}
-         PickUpItemResult.TooFar -> {
-            sendAlertMessage(client, "Item was too far away to pickup")
-         }
-      }
-   }
-
    private fun handleDropItemRequest(client: Client, message: DropItemRequest) {
       val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
 
@@ -670,6 +795,7 @@ class GameSimulation(
       object NoToolItemEquipped : UseEquippedItemResult()
       object Busy : UseEquippedItemResult()
       object Dead : UseEquippedItemResult()
+      object Obstructed : UseEquippedItemResult()
    }
 
    fun useEquippedToolItem(
@@ -702,7 +828,6 @@ class GameSimulation(
       val characterComponentData = characterComponent.data
       val interactingEntityName = characterComponentData.name
 
-
       val spawnItemOnUseConfig = equippedToolItemConfig.spawnItemOnUseConfig
       if (spawnItemOnUseConfig != null) {
          fun getBlockingEntities() = this.getNearestEntities(
@@ -720,8 +845,9 @@ class GameSimulation(
             }
          )
 
-
-         if (getBlockingEntities().isEmpty()) {
+         if (!getBlockingEntities().isEmpty()) {
+            return UseEquippedItemResult.Obstructed
+         } else {
             this.applyPerformedAction(
                entity = interactingEntity,
                actionType = ActionType.UseEquippedTool,
@@ -753,11 +879,12 @@ class GameSimulation(
                   randomLocationScale = spawnItemOnUseConfig.randomDistanceScale
                )
             }
-         }
 
-         return UseEquippedItemResult.Success(
-            equippedToolItemConfig = equippedToolItemConfig
-         )
+
+            return UseEquippedItemResult.Success(
+               equippedToolItemConfig = equippedToolItemConfig
+            )
+         }
       }
 
       return UseEquippedItemResult.NoActionForEquippedTool
@@ -812,14 +939,16 @@ class GameSimulation(
 
       val interactingEntityName = characterComponentData.name
 
-      val maxDistance = 50.0
+      val maxDistance = this.collisionMap.cellWidth
 
       val interactingEntityPosition = interactingEntity.resolvePosition()
-      val targetEntityPosition = targetEntity.resolvePosition()
 
-      val distance = interactingEntityPosition.distance(targetEntityPosition)
+      val effectiveDistance = this.getEffectiveDistanceFromEntity(
+         location = interactingEntityPosition,
+         targetEntity = targetEntity
+      )
 
-      if (distance > maxDistance) {
+      if (effectiveDistance > maxDistance) {
          return InteractWithEntityUsingEquippedItemResult.TooFar
       }
 
@@ -946,6 +1075,9 @@ class GameSimulation(
       }
 
       if (shouldKill) {
+         this.collisionMap.clearEntity(targetEntity.entityId)
+         this.collisionMapDebugInfoIsOutOfDate = true
+
          val itemComponent = targetEntity.getComponentOrNull<ItemComponentData>()
 
          if (itemComponent != null) {
@@ -999,14 +1131,16 @@ class GameSimulation(
       val itemComponent = targetEntity.getComponent<ItemComponentData>()
       val itemConfig = this.getConfig<ItemConfig>(itemComponent.data.itemConfigKey)
 
-      val maxDistance = 50.0
+      val maxDistance = this.collisionMap.cellWidth * 1.5
 
       val pickingUpEntityPosition = pickingUpEntity.resolvePosition()
-      val targetEntityPosition = targetEntity.resolvePosition()
 
-      val distance = pickingUpEntityPosition.distance(targetEntityPosition)
+      val effectiveDistance = this.getEffectiveDistanceFromEntity(
+         location = pickingUpEntityPosition,
+         targetEntity = targetEntity
+      )
 
-      if (distance > maxDistance) {
+      if (effectiveDistance > maxDistance) {
          return PickUpItemResult.TooFar
       }
 
@@ -1065,7 +1199,7 @@ class GameSimulation(
          return MoveToResult.Busy
       }
 
-      val clampedEndPoint = this.clampPoint(endPoint)
+      val clampedEndPoint = this.collisionMap.clampPoint(endPoint)
 
       val positionComponent = entity.getComponentOrNull<PositionComponentData>()
 
@@ -1090,7 +1224,7 @@ class GameSimulation(
 
       val moveFromTime = currentSimulationTime + bufferTime
 
-      val startPoint = this.clampPoint(positionComponent.data.positionAnimation.resolve(moveFromTime))
+      val startPoint = this.collisionMap.clampPoint(positionComponent.data.positionAnimation.resolve(moveFromTime))
 
       val adjustedEndPoint = clampedEndPoint.lerp(
          target = startPoint,
@@ -1114,8 +1248,10 @@ class GameSimulation(
 
       // jshmrsn: endPoint will be inside the destination cell, so we can safely move the entity directly
       // to the end point at the end of the path. This allows for e.g. walking to precise item pickup locations.
-      val pathPoints = pathIndexPairs.map { this.indexPairToPoint(it) }.subList(0, pathIndexPairs.size - 1) +
-              clampedEndPoint
+      val pathPoints =
+         pathIndexPairs.map { this.collisionMap.indexPairToCellCenter(it) }
+//            .subList(0, pathIndexPairs.size - 1) +
+//                 clampedEndPoint
 
       val bufferKeyFrames = mutableListOf<Vector2KeyFrame>()
 
@@ -1234,13 +1370,34 @@ class GameSimulation(
       location: Vector2,
       amount: Int = 1
    ): Entity {
+      val collisionConfig = itemConfig.collisionConfig
+      val resolvedLocation = if (collisionConfig != null) {
+         val cellCenter = this.collisionMap.pointToNearestCellCenter(location)
+         val cellCorner = this.collisionMap.pointToNearestCorner(location)
+
+         itemConfig.collisionConfig.collisionOffset + Vector2(
+            x = if (collisionConfig.width % 2 == 0) {
+               cellCorner.x
+            } else {
+               cellCenter.x
+            },
+            y = if (collisionConfig.height % 2 == 0) {
+               cellCorner.y
+            } else {
+               cellCenter.y
+            }
+         )
+      } else {
+         location
+      }
+
       val components = mutableListOf(
          ItemComponentData(
             itemConfigKey = itemConfig.key,
             amount = amount
          ),
          PositionComponentData(
-            positionAnimation = Vector2Animation.static(location)
+            positionAnimation = Vector2Animation.static(resolvedLocation)
          )
       )
 
@@ -1526,6 +1683,12 @@ class GameSimulation(
             }
          }
 
+         "debug" -> {
+            requireAdmin()
+            this.enableDetailedInfo = !this.enableDetailedInfo
+            this.collisionMapDebugInfoIsOutOfDate = true
+         }
+
          "reroll" -> {
             val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
             val gender = components.getOrNull(1)
@@ -1661,59 +1824,11 @@ class GameSimulation(
       }
    }
 
-   fun indexPairToPoint(indexPair: IndexPair): Vector2 {
-      val tileWidth = this.tileWorldBounds.x / this.collisionMapColumnCount
-      val tileHeight = this.tileWorldBounds.y / this.collisionMapRowCount
-
-      return Vector2(
-         x = tileWidth * (indexPair.col + 0.5),
-         y = tileHeight * (indexPair.row + 0.5)
-      )
-   }
-
-   fun pointToIndexPair(point: Vector2): IndexPair {
-      return IndexPair(
-         row = (point.y / this.tileWorldBounds.y * this.collisionMapRowCount).toInt(),
-         col = (point.x / this.tileWorldBounds.x * this.collisionMapColumnCount).toInt()
-      )
-   }
-
-   fun findPathOfPoints(startPoint: Vector2, endPoint: Vector2): List<Vector2> {
-      return this.findPath(startPoint, endPoint).map(this::indexPairToPoint)
-   }
-
-   fun clampPoint(point: Vector2): Vector2 {
-      return Vector2(
-         x = Math.min(Math.max(point.x, 0.0), this.tileWorldBounds.x),
-         y = Math.min(Math.max(point.y, 0.0), this.tileWorldBounds.y),
-      )
-   }
-
-
-   fun clampIndexPair(indexPair: IndexPair): IndexPair {
-      return IndexPair(
-         row = Math.min(Math.max(indexPair.row, 0), this.collisionMapRowCount - 1),
-         col = Math.min(Math.max(indexPair.col, 0), this.collisionMapColumnCount - 1),
-      )
-   }
-
    fun findPath(startPoint: Vector2, endPoint: Vector2): List<IndexPair> {
-      val startIndexPair = this.clampIndexPair(this.pointToIndexPair(startPoint))
-      val endIndexPair = this.clampIndexPair(this.pointToIndexPair(endPoint))
-
-      if (endIndexPair.row == startIndexPair.row &&
-         endIndexPair.col == startIndexPair.col
-      ) {
-         return listOf(endIndexPair)
-      }
-
-      val path = aStarPathfinding(
-         collisionMap = this.collisionMap,
-         start = startIndexPair,
-         end = endIndexPair
+      return this.collisionMap.findPath(
+         startPoint = startPoint,
+         endPoint = endPoint
       )
-
-      return path
    }
 
    override fun broadcastAlertAsGameMessage(message: String) {

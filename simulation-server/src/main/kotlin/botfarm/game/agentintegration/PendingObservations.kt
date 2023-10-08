@@ -16,7 +16,6 @@ class PendingObservations {
    val movementRecords: MutableList<MovementRecord> = mutableListOf()
    val actionOnEntityRecords: MutableList<ActionOnEntityRecord> = mutableListOf()
    val actionOnInventoryItemActionRecords: MutableList<ActionOnInventoryItemRecord> = mutableListOf()
-   val useEquippedItemActionRecords: MutableList<ActionOnInventoryItemRecord> = mutableListOf()
    val craftItemActionRecords: MutableList<CraftItemActionRecord> = mutableListOf()
    val activityStreamEntries: MutableList<ActivityStreamEntryRecord> = mutableListOf()
    val actionResults: MutableList<ActionResult> = mutableListOf()

@@ -46,6 +46,7 @@ import {DynamicState} from "../components/DynamicState"
 import {Pinch} from 'phaser3-rex-plugins/plugins/gestures.js'
 import Layer = Phaser.GameObjects.Layer
 import FilterMode = Phaser.Textures.FilterMode
+import {DebugInfoComponentData} from "./DebugInfoComponentData";
 
 interface AnimationConfig {
   name: string
@@ -859,7 +860,7 @@ export class GameSimulationScene extends Phaser.Scene {
               distance: distance
             }
           })
-          .filter(it => it.distance < 30.0)
+          .filter(it => it.distance < 60.0)
 
         entitiesNearCenter.sort((a, b) => {
           if (a.distance < b.distance) {
@@ -1291,75 +1292,108 @@ export class GameSimulationScene extends Phaser.Scene {
 
     const playerCharacterComponent = playerControlledEntity != null ? playerControlledEntity.getComponentOrNull<CharacterComponentData>("CharacterComponentData") : null
 
-    this.renderContext.render(() => {
-      for (const entity of this.simulation.entities) {
-        const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
+    for (const entity of this.simulation.entities) {
+      const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
 
-        if (positionComponent == null) {
-          continue
-        }
-
-        const itemComponent = entity.getComponentOrNull<ItemComponentData>("ItemComponentData")
-        const characterComponent = entity.getComponentOrNull<CharacterComponentData>("CharacterComponentData")
-
-        let position = resolvePositionForTime(positionComponent, simulationTime)
-
-        if (playerCharacterComponent != null &&
-          playerCharacterComponent.data.pendingInteractionTargetEntityId === entity.entityId) {
-          renderContext.renderSprite("selected-entity-circle-pending-interaction:" + entity.entityId, {
-            layer: this.highlightRingLayer,
-            textureName: "ring",
-            position: position,
-            scale: new Vector2(0.25, 0.25),
-            alpha: 1,
-            depth: 0
-          })
-        }
-
-        if (this.dynamicState.selectedEntityId === entity.entityId) {
-          renderContext.renderSprite("selected-entity-circle:" + entity.entityId, {
-            layer: this.highlightRingLayer,
-            textureName: "ring",
-            position: position,
-            scale: new Vector2(0.2, 0.2),
-            alpha: 1,
-            depth: 0
-          })
-        }
-
-        if (this.calculatedAutoInteraction?.targetEntity === entity) {
-          renderContext.renderSprite("auto-interact-entity-circle:" + entity.entityId, {
-            layer: this.highlightRingLayer,
-            textureName: "ring",
-            position: position,
-            scale: new Vector2(0.2, 0.2),
-            alpha: 1,
-            depth: 0
-          })
-        }
-
-        if (characterComponent != null) {
-          const agentControlledComponentData = AgentControlledComponent.getDataOrNull(entity)
-
-          this.renderCharacter(
-            positionComponent.data,
-            simulationTime,
-            entity,
-            renderContext,
-            characterComponent.data,
-            agentControlledComponentData,
-            position
-          )
-        } else if (itemComponent != null) {
-          this.renderItem(
-            simulationTime,
-            entity,
-            renderContext,
-            itemComponent.data,
-            position
-          )
-        }
+      if (positionComponent == null) {
+        continue
       }
+
+      const itemComponent = entity.getComponentOrNull<ItemComponentData>("ItemComponentData")
+      const characterComponent = entity.getComponentOrNull<CharacterComponentData>("CharacterComponentData")
+
+      let position = resolvePositionForTime(positionComponent, simulationTime)
+
+      if (playerCharacterComponent != null &&
+        playerCharacterComponent.data.pendingInteractionTargetEntityId === entity.entityId) {
+        renderContext.renderSprite("selected-entity-circle-pending-interaction:" + entity.entityId, {
+          layer: this.highlightRingLayer,
+          textureName: "ring",
+          position: position,
+          scale: new Vector2(0.25, 0.25),
+          alpha: 1,
+          depth: 0
+        })
+      }
+
+      if (this.dynamicState.selectedEntityId === entity.entityId) {
+        renderContext.renderSprite("selected-entity-circle:" + entity.entityId, {
+          layer: this.highlightRingLayer,
+          textureName: "ring",
+          position: position,
+          scale: new Vector2(0.2, 0.2),
+          alpha: 1,
+          depth: 0
+        })
+      }
+
+      if (this.calculatedAutoInteraction?.targetEntity === entity) {
+        renderContext.renderSprite("auto-interact-entity-circle:" + entity.entityId, {
+          layer: this.highlightRingLayer,
+          textureName: "ring",
+          position: position,
+          scale: new Vector2(0.2, 0.2),
+          alpha: 1,
+          depth: 0
+        })
+      }
+
+      if (characterComponent != null) {
+        const agentControlledComponentData = AgentControlledComponent.getDataOrNull(entity)
+
+        this.renderCharacter(
+          positionComponent.data,
+          simulationTime,
+          entity,
+          renderContext,
+          characterComponent.data,
+          agentControlledComponentData,
+          position
+        )
+      } else if (itemComponent != null) {
+        this.renderItem(
+          simulationTime,
+          entity,
+          renderContext,
+          itemComponent.data,
+          position
+        )
+      }
+    }
+  }
+
+  renderDebugInfo() {
+    const debugInfoEntity = this.simulation.getEntityOrNull("debug-info")
+    if (debugInfoEntity == null) {
+      return
+    }
+
+    const renderContext = this.renderContext
+
+    const debugInfoComponentData = debugInfoEntity.getComponent<DebugInfoComponentData>("DebugInfoComponentData").data
+    const collisionMapDebugInfo = debugInfoComponentData.collisionMapDebugInfo
+
+    var cellIndex = 0
+    for (let cell of collisionMapDebugInfo.cells) {
+      const spriteScale = Vector2.timesScalar(collisionMapDebugInfo.cellSize, 1.0 / 64.0)
+
+      renderContext.renderSprite("cell:" + cellIndex, {
+        layer: this.observationRingsLayer,
+        textureName: "circle",
+        position: cell.center,
+        scale: spriteScale,
+        alpha: cell.occupied ? 0.75 : 0.3,
+        depth: 0
+      })
+
+      ++cellIndex
+    }
+  }
+
+  render() {
+    this.renderContext.render(() => {
+      this.renderDebugInfo()
+      this.renderEntities()
     })
   }
 
@@ -2015,7 +2049,7 @@ export class GameSimulationScene extends Phaser.Scene {
 
     this.clampCamera()
 
-    this.renderEntities()
+    this.render()
   }
 
   getCurrentSimulationTime(): number {

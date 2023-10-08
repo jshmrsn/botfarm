@@ -6,10 +6,8 @@ import botfarm.engine.simulation.EntityComponent
 import botfarm.engine.simulation.Systems
 import botfarm.engine.simulation.TickSystemContext
 import botfarm.game.GameSimulation
-import botfarm.game.components.UserControlledComponentData
 import botfarm.game.components.*
 import botfarm.game.config.EquipmentSlot
-import botfarm.game.config.ItemConfig
 import botfarmshared.game.apidata.AutoInteractType
 
 fun pendingInteractionTickSystem(
@@ -79,79 +77,76 @@ fun pendingInteractionTickSystem(
       } else {
          val targetPosition = targetEntity.resolvePosition()
 
-         val distance = targetPosition.distance(position)
 
-         if (distance <= 30.0) {
-            val targetItemComponent = targetEntity.getComponentOrNull<ItemComponentData>()
-            val targetGrowerComponent = targetEntity.getComponentOrNull<GrowerComponentData>()
+         val itemConfig = targetEntity.itemConfigOrNull
 
-            if (targetItemComponent != null) {
-               val itemConfig = simulation.getConfig<ItemConfig>(targetItemComponent.data.itemConfigKey)
+         val targetGrowerComponent = targetEntity.getComponentOrNull<GrowerComponentData>()
 
-               if (itemConfig.storableConfig != null) {
-                  val result = simulation.pickUpItem(
-                     pickingUpEntity = entity,
-                     targetEntity = targetEntity
-                  )
+         if (itemConfig != null) {
+            if (itemConfig.storableConfig != null) {
+               val result = simulation.pickUpItem(
+                  pickingUpEntity = entity,
+                  targetEntity = targetEntity
+               )
 
-                  when (result) {
-                     GameSimulation.PickUpItemResult.Success -> {
-                        pendingCallback(AutoInteractType.PickUp)
-                     }
-                     GameSimulation.PickUpItemResult.TooFar -> {
-                        sendAlertToControlledClient("Too far away to pick up item")
-                        pendingCallback(AutoInteractType.Failed)
-                     }
+               when (result) {
+                  GameSimulation.PickUpItemResult.Success -> {
+                     pendingCallback(AutoInteractType.PickUp)
                   }
-               } else if (itemConfig.damageableConfig?.damageableByEquippedToolItemConfigKey != null &&
-                  equippedToolItemConfig != null &&
-                  itemConfig.damageableConfig.damageableByEquippedToolItemConfigKey == equippedToolItemConfig.key
-               ) {
-                  val result = simulation.interactWithEntityUsingEquippedItem(
-                     interactingEntity = entity,
-                     targetEntity = targetEntity
-                  )
 
-                  when (result) {
-                     GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {
-                        pendingCallback(AutoInteractType.AttackWithEquippedTool)
-                     }
-                     else -> {
-                        sendAlertToControlledClient("Can't damage this item: " + result.name)
-                        pendingCallback(AutoInteractType.Failed)
-                     }
+                  GameSimulation.PickUpItemResult.TooFar -> {
+                     sendAlertToControlledClient("Too far away to pick up item")
+                     pendingCallback(AutoInteractType.Failed)
                   }
-               } else if (itemConfig.growerConfig != null &&
-                  equippedToolItemConfig != null &&
-                  itemConfig.growerConfig.canReceiveGrowableItemConfigKeys.contains(equippedToolItemConfig.key) &&
-                  targetEntity.getComponentOrNull<GrowerComponentData>() != null &&
-                  targetGrowerComponent != null &&
-                  targetGrowerComponent.data.activeGrowth == null
-               ) {
-                  val result = simulation.interactWithEntityUsingEquippedItem(
-                     interactingEntity = entity,
-                     targetEntity = targetEntity
-                  )
+               }
+            } else if (itemConfig.damageableConfig?.damageableByEquippedToolItemConfigKey != null &&
+               equippedToolItemConfig != null &&
+               itemConfig.damageableConfig.damageableByEquippedToolItemConfigKey == equippedToolItemConfig.key
+            ) {
+               val result = simulation.interactWithEntityUsingEquippedItem(
+                  interactingEntity = entity,
+                  targetEntity = targetEntity
+               )
 
-                  when (result) {
-                     GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {
-                        pendingCallback(AutoInteractType.PlacedGrowableInGrower)
-                     }
-                     else -> {
-                        sendAlertToControlledClient("Can't place growable in grower: " + result.name)
-                        pendingCallback(AutoInteractType.Failed)
-                     }
+               when (result) {
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {
+                     pendingCallback(AutoInteractType.AttackWithEquippedTool)
                   }
-               } else {
-                  // No valid action
-                  pendingCallback(AutoInteractType.Failed)
+
+                  else -> {
+                     sendAlertToControlledClient("Can't damage this item: " + result.name)
+                     pendingCallback(AutoInteractType.Failed)
+                  }
+               }
+            } else if (itemConfig.growerConfig != null &&
+               equippedToolItemConfig != null &&
+               itemConfig.growerConfig.canReceiveGrowableItemConfigKeys.contains(equippedToolItemConfig.key) &&
+               targetEntity.getComponentOrNull<GrowerComponentData>() != null &&
+               targetGrowerComponent != null &&
+               targetGrowerComponent.data.activeGrowth == null
+            ) {
+               val result = simulation.interactWithEntityUsingEquippedItem(
+                  interactingEntity = entity,
+                  targetEntity = targetEntity
+               )
+
+               when (result) {
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {
+                     pendingCallback(AutoInteractType.PlacedGrowableInGrower)
+                  }
+
+                  else -> {
+                     sendAlertToControlledClient("Can't place growable in grower: " + result.name)
+                     pendingCallback(AutoInteractType.Failed)
+                  }
                }
             } else {
-               // Target not an item
+               // No valid action
                pendingCallback(AutoInteractType.Failed)
             }
          } else {
-            pendingCallback(AutoInteractType.StillTooFarAfterMoving)
+            // Target not an item
+            pendingCallback(AutoInteractType.Failed)
          }
       }
    }

@@ -28,7 +28,14 @@ fun addItemConfigs(configs: MutableList<Config>) {
       growerConfig: GrowerConfig? = null, // farm plots receive and grow carrot seeds
       growableConfig: GrowableConfig? = null, // carrot seeds grow into carrots
       spawnItemOnUseConfig: SpawnItemOnUseConfig? = null, // hoe spawns farm plots
-      blocksPlacement: Boolean = storableConfig == null
+      collisionConfig: CollisionConfig? = if (storableConfig == null) {
+         CollisionConfig(
+            width = 1,
+            height = 1
+         )
+      } else {
+         null
+      }
    ): ItemConfig {
       val spriteConfigKey = key + "_sprite"
 
@@ -56,7 +63,7 @@ fun addItemConfigs(configs: MutableList<Config>) {
          growableConfig = growableConfig,
          growerConfig = growerConfig,
          spawnItemOnUseConfig = spawnItemOnUseConfig,
-         blocksPlacement = blocksPlacement,
+         collisionConfig = collisionConfig,
          useCustomAnimationBaseName = useCustomAnimationBaseName
       )
 
@@ -223,7 +230,7 @@ fun addItemConfigs(configs: MutableList<Config>) {
       textureUrl = "/assets/items/tree/tree.png",
       iconUrl = "/assets/items/tree/tree.png",
       spriteBaseScale = Vector2.uniform(0.7),
-      spriteBaseOffset = Vector2(0.0, -70.0),
+      spriteBaseOffset = Vector2(0.0, -38.0),
       spawnItemOnDestructionConfig = SpawnItemOnDestructionConfig(
          spawnItemConfigKey = "wood",
          quantity = RandomItemQuantity.stacksOfAmount(
@@ -234,6 +241,12 @@ fun addItemConfigs(configs: MutableList<Config>) {
       damageableConfig = DamageableConfig(
          damageableByEquippedToolItemConfigKey = "axe",
          maxHp = 100
+      ),
+      collisionConfig = CollisionConfig(
+         width = 3,
+         height = 4,
+         cellOffsetY = 0,
+         collisionOffset = Vector2(0.0, -20.0)
       )
    )
 
@@ -254,6 +267,10 @@ fun addItemConfigs(configs: MutableList<Config>) {
       damageableConfig = DamageableConfig(
          damageableByEquippedToolItemConfigKey = "pickaxe",
          maxHp = 100
+      ),
+      collisionConfig = CollisionConfig(
+         width = 2,
+         height = 2
       )
    )
 
