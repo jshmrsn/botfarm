@@ -20,7 +20,6 @@ data class AgentControlledComponentData(
    val executingScript: String? = null,
    val scriptExecutionError: String? = null,
 
-   val observationDistance: Double = 1200.0,
    val totalInputTokens: Int = 0,
    val totalOutputTokens: Int = 0,
    val totalPrompts: Int = 0,

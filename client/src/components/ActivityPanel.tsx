@@ -10,8 +10,9 @@ interface ActivityPanelProps {
   windowHeight: number
   windowWidth: number
   dynamicState: DynamicState
-  userControlledEntity: Entity | null
   useMobileLayout: boolean
+  perspectiveEntity: Entity | null
+  userControlledEntity: Entity | null
 }
 
 export function ActivityPanel(props: ActivityPanelProps) {
@@ -63,6 +64,7 @@ export function ActivityPanel(props: ActivityPanelProps) {
     <ActivityStreamList
       activityStream={activityStream}
       dynamicState={dynamicState}
+      perspectiveEntity={props.perspectiveEntity}
     />
   </div>
 }

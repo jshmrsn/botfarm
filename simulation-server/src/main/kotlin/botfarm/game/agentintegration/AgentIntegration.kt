@@ -62,6 +62,7 @@ class AgentIntegration(
    private val allObservedMessageIds = mutableSetOf<String>()
    private val startedActionUniqueIds = mutableSetOf<String>()
    private val agentControlledComponent = this.entity.getComponent<AgentControlledComponentData>()
+   private val characterComponent = this.entity.getComponent<CharacterComponentData>()
    private val actionResultsByActionUniqueId = mutableMapOf<String, ActionResult>()
 
    private var mostRecentSyncInput: AgentSyncInput? = null
@@ -127,7 +128,8 @@ class AgentIntegration(
 
    fun autoInteractWithEntity(
       targetEntity: Entity,
-      callback: (AutoInteractType) -> Unit = {}
+      expectedActionType: ActionType,
+      callback: (ActionResultType) -> Unit = {}
    ) {
       val simulation = this.simulation
       val entity = this.entity
@@ -135,6 +137,7 @@ class AgentIntegration(
       simulation.autoInteractWithEntity(
          entity = entity,
          targetEntity = targetEntity,
+         expectedActionType = expectedActionType,
          callback = callback
       )
    }
@@ -143,18 +146,10 @@ class AgentIntegration(
       val simulation = this.simulation
 
       synchronized(simulation) {
-         this.pendingObservations.selfSpokenMessages.add(
-            SelfSpokenMessage(
-               message = whatToSay,
-               reason = reason,
-               location = this.entity.resolvePosition(),
-               time = simulation.getCurrentSimulationTime()
-            )
-         )
-
          simulation.addCharacterMessage(
             entity = this.entity,
-            message = whatToSay
+            message = whatToSay,
+            reason = reason
          )
       }
    }
@@ -163,17 +158,15 @@ class AgentIntegration(
       val simulation = this.simulation
 
       synchronized(simulation) {
-         this.pendingObservations.selfThoughts.add(
-            SelfThought(
-               thought = thought,
-               reason = reason,
-               location = this.entity.resolvePosition(),
-               time = simulation.getCurrentSimulationTime()
-            )
-         )
-
-         simulation.broadcastAlertAsGameMessage(
-            message = "Agent had thought: $thought"
+         simulation.addActivityStreamEntry(
+            title = "I had the thought...",
+            message = thought,
+            sourceEntityId = this.entity.entityId,
+            sourceLocation = this.entity.resolvePosition(),
+            observedByEntityIdsOverride = listOf(this.entity.entityId),
+            agentReason = reason,
+            actionType = ActionType.Thought,
+            onlyShowForPerspectiveEntity = true
          )
       }
    }
@@ -255,7 +248,7 @@ class AgentIntegration(
             corePersonality = agentControlledComponent.data.corePersonality,
             initialMemories = agentControlledComponent.data.initialMemories,
             inventoryInfo = inventoryInfo,
-            observationDistance = agentControlledComponent.data.observationDistance,
+            observationRadius = characterComponent.data.observationRadius,
             equippedItemConfigKey = equippedToolItemConfigAndStackIndex?.second?.key
          )
 
@@ -301,9 +294,9 @@ class AgentIntegration(
 
       this.mostRecentSyncInput = agentSyncInput
 
-      newObservationsForInput.spokenMessages.forEach {
-         println(" Sending spoken message observation: " + it.message)
-      }
+//      newObservationsForInput.spokenMessages.forEach {
+//         println(" Sending spoken message observation: " + it.message)
+//      }
 
       val agentSyncOutputs = agentServerIntegration.sendSyncRequest(agentSyncInput)
       coroutineSystemContext.unwindIfNeeded()
@@ -394,13 +387,14 @@ class AgentIntegration(
       val entity = this.entity
       val simulation = this.simulation
       val agentControlledComponent = this.agentControlledComponent
+      val characterComponent = this.characterComponent
 
       val positionComponent = entity.getComponent<PositionComponentData>()
 
       val simulationTimeForStep: Double
 
       synchronized(simulation) {
-         val observationDistance = agentControlledComponent.data.observationDistance
+         val observationRadius = characterComponent.data.observationRadius
 
          simulationTimeForStep = simulation.getCurrentSimulationTime()
          val currentLocation = positionComponent.data.positionAnimation.resolve(simulationTimeForStep)
@@ -414,36 +408,11 @@ class AgentIntegration(
 
                val distance = otherPosition.distance(currentLocation)
 
-               if (distance <= observationDistance) {
+               if (distance <= observationRadius) {
                   this.pendingObservations.entitiesById[otherEntity.entityId] = buildEntityInfoForAgent(
                      entity = otherEntity,
                      simulationTime = simulationTimeForStep
                   )
-               }
-
-
-               if (otherCharacterComponentData != null) {
-                  val newMessages = otherCharacterComponentData.recentSpokenMessages.filter {
-                     val messageAge = simulation.simulationTime - it.sentSimulationTime
-                     messageAge < 15.0 && !this.allObservedMessageIds.contains(it.messageId)
-                  }
-
-                  newMessages.forEach { newMessage ->
-                     println("Adding spoken message observation: " + newMessage.message)
-                     this.allObservedMessageIds.add(newMessage.messageId)
-
-                     this.pendingObservations.spokenMessages.add(
-                        ObservedSpokenMessage(
-                           messageId = newMessage.messageId,
-                           entityId = otherEntity.entityId,
-                           characterName = otherCharacterComponentData.name,
-                           message = newMessage.message,
-                           speakerLocation = otherPosition,
-                           myLocation = currentLocation,
-                           time = newMessage.sentSimulationTime
-                        )
-                     )
-                  }
                }
             }
          }
@@ -451,19 +420,24 @@ class AgentIntegration(
          val activityStream = simulation.getActivityStream()
 
          val newActivityStreamEntries = activityStream.filter { activityStreamEntry ->
-            activityStreamEntry.time > this.previousNewEventCheckSimulationTime &&
-                    activityStreamEntry.shouldReportToAi
+            val wasObserved = activityStreamEntry.observedByEntityIds == null ||
+                    activityStreamEntry.observedByEntityIds.contains(entity.entityId)
+
+            val isNew = activityStreamEntry.time > this.previousNewEventCheckSimulationTime
+
+            isNew && wasObserved && activityStreamEntry.shouldReportToAi
          }
 
          this.pendingObservations.activityStreamEntries.addAll(newActivityStreamEntries.map {
-            ActivityStreamEntryRecord(
-               time = it.time,
-               title = it.title,
-               message = it.message,
-               actionType = it.actionType,
-               sourceEntityId = it.sourceEntityId,
-               sourceLocation = it.sourceLocation,
-               targetEntityId = it.targetEntityId
+            it.copy(
+               // jshmrsn: Agents should not have awareness of internal observation system
+               // Ideally, this would be a different class to explicitly omit this field
+               observedByEntityIds = null,
+               agentReason = if (it.sourceEntityId == entity.entityId) {
+                  it.agentReason
+               } else {
+                  null
+               }
             )
          })
 
@@ -486,6 +460,15 @@ class AgentIntegration(
 
       val agentId = this.agentId
 
+      if (agentSyncOutput.agentStatus == "running-prompt") {
+         simulation.addActivityStreamEntry(
+            title = "Running prompt...",
+            sourceEntityId = entity.entityId,
+            onlyShowForPerspectiveEntity = true,
+            shouldReportToAi = false
+         )
+      }
+
       if (agentSyncOutput.debugInfoByKey != null) {
          agentSyncOutput.debugInfoByKey.forEach { debugInfoKey, debugInfo ->
             this.debugInfoByKey[debugInfoKey] = debugInfo
@@ -498,7 +481,7 @@ class AgentIntegration(
                .entries
                .sortedBy { it.key }
                .flatMap {
-                    listOf("", "# ====== ${it.key} ======") + it.value.lines()
+                  listOf("", "# ====== ${it.key} ======") + it.value.lines()
                }.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273,
             agentStatus = agentSyncOutput.agentStatus ?: it.agentStatus,
             wasRateLimited = agentSyncOutput.wasRateLimited,
@@ -546,6 +529,14 @@ class AgentIntegration(
          val threadStateLock: Any = this
 
          this.endJavaScriptThread(coroutineSystemContext)
+
+         simulation.addActivityStreamEntry(
+            title = "Started script...",
+            longMessage = script,
+            sourceEntityId = entity.entityId,
+            onlyShowForPerspectiveEntity = true,
+            shouldReportToAi = false
+         )
 
          val wrappedResponseScript = """
          (function() {
@@ -726,6 +717,13 @@ class AgentIntegration(
             )
          }
       } else if (actions != null) {
+         simulation.addActivityStreamEntry(
+            title = "Started actions...",
+            sourceEntityId = entity.entityId,
+            onlySourceEntityCanObserve = true,
+            shouldReportToAi = false
+         )
+
          if (entity.isMoving) {
             simulation.startEntityMovement(
                entity = entity,
@@ -807,7 +805,7 @@ class AgentIntegration(
       }
 
       if (recordThought != null) {
-         this.recordThought(recordThought)
+         this.recordThought(recordThought, reason = reason)
          addActionResult()
       }
 
@@ -852,14 +850,6 @@ class AgentIntegration(
             simulation.broadcastAlertAsGameMessage("Unable to use craft item for agent ${itemConfigKey} ($debugInfo): actionUniqueId = $actionUniqueId, result ${craftItemResult.name}")
          }
 
-         this.pendingObservations.craftItemActionRecords.add(
-            CraftItemActionRecord(
-               startedAtTime = simulationTimeForStep,
-               reason = reason,
-               itemConfigKey = itemConfigKey
-            )
-         )
-
          addActionResult()
       }
 
@@ -872,26 +862,35 @@ class AgentIntegration(
          addActionResult()
 
          val equippedToolItemConfigAndStackIndex = entity.getEquippedItemConfigAndStackIndex(EquipmentSlot.Tool)
+         val equippedToolItemConfig = equippedToolItemConfigAndStackIndex?.second
 
          if (result !is GameSimulation.UseEquippedItemResult.Success) {
-            simulation.broadcastAlertAsGameMessage("Unable to use equipped item for agent ($debugInfo): actionUniqueId = $actionUniqueId, result ${result::class.simpleName}")
-         }
+            val spawnItemOnUseConfig = equippedToolItemConfig?.spawnItemOnUseConfig
 
-         this.pendingObservations.actionOnInventoryItemActionRecords.add(
-            ActionOnInventoryItemRecord(
-               startedAtTime = simulationTimeForStep,
-               reason = reason,
-               itemConfigKey = equippedToolItemConfigAndStackIndex?.second?.key,
-               desiredActionOnInventoryType = ActionOnInventoryType.Use,
-               resultActionOnInventoryType = when (result) {
-                  is GameSimulation.UseEquippedItemResult.Success -> ActionOnInventoryType.Use
-                  is GameSimulation.UseEquippedItemResult.NoActionForEquippedTool -> ActionOnInventoryType.Failed
-                  is GameSimulation.UseEquippedItemResult.NoToolItemEquipped -> ActionOnInventoryType.NoToolItemEquipped
-                  is GameSimulation.UseEquippedItemResult.Obstructed -> ActionOnInventoryType.Obstructed
-                  else -> ActionOnInventoryType.Failed
-               }
+            val spawnItemConfig = spawnItemOnUseConfig?.let { simulation.getConfig<ItemConfig>(it.spawnItemConfigKey) }
+
+            simulation.addActivityStreamEntry(
+               actionType = ActionType.UseEquippedTool,
+               actionResultType = when (result) {
+                  GameSimulation.UseEquippedItemResult.UnexpectedEquippedItem -> ActionResultType.UnexpectedEquippedItem
+                  GameSimulation.UseEquippedItemResult.NoActionForEquippedTool -> ActionResultType.NoActionForEquippedTool
+                  GameSimulation.UseEquippedItemResult.NoToolItemEquipped -> ActionResultType.NoToolItemEquipped
+                  GameSimulation.UseEquippedItemResult.Busy -> ActionResultType.Busy
+                  GameSimulation.UseEquippedItemResult.Obstructed -> ActionResultType.Obstructed
+                  else -> ActionResultType.Failed
+               },
+               sourceLocation = entity.resolvePosition(),
+               sourceEntityId = entity.entityId,
+
+               targetName = equippedToolItemConfig?.name,
+               targetIconPath = equippedToolItemConfig?.iconUrl,
+
+               resultName = spawnItemConfig?.name,
+               resultIconPath = spawnItemConfig?.iconUrl,
+
+               onlyShowForPerspectiveEntity = true
             )
-         )
+         }
       }
 
       if (equipInventoryItem != null) {
@@ -907,22 +906,18 @@ class AgentIntegration(
 
          if (equipResult != GameSimulation.EquipItemResult.Success) {
             simulation.broadcastAlertAsGameMessage("Unable to equip item for agent ($debugInfo): actionUniqueId = $actionUniqueId, itemConfigKey = $itemConfigKey, result ${equipResult.name}")
-         }
 
-         this.pendingObservations.actionOnInventoryItemActionRecords.add(
-            ActionOnInventoryItemRecord(
-               startedAtTime = simulationTimeForStep,
-               reason = reason,
-               itemConfigKey = itemConfigKey,
-               amount = 1,
-               desiredActionOnInventoryType = ActionOnInventoryType.Equip,
-               resultActionOnInventoryType = when (equipResult) {
-                  GameSimulation.EquipItemResult.Success -> ActionOnInventoryType.Equip
-                  GameSimulation.EquipItemResult.ItemNotInInventory -> ActionOnInventoryType.ItemNotInInventory
-                  else -> ActionOnInventoryType.Failed
-               }
+            simulation.addActivityStreamEntry(
+               sourceIconPath = null,
+               title = "Unable to equip item '$itemConfigKey' because ${equipResult.name}",
+               actionResultType = ActionResultType.Failed,
+               sourceLocation = entity.resolvePosition(),
+               actionType = ActionType.EquipItem,
+               sourceEntityId = entity.entityId,
+               targetName = itemConfigKey,
+               onlySourceEntityCanObserve = true
             )
-         )
+         }
       }
 
       if (dropInventoryItem != null) {
@@ -955,45 +950,42 @@ class AgentIntegration(
                }
                .firstOrNull()?.first
 
-         addActionResult()
-
-         val didDrop = if (stackIndex == null) {
-            simulation.broadcastAlertAsGameMessage("Unable to find available item stack to drop ($debugInfo): actionUniqueId = $actionUniqueId, itemConfigKey = $itemConfigKey")
-            false
+         if (stackIndex == null) {
+            simulation.addActivityStreamEntry(
+               title = "Unable to find available item stack to drop for '$itemConfigKey'",
+               onlySourceEntityCanObserve = true,
+               sourceEntityId = entity.entityId,
+               actionType = ActionType.DropItem,
+               actionResultType = ActionResultType.Failed,
+               agentReason = reason
+            )
          } else {
-            val droppedItemEntity = simulation.dropItemStack(
+            val droppedEntity = simulation.dropItemStack(
                droppingEntity = entity,
                expectedItemConfigKey = itemConfigKey,
                stackIndex = stackIndex,
-               amountToDropFromStack = amount
+               amountToDropFromStack = amount,
+               agentReason = reason
             )
 
-            if (droppedItemEntity == null) {
-               simulation.broadcastAlertAsGameMessage("Unable to drop item stack for agent ($debugInfo): actionUniqueId = $actionUniqueId, stackIndex = $stackIndex, amount = $amount, itemConfigKey = $itemConfigKey")
+            if (droppedEntity == null) {
+               simulation.addActivityStreamEntry(
+                  title = "Failed to drop item '$itemConfigKey'",
+                  onlySourceEntityCanObserve = true,
+                  sourceEntityId = entity.entityId,
+                  actionType = ActionType.DropItem,
+                  actionResultType = ActionResultType.Failed,
+                  agentReason = reason
+               )
             }
-
-            droppedItemEntity != null
          }
 
-         this.pendingObservations.actionOnInventoryItemActionRecords.add(
-            ActionOnInventoryItemRecord(
-               startedAtTime = simulationTimeForStep,
-               reason = reason,
-               itemConfigKey = itemConfigKey,
-               amount = amount,
-               desiredActionOnInventoryType = ActionOnInventoryType.Drop,
-               resultActionOnInventoryType = if (didDrop) {
-                  ActionOnInventoryType.Drop
-               } else {
-                  ActionOnInventoryType.Failed
-               }
-            )
-         )
+         addActionResult()
       }
 
       fun autoInteractWithEntity(
          targetEntityId: EntityId,
-         expectedAutoInteractType: AutoInteractType
+         expectedActionType: ActionType
       ) {
          // jshmrsn: Currently, all actions on entities are executed by the single autoInteractWithEntity
          // The provided actionId is currently just a hint for agents to keep track of their intended interaction
@@ -1001,25 +993,44 @@ class AgentIntegration(
 
          if (targetEntity == null) {
             val destroyedTargetEntity = simulation.getDestroyedEntityOrNull(targetEntityId)
+
             if (destroyedTargetEntity != null) {
-               println("Can't find entity for action from AI (but was destroyed AFTER prompt was generated) ($debugInfo): $expectedAutoInteractType, actionUniqueId = $actionUniqueId, targetEntityId = $targetEntityId")
+               simulation.addActivityStreamEntry(
+                  title = "Attempted action ${expectedActionType.name} on target entity ${destroyedTargetEntity.debugName}, but target entity has already been destroyed",
+                  actionType = expectedActionType,
+                  actionResultType = ActionResultType.TargetNoLongerExists,
+                  sourceEntityId = entity.entityId,
+                  onlySourceEntityCanObserve = true,
+                  targetEntityId = targetEntityId
+               )
             } else {
-               simulation.broadcastAlertAsGameMessage("Can't find entity for action from AI ($debugInfo): $expectedAutoInteractType, actionUniqueId = $actionUniqueId, targetEntityId = $targetEntityId")
+               simulation.addActivityStreamEntry(
+                  title = "Attempted action ${expectedActionType.name} on target entity ${targetEntityId.value}, but entity ID is not valid (no entity has ever existed with this ID)",
+                  actionType = expectedActionType,
+                  actionResultType = ActionResultType.InvalidTargetEntityId,
+                  sourceEntityId = entity.entityId,
+                  onlySourceEntityCanObserve = true,
+                  targetEntityId = targetEntityId
+               )
             }
+
             addActionResult()
          } else {
-            this.autoInteractWithEntity(targetEntity) { autoInteractResult ->
-               println("Agent autoInteractResult ($expectedAutoInteractType): " + autoInteractResult.name)
+            this.autoInteractWithEntity(
+               targetEntity = targetEntity,
+               expectedActionType = expectedActionType
+            ) { actionResult ->
+               println("Agent autoInteractResult ($expectedActionType): " + actionResult.name)
 
-               this.pendingObservations.actionOnEntityRecords.add(
-                  ActionOnEntityRecord(
-                     startedAtTime = simulationTimeForStep,
-                     targetEntityId = targetEntityId,
-                     resultAutoInteractType = autoInteractResult,
-                     desiredAutoInteractType = expectedAutoInteractType,
-                     reason = reason
+               if (actionResult != ActionResultType.Success) {
+                  simulation.addActivityStreamEntry(
+                     title = "Attempted action ${expectedActionType.name} on entity ${targetEntity.debugName}, but failed with result ${actionResult.name}",
+                     actionType = expectedActionType,
+                     actionResultType = actionResult,
+                     sourceEntityId = entity.entityId,
+                     onlySourceEntityCanObserve = true
                   )
-               )
+               }
 
                addActionResult()
             }
@@ -1029,14 +1040,14 @@ class AgentIntegration(
       if (pickUpEntity != null) {
          autoInteractWithEntity(
             targetEntityId = pickUpEntity.targetEntityId,
-            expectedAutoInteractType = AutoInteractType.PickUp
+            expectedActionType = ActionType.PickupItem
          )
       }
 
       if (useEquippedToolItemOnEntity != null) {
          autoInteractWithEntity(
             targetEntityId = useEquippedToolItemOnEntity.targetEntityId,
-            expectedAutoInteractType = AutoInteractType.AttackWithEquippedTool
+            expectedActionType = ActionType.UseEquippedTool
          )
       }
    }

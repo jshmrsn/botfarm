@@ -9,6 +9,8 @@ import {
 } from "../common/PositionComponentData";
 
 import {GameSimulationConfig} from "./GameSimulationConfig";
+import {getNearestEntitiesFromList} from "./utils";
+
 
 export class GameSimulation extends Simulation {
   readonly gameSimulationConfig: GameSimulationConfig
@@ -26,45 +28,24 @@ export class GameSimulation extends Simulation {
     this.worldBounds = simulationConfig.worldBounds
   }
 
+  sendSpawnRequest() {
+    this.sendMessage("SpawnRequest", {})
+  }
+
+  sendDespawnRequest() {
+    this.sendMessage("DespawnRequest", {})
+  }
 
   getNearestEntities(
     searchLocation: Vector2,
     maxDistance: number | null,
     filter: (entity: Entity) => boolean
   ) {
-    const result = this.entities.filter(entity => {
-      const positionComponent = PositionComponent.getOrNull(entity)
-
-      if (positionComponent == null) {
-        return false
-      }
-
-      const distance = Vector2.distance(resolvePositionForCurrentTime(positionComponent), searchLocation)
-
-      if (maxDistance != null && distance > maxDistance) {
-        return false
-      }
-
-      if (!filter(entity)) {
-        return false
-      }
-
-      return true
-    })
-
-    result.sort((a, b) => {
-      const distanceA = Vector2.distance(resolveEntityPositionForCurrentTime(a), searchLocation)
-      const distanceB = Vector2.distance(resolveEntityPositionForCurrentTime(b), searchLocation)
-
-      if (distanceA < distanceB) {
-        return -1;
-      }
-      if (distanceA > distanceB) {
-        return 1;
-      }
-      return 0;
-    })
-
-    return result
+    return getNearestEntitiesFromList(
+      this.entities,
+      searchLocation,
+      maxDistance,
+      filter
+    )
   }
 }

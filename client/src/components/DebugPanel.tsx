@@ -24,10 +24,7 @@ export function DebugPanel(props: DebugPanelProps) {
     return null
   }
 
-  const playerControlledEntity = simulation.entities.find(entity => {
-    const userControlledComponent = entity.getComponentDataOrNull<UserControlledComponentData>("UserControlledComponentData")
-    return userControlledComponent != null && userControlledComponent.userId === dynamicState.userId
-  })
+  const playerControlledEntity = dynamicState.userControlledEntity
 
   const selectedEntityId = props.selectedEntityId
 

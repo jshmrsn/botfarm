@@ -2,26 +2,28 @@ import {CharacterComponentData, InventoryComponentData} from "../game/CharacterC
 import {Entity} from "../simulation/Entity";
 import {ItemConfig} from "../game/ItemComponentData";
 import {ActionIcon, Text} from "@mantine/core";
-import React from "react";
+import React, {ReactElement} from "react";
 import {IconArrowDown, IconHandGrab, IconHandOff} from "@tabler/icons-react";
 import {DynamicState} from "./DynamicState";
 
 interface InventoryListComponentProps {
-  entity: Entity
+  perspectiveEntity: Entity
   dynamicState: DynamicState
   viewOnly: boolean
+  userControlledEntity: Entity | null
 }
 
-export function InventoryListComponent(props: InventoryListComponentProps): JSX.Element | null {
+export function InventoryListComponent(props: InventoryListComponentProps): ReactElement | null {
   const dynamicState = props.dynamicState
-  const entity = props.entity
+  const perspectiveEntity = props.perspectiveEntity
   const simulation = dynamicState.simulation!
 
-  const inventoryComponent = entity.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
+  const inventoryComponent = perspectiveEntity.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
 
   if (inventoryComponent == null) {
     return null
   }
+
   const inventory = inventoryComponent.data.inventory;
   const itemStacks = inventory.itemStacks
 

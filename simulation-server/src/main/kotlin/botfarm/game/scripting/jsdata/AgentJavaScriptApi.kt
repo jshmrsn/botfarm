@@ -147,14 +147,14 @@ class AgentJavaScriptApi(
    fun getCurrentNearbyEntities(): JsArray<JsEntity> {
       return this.waitForSimulationRequestResult {
          val selfPosition = this.entity.resolvePosition()
-         val observationDistance = this.agentControlledComponent.data.observationDistance
+         val observationRadius = this.characterComponent.data.observationRadius
 
          val observedEntities = this.simulation.entities.filter {
             if (it.getComponentOrNull<PositionComponentData>() != null &&
                it.entityId != this.entity.entityId
             ) {
                val distance = it.resolvePosition().distance(selfPosition)
-               distance <= observationDistance
+               distance <= observationRadius
             } else {
                false
             }

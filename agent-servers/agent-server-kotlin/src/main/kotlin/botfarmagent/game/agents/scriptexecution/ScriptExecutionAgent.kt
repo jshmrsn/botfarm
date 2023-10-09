@@ -193,7 +193,7 @@ class ScriptExecutionAgent(
       println("Preparing to run prompt...")
 
       val selfInfo = input.selfInfo
-      val observationDistance = selfInfo.observationDistance
+      val observationRadius = selfInfo.observationRadius
 
       val completionMaxTokens = 500
 
@@ -243,7 +243,9 @@ class ScriptExecutionAgent(
             If other people have said something since the last time you spoke, or if you meet someone new, you will often want to say something.
             If you've recently asked someone a question and they haven't yet responded, don't ask them another question immediately. Give them ample time to respond. Don't say anything if there's nothing appropriate to say yet.
             People occupy about ${gameConstants.peopleSize} ${gameConstants.distanceUnit} of space, try to avoid walking to the exact same location of other people, instead walk to their side to politely chat.
-            You will only be able observe entities within $observationDistance ${gameConstants.distanceUnit} from your current location. If an entity disappears, it may be because they moved outside your observation radius.
+            You will only be able observe entities within $observationRadius ${gameConstants.distanceUnit} from your current location.
+            If an entity disappears, it may be because they moved outside your observation radius.
+            Therefor, you should consider using the recordThought function to remember where important entities are.
             Current date and time as Unix timestamp: ${simulationTimeForStep.roundToInt()}
             Seconds since your previous prompt: ${secondsSinceLastPrompt.roundToInt()}
             The available location to move to are between [0,0] and [$worldWidth,$worldHeight]
@@ -628,7 +630,7 @@ class ScriptExecutionAgent(
             languageModelService = this.context.languageModelService,
             modelInfo = modelInfo,
             promptBuilder = builder,
-            debugInfo = "${input.agentType} (step) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
+            debugInfo = "${input.agentType} (step) (simulationId = ${simulationId.value}, agentId = ${this.agentId.value}, syncId = $syncId, promptId = $promptId)",
             completionPrefix = completionPrefix,
             completionMaxTokens = completionMaxTokens,
             useFunctionCalling = false,

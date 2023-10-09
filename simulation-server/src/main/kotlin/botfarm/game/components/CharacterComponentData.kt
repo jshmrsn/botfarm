@@ -1,12 +1,13 @@
 package botfarm.game.components
 
-import botfarmshared.misc.Vector2
 import botfarm.engine.simulation.Config
-import botfarm.engine.simulation.EntityComponentData
-import botfarmshared.engine.apidata.EntityId
 import botfarm.engine.simulation.Entity
+import botfarm.engine.simulation.EntityComponentData
 import botfarm.game.UseEquippedToolItemRequest
-import kotlinx.serialization.Serializable
+import botfarmshared.engine.apidata.EntityId
+import botfarmshared.game.apidata.Action
+import botfarmshared.game.apidata.ActionType
+import botfarmshared.misc.Vector2
 
 
 class CharacterBodySelections(
@@ -20,14 +21,6 @@ class CharacterBodySelections(
    val hair: CompositeAnimationSelection? = null
 )
 
-enum class ActionType {
-   UseToolToDamageEntity,
-   PlaceGrowableInGrower,
-   DropItem,
-   PickupItem,
-   UseEquippedTool,
-   EquipItem
-}
 
 class PerformedAction(
    val performedAtLocation: Vector2,
@@ -44,9 +37,11 @@ data class CharacterComponentData(
    val recentSpokenMessages: List<SpokenMessage> = listOf(),
    val facialExpressionEmoji: String? = null,
    val pendingInteractionTargetEntityId: EntityId? = null,
+   val pendingInteractionActionType: ActionType? = null,
    val pendingUseEquippedToolItemRequest: UseEquippedToolItemRequest? = null,
    val bodySelections: CharacterBodySelections,
-   val performedAction: PerformedAction? = null
+   val performedAction: PerformedAction? = null,
+   val observationRadius: Double
 ) : EntityComponentData()
 
 

@@ -9,7 +9,7 @@ import botfarmshared.misc.Vector2
 val mockAgentTestScenario = GameScenario(
    identifier = "mock-agent-test",
    name = "Mock Agent",
-   spawnPlayersEntityMode = SpawnPlayersMode.None,
+   autoSpawnPlayersEntityMode = SpawnPlayersMode.None,
    buildMockAgent = scriptSequenceMockAgentBuilder(listOf(
       ScriptToRun(
          scriptId = "script-1",
@@ -43,7 +43,7 @@ val mockAgentTestScenario = GameScenario(
 val mockPromptResponsesTestScenario = GameScenario(
    identifier = "mock-prompt-responses-test",
    name = "Mock Prompt Responses",
-   spawnPlayersEntityMode = SpawnPlayersMode.None,
+   autoSpawnPlayersEntityMode = SpawnPlayersMode.None,
    configureGameSimulationCallback = {
       it.spawnAgentControlledCharacter(
          location = Vector2(1000.0, 0.0),

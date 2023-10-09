@@ -1,15 +1,15 @@
 import {Simulation} from "../simulation/Simulation";
 import {ReplayData} from "../simulation/EntityData";
 import {ActionIcon, Slider, Text} from "@mantine/core";
-import React, {useState} from "react";
-import {IconPlayerPause, IconPlayerPauseFilled, IconPlayerPlay, IconPlayerPlayFilled} from "@tabler/icons-react";
+import React, {ReactElement, useState} from "react";
+import {IconPlayerPauseFilled, IconPlayerPlayFilled} from "@tabler/icons-react";
 
 interface ReplayControlsProps {
   simulation: Simulation
   replayData: ReplayData
 }
 
-export function ReplayControls(props: ReplayControlsProps): JSX.Element {
+export function ReplayControls(props: ReplayControlsProps): ReactElement {
   const simulation = props.simulation
   const replayData = props.replayData
 
@@ -71,8 +71,7 @@ export function ReplayControls(props: ReplayControlsProps): JSX.Element {
       }}
       color="rgba(0, 255, 128, 1)"
       style={{
-        flexGrow: 1.0,
-        color: "red"
+        flexGrow: 1.0
       }}
     />
 

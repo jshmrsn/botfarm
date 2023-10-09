@@ -1,12 +1,14 @@
 import {useOnKeyDown} from "./useOnKeyDown";
 import React, {useEffect} from "react";
-import {ActionIcon, Button, Text} from "@mantine/core";
+import {ActionIcon, Button, Switch, Text} from "@mantine/core";
 import {IconArrowDown, IconX} from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 import {attributionsMarkdown, howToPlayMarkdown} from "./HowToPlayMarkdown";
 import {DynamicState} from "./DynamicState";
 import {GetSimulationInfoResponse} from "./SimulationComponent";
 import {useNavigate} from "react-router-dom";
+import {Entity} from "../simulation/Entity";
+import {DebugInfoComponentData} from "../game/DebugInfoComponentData";
 
 interface MenuPanelProps {
   simulationId: string
@@ -15,20 +17,29 @@ interface MenuPanelProps {
   dynamicState: DynamicState
   getSimulationInfoResponse: GetSimulationInfoResponse | null
   loadReplayError: string | null
+  rawUserControlledEntity: Entity | null
   wasDisconnected: boolean
   isViewingReplay: boolean
   viewReplay: () => void
   terminateSimulation: () => void
   exitSimulation: () => void
   close: () => void
+  isInForceSpectateMode: boolean
+  setIsInForceSpectateMode: (value: boolean) => void
 }
 
 export function MenuPanel(props: MenuPanelProps) {
   const panelWidth = Math.min(props.windowWidth - 20, 350)
-  const panelHeight = Math.min(props.windowHeight - 30, 300)
+  const panelHeight = Math.min(props.windowHeight - 30, 400)
 
   const simulationInfoResponse = props.getSimulationInfoResponse;
   const simulationInfo = simulationInfoResponse?.simulationInfo;
+
+
+  const userControlledEntity = props.dynamicState.userControlledEntity
+
+  const debugInfoEntity = props.dynamicState.simulation?.getEntityOrNull("debug-info")
+  const debugInfo = debugInfoEntity?.getComponentData<DebugInfoComponentData>("DebugInfoComponentData")
 
   const canClose = simulationInfoResponse != null &&
     ((simulationInfo != null && !simulationInfo.isTerminated) || props.isViewingReplay) &&
@@ -39,6 +50,12 @@ export function MenuPanel(props: MenuPanelProps) {
       props.close()
     }
   })
+
+  const canSendMessages = !props.isViewingReplay &&
+    simulationInfoResponse != null &&
+    simulationInfo != null &&
+    !simulationInfo.isTerminated &&
+    !props.wasDisconnected
 
   const content = <div
     key={"content"}
@@ -71,17 +88,17 @@ export function MenuPanel(props: MenuPanelProps) {
           width: "100%"
         }}
       >
-          <Text color={"red"}>Lost connection</Text>
-          <Button
-            style={{}}
-            variant={"filled"}
-            onClick={() => {
-              window.location.reload()
-            }}
-          >
-            Reconnect
-          </Button>
-        </div>
+        <Text color={"red"}>Lost connection</Text>
+        <Button
+          style={{}}
+          variant={"filled"}
+          onClick={() => {
+            window.location.reload()
+          }}
+        >
+          Reconnect
+        </Button>
+      </div>
       : null}
 
     {props.loadReplayError != null
@@ -104,6 +121,54 @@ export function MenuPanel(props: MenuPanelProps) {
       ? <Text>Viewing Replay</Text>
       : null}
 
+    {canSendMessages &&
+    props.rawUserControlledEntity != null
+      ? <Switch checked={props.isInForceSpectateMode}
+                onChange={(event) => props.setIsInForceSpectateMode(event.currentTarget.checked)}
+                label={"Force Spectate"}
+      />
+      : null}
+
+    {canSendMessages &&
+    debugInfo != null
+      ? debugInfo.aiPaused
+        ? <Button
+          variant={"filled"}
+          onClick={() => {
+            props.dynamicState.simulation?.sendMessage("ResumeAiRequest", {})
+          }}
+        >
+          Resume AI
+        </Button>
+        : <Button
+          variant={"filled"}
+          onClick={() => {
+            props.dynamicState.simulation?.sendMessage("PauseAiRequest", {})
+          }}
+        >
+          Pause AI
+        </Button>
+      : null}
+
+    {canSendMessages
+      ? props.rawUserControlledEntity == null
+        ? <Button
+          variant={"filled"}
+          onClick={() => {
+            props.dynamicState.simulation?.sendSpawnRequest()
+          }}
+        >
+          Spawn
+        </Button>
+        : <Button
+          variant={"filled"}
+          onClick={() => {
+            props.dynamicState.simulation?.sendDespawnRequest()
+          }}
+        >
+          De-spawn
+        </Button>
+      : null}
 
     <div key={"spacer"} style={{flexGrow: 1.0}}/>
 
@@ -152,7 +217,12 @@ export function MenuPanel(props: MenuPanelProps) {
       backgroundColor: "rgba(0, 0, 0, 0.5)",
       position: "absolute",
       backdropFilter: "blur(5px)",
-      WebkitBackdropFilter: "blur(5px)"
+      WebkitBackdropFilter: "blur(5px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+      paddingBottom: 100
     }}
   >
     <div
@@ -166,11 +236,7 @@ export function MenuPanel(props: MenuPanelProps) {
         borderRadius: 10,
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        height: panelHeight,
-        marginTop: Math.max(10, (props.windowHeight - panelHeight) * 0.3),
-        marginLeft: (props.windowWidth - panelWidth) / 2,
-        position: "absolute"
+        alignItems: "center"
       }}
     >
 

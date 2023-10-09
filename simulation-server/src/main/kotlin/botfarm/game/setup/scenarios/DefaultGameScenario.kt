@@ -34,7 +34,7 @@ class DefaultGameScenario : GameScenario(
 class SpectateAgentsGameScenario : GameScenario(
    identifier = "spectate-agents",
    name = "Spectate Two Agents (Script Execution Agent)",
-   spawnPlayersEntityMode = SpawnPlayersMode.None
+   autoSpawnPlayersEntityMode = SpawnPlayersMode.None
 ) {
    override fun configureGameSimulation(simulation: GameSimulation) {
       spawnCommonEnvironmentEntities(simulation)
@@ -53,7 +53,7 @@ class SpectateAgentsGameScenario : GameScenario(
             skinColor = "light"
          ),
          age = 25,
-         location = Vector2(3000.0, 3000.0)
+         location = Vector2(2000.0, 2000.0)
       )
 
       simulation.spawnAgentControlledCharacter(
@@ -66,7 +66,7 @@ class SpectateAgentsGameScenario : GameScenario(
          agentType = "script",
          bodySelections = simulation.buildRandomCharacterBodySelections(),
          age = 25,
-         location = Vector2(2500.0, 2200.0)
+         location = Vector2(3000.0, 3000.0)
       )
    }
 }

@@ -33,7 +33,7 @@ fun buildSyncInputs(
       ),
       corePersonality = "Friendly",
       initialMemories = listOf(),
-      observationDistance = 0.0,
+      observationRadius = 0.0,
       inventoryInfo = InventoryInfo(itemStacks = listOf()),
       equippedItemConfigKey = null
    ),
