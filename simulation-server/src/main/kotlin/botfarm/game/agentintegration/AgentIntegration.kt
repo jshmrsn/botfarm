@@ -190,7 +190,7 @@ class AgentIntegration(
 
       val agentControlledComponent = this.agentControlledComponent
 
-      if (simulation.shouldPauseAi) {
+      if (simulation.debugInfoComponent.data.aiPaused) {
          agentControlledComponent.modifyData {
             it.copy(
                agentIntegrationStatus = "paused",
