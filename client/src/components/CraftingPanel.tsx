@@ -17,9 +17,6 @@ interface CraftingPanelProps {
 
 
 export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
-  const windowHeight = props.windowHeight
-  const windowWidth = props.windowWidth
-  const dynamicState = props.dynamicState
   const sideBarWidth = 250
   const simulation = props.dynamicState.simulation
 
@@ -61,7 +58,8 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
       display: "flex",
       flexDirection: "column",
       height: props.useMobileLayout ? props.windowHeight * 0.25 : 0,
-      flexGrow: 1
+      flexGrow: 1,
+      pointerEvents: "auto"
     }}
   >
     <div

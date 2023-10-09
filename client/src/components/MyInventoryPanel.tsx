@@ -42,7 +42,8 @@ export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | nu
       display: "flex",
       flexDirection: "column",
       height: props.useMobileLayout ? windowHeight * 0.25 : 0,
-      flexGrow: 1
+      flexGrow: 1,
+      pointerEvents: "auto"
     }}
   >
     <div

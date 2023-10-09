@@ -43,7 +43,8 @@ export function ActivityPanel(props: ActivityPanelProps) {
       right: 10,
       display: "flex",
       flexDirection: "column",
-      height: props.useMobileLayout ? props.windowHeight * 0.4 : undefined
+      height: props.useMobileLayout ? props.windowHeight * 0.4 : undefined,
+      pointerEvents: "auto"
     }}
   >
     <div
