@@ -1,9 +1,9 @@
-import React, {useEffect, useState} from "react";
+import React, {ReactElement, useEffect, useState} from "react";
 import {ActionIcon, Button, Text} from "@mantine/core";
 import {IconHammer, IconInfoCircle, IconMenu2, IconMessages, IconQuestionMark} from "@tabler/icons-react";
 import Phaser from "phaser";
 import {AutoInteractActionType, GameSimulationScene, SimulationSceneContext} from "../game/GameSimulationScene";
-import {ClientSimulationData, ReplayData} from "../simulation/EntityData";
+import {ClientSimulationData, EntityId, ReplayData} from "../simulation/EntityData";
 import useWebSocket from "react-use-websocket";
 import {useWindowSize} from "@react-hook/window-size";
 import {GameSimulation} from "../game/GameSimulation";
@@ -27,13 +27,14 @@ import {HelpPanel} from "./HelpPanel";
 import {SimulationId, UserId, UserSecret} from "../simulation/Simulation";
 import {useNavigate, useParams} from "react-router-dom";
 import {apiRequest, getFileRequest} from "../api";
-import {DynamicState} from "./DynamicState";
+import {DynamicState, DynamicStateContext} from "./DynamicState";
 import {ReplayControls} from "./ReplayControls";
 import {SimulationInfo} from "./SelectSimulationComponent";
 import {MenuPanel} from "./MenuPanel";
 import {Options} from "react-use-websocket/src/lib/types";
 import {AdminRequest} from "./AdminRequest";
 import {QuickInventory} from "./QuickInventory";
+import {TopHeader} from "./TopHeader";
 
 
 export enum PanelTypes {
@@ -69,7 +70,6 @@ export const SimulationComponent = (props: SimulationProps) => {
   const [windowWidth, windowHeight] = useWindowSize()
   const useMobileLayout = windowWidth < 600
 
-
   const [shouldShowDebugPanel, setShouldShowDebugPanel] = useState(false)
   const [shouldShowHelpPanel, setShouldShowHelpPanel] = useState(false)
   const [shouldShowMenuPanel, setShouldShowMenuPanel] = useState(false)
@@ -77,30 +77,32 @@ export const SimulationComponent = (props: SimulationProps) => {
   const [showingPanels, setShowingPanels] = useState<PanelTypes[]>(useMobileLayout ? [] : [PanelTypes.Activity])
   const [chatInputIsFocused, setChatInputIsFocused] = useState(false)
 
-  const [_forceUpdateCounter, setForceUpdateCounter] = useState(0)
+  const [forceUpdateCounter, setForceUpdateCounter] = useState(0)
   const [phaserContainerDiv, setPhaserContainerDiv] = useState<HTMLDivElement | null>(null)
 
   const [sceneLoadComplete, setSceneLoadComplete] = useState(false)
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const [wasDisconnected, setWasDisconnected] = useState(false)
 
+
   const [replayData, setReplayData] = useState<ReplayData | null>(null)
   const [getSimulationInfoResponse, setGetSimulationInfoResponse] = useState<GetSimulationInfoResponse | null>(null)
+  const [perspectiveEntityIdOverride, setPerspectiveEntityIdOverride] = useState<EntityId | null>(null)
 
   const userId = props.userId
 
-  const [dynamicState, _setDynamicState] = useState<DynamicState>(new DynamicState(userId, setForceUpdateCounter))
+  const dynamicStateContext: DynamicStateContext = {
+    setForceUpdateCounter: setForceUpdateCounter,
+    setSelectedEntityId: setSelectedEntityId,
+    setPerspectiveEntityIdOverride: setPerspectiveEntityIdOverride
+  }
+
+  const [dynamicState, _setDynamicState] = useState<DynamicState>(new DynamicState(userId, dynamicStateContext))
   dynamicState.buildAdminRequest = props.buildAdminRequest
 
   const [isViewingReplay, setIsViewingReplay] = useState(false)
   const [loadReplayError, setLoadReplayError] = useState<string | null>(null)
-
-  const userControlledEntity: Entity | null = !isViewingReplay
-    ? dynamicState.simulation?.entities.find(it => {
-    const userControlledComponent = it.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
-    return userControlledComponent != null && userControlledComponent.data?.userId === dynamicState.userId
-  }) ?? null
-    : null
+  const [isInForceSpectateMode, setIsInForceSpectateMode] = useState(false)
 
   const navigate = useNavigate();
 
@@ -169,18 +171,19 @@ export const SimulationComponent = (props: SimulationProps) => {
       dynamicState.simulation = null
     }
 
-    if (dynamicState.phaserScene != null) {
+    if (dynamicState.scene != null) {
       console.log("Destroy phaser for view replay")
-      dynamicState.phaserScene.game.destroy(true)
-      dynamicState.phaserScene = null
+      dynamicState.scene.game.destroy(true)
+      dynamicState.scene = null
     }
 
     setShouldShowMenuPanel(false)
     setWasDisconnected(false)
     setIsViewingReplay(true)
+    setIsInForceSpectateMode(true)
   }
 
-  if (dynamicState.phaserScene != null) {
+  if (dynamicState.scene != null) {
     dynamicState.selectedEntityId = selectedEntityId
   }
 
@@ -209,10 +212,10 @@ export const SimulationComponent = (props: SimulationProps) => {
       dynamicState.simulation = null
     }
 
-    if (dynamicState.phaserScene != null) {
+    if (dynamicState.scene != null) {
       console.log("Destroy phaser for handleSimulationDataSnapshotReceived")
-      dynamicState.phaserScene.game.destroy(true)
-      dynamicState.phaserScene = null
+      dynamicState.scene.game.destroy(true)
+      dynamicState.scene = null
     }
 
     dynamicState.simulation = new GameSimulation(
@@ -272,12 +275,12 @@ export const SimulationComponent = (props: SimulationProps) => {
   const hasSimulationData = dynamicState.simulation != null
   const hasWebSocket = dynamicState.webSocket != null
   const hasReplayData = replayData != null
-  const hasPhaserScene = dynamicState.phaserScene != null
+  const hasPhaserScene = dynamicState.scene != null
 
   useEffect(() => {
     if (dynamicState.simulation != null &&
       phaserContainerDiv != null &&
-      dynamicState.phaserScene == null) {
+      dynamicState.scene == null) {
       console.log("CREATE PHASER")
       setSceneLoadComplete(false)
 
@@ -307,9 +310,8 @@ export const SimulationComponent = (props: SimulationProps) => {
         sendWebSocketMessage: (type: string, data) => {
           dynamicState.sendWebSocketMessage(type, data)
         },
-        setSelectedEntityId: (entityId) => {
-          setSelectedEntityId(entityId)
-        },
+        setSelectedEntityId: setSelectedEntityId,
+        setPerspectiveEntityIdOverride: setPerspectiveEntityIdOverride,
         closePanels: () => setShowingPanels([]),
         showHelpPanel: () => {
           setShouldShowHelpPanel(true)
@@ -325,16 +327,16 @@ export const SimulationComponent = (props: SimulationProps) => {
       })
 
       phaserGame.scene.add("main", newPhaserScene, true)
-      dynamicState.phaserScene = newPhaserScene
+      dynamicState.scene = newPhaserScene
     }
   }, [phaserContainerDiv, hasSimulationData, hasWebSocket, hasReplayData, hasPhaserScene]);
 
   useEffect(() => {
     return () => {
-      if (dynamicState.phaserScene != null) {
+      if (dynamicState.scene != null) {
         console.log("Destroy phaser for cleanup")
-        dynamicState.phaserScene.game.destroy(true)
-        dynamicState.phaserScene = null
+        dynamicState.scene.game.destroy(true)
+        dynamicState.scene = null
       }
     }
   }, [])
@@ -352,6 +354,30 @@ export const SimulationComponent = (props: SimulationProps) => {
 
   const simulation = dynamicState.simulation
 
+  const rawUserControlledEntity: Entity | null = (!isViewingReplay)
+    ? dynamicState.simulation?.entities.find(it => {
+    const userControlledComponent = it.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
+    return userControlledComponent != null && userControlledComponent.data?.userId === dynamicState.userId
+  }) ?? null
+    : null
+
+  if (rawUserControlledEntity != null && !isInForceSpectateMode && perspectiveEntityIdOverride != null) {
+    setPerspectiveEntityIdOverride(null)
+  }
+
+  const userControlledEntity: Entity | null = (!isInForceSpectateMode && (perspectiveEntityIdOverride == null || perspectiveEntityIdOverride === rawUserControlledEntity?.entityId))
+    ? rawUserControlledEntity
+    : null
+
+  const perspectiveEntity: Entity | null = (simulation != null)
+    ? (perspectiveEntityIdOverride != null)
+      ? simulation.getEntityOrNull(perspectiveEntityIdOverride)
+      : userControlledEntity
+    : null
+
+  dynamicState.perspectiveEntity = perspectiveEntity
+  dynamicState.userControlledEntity = userControlledEntity
+
   function isShowingPanel(panel: PanelTypes): boolean {
     return showingPanels.includes(panel)
   }
@@ -361,8 +387,9 @@ export const SimulationComponent = (props: SimulationProps) => {
       ? <ActivityPanel dynamicState={dynamicState}
                        windowHeight={windowHeight}
                        windowWidth={windowWidth}
-                       userControlledEntity={userControlledEntity}
                        useMobileLayout={useMobileLayout}
+                       perspectiveEntity={perspectiveEntity}
+                       userControlledEntity={userControlledEntity}
       /> : null
   }
 
@@ -370,6 +397,7 @@ export const SimulationComponent = (props: SimulationProps) => {
     return isShowingPanel(PanelTypes.Inventory)
       ? <MyInventoryPanel dynamicState={dynamicState}
                           userControlledEntity={userControlledEntity}
+                          perspectiveEntity={perspectiveEntity}
                           useMobileLayout={useMobileLayout}
       /> : null
   }
@@ -380,6 +408,7 @@ export const SimulationComponent = (props: SimulationProps) => {
                        windowHeight={windowHeight}
                        windowWidth={windowWidth}
                        userControlledEntity={userControlledEntity}
+                       perspectiveEntity={perspectiveEntity}
                        useMobileLayout={useMobileLayout}
       /> : null
   }
@@ -397,103 +426,9 @@ export const SimulationComponent = (props: SimulationProps) => {
                        selectedEntity={selectedEntity}/> : null
   }
 
-  function renderInspectButton() {
-    const isShowingInspect = selectedEntity != null
-    var button: HTMLButtonElement | null = null
-
-    function selectNearestEntity() {
-      if (userControlledEntity == null) {
-        return
-      }
-
-      const playerPosition = resolveEntityPositionForCurrentTime(userControlledEntity)
-
-      let nearestDistance = 10000.0
-      let nearestEntity: Entity | null = null
-
-      const simulation = dynamicState.simulation!
-
-      for (const entity of simulation.entities) {
-        const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
-        const userControlledComponent = entity.getComponentOrNull<UserControlledComponentData>("UserControlledComponentData")
-
-        if (positionComponent != null && (userControlledComponent == null || userControlledComponent.data.userId !== dynamicState.userId)) {
-          const position = resolvePositionForCurrentTime(positionComponent)
-          let searchScore = Vector2.distance(playerPosition, position)
-
-          if (nearestEntity != null && AgentControlledComponent.getOrNull(nearestEntity) != null) {
-            searchScore *= 0.3
-          }
-
-          if (searchScore < nearestDistance) {
-            nearestDistance = searchScore
-            nearestEntity = entity
-          }
-        }
-      }
-
-      if (nearestEntity != null) {
-        setSelectedEntityId(nearestEntity.entityId)
-      }
-    }
-
-    const shouldDisableGameSceneInput = shouldShowMenuPanel ||
-      shouldShowHelpPanel ||
-      getSimulationInfoResponse == null ||
-      chatInputIsFocused
-
-    if (dynamicState.phaserScene != null &&
-      dynamicState.phaserScene.input !== undefined &&
-      dynamicState.phaserScene.input.keyboard != null) {
-
-      if (shouldDisableGameSceneInput) {
-        dynamicState.phaserScene.input.keyboard.enabled = false
-        dynamicState.phaserScene.input.keyboard.disableGlobalCapture()
-      } else {
-        dynamicState.phaserScene.input.keyboard.enabled = true
-        dynamicState.phaserScene.input.keyboard.enableGlobalCapture()
-      }
-    }
-
-    return <div
-      key={"inspect-button"}
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        padding: 0,
-        alignItems: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.5)",
-        height: 44,
-        backdropFilter: "blur(5px)",
-        WebkitBackdropFilter: "blur(5px)",
-        borderRadius: 5,
-        gap: 10,
-        pointerEvents: "auto"
-      }}
-    >
-      <ActionIcon
-        ref={actionIcon => button = actionIcon}
-        color={isShowingInspect ? "blue" : "gray"}
-        size={44}
-        variant={isShowingInspect ? "filled" : "subtle"}
-        onClick={() => {
-          if (isShowingInspect) {
-            setSelectedEntityId(null)
-          } else {
-            selectNearestEntity()
-          }
-
-          button?.blur()
-        }}
-      >
-        <IconInfoCircle/>
-      </ActionIcon>
-    </div>
-  }
-
   function renderPanelButtonHelper(
     panelType: PanelTypes,
-    icon: JSX.Element
+    icon: ReactElement
   ) {
     return renderPanelButton(panelType, icon, showingPanels, setShowingPanels)
   }
@@ -501,9 +436,9 @@ export const SimulationComponent = (props: SimulationProps) => {
   const chatAreaWidth = Math.min(windowWidth - 20, 500)
   const remainingWindowWidth = windowWidth - chatAreaWidth
 
-  const autoInteraction = dynamicState.phaserScene?.calculatedAutoInteraction
+  const autoInteraction = dynamicState.scene?.calculatedAutoInteraction
   let actionButtonRef: HTMLButtonElement | null = null
-  let actionButton: JSX.Element | null = null
+  let actionButton: ReactElement | null = null
   if (autoInteraction != null && !isViewingReplay) {
     let actionTitle = autoInteraction.actionTitle
 
@@ -520,7 +455,7 @@ export const SimulationComponent = (props: SimulationProps) => {
       }}
       onClick={() => {
         actionButtonRef?.blur()
-        dynamicState?.phaserScene?.autoInteract()
+        dynamicState?.scene?.autoInteract()
       }}>
       {actionTitle}
     </Button>
@@ -669,7 +604,6 @@ export const SimulationComponent = (props: SimulationProps) => {
         >
           {renderPanelButtonHelper(PanelTypes.Activity, <IconMessages size={24}/>)}
           {renderPanelButtonHelper(PanelTypes.Crafting, <IconHammer size={24}/>)}
-          {renderInspectButton()}
           <div style={{
             flexBasis: 30
           }}/>
@@ -677,11 +611,12 @@ export const SimulationComponent = (props: SimulationProps) => {
           {actionButton}
         </div>
 
-        {!isViewingReplay ? <QuickInventory
+        {perspectiveEntity != null ? <QuickInventory
           dynamicState={dynamicState}
           windowHeight={windowHeight}
           windowWidth={windowWidth}
           userControlledEntity={userControlledEntity}
+          perspectiveEntity={perspectiveEntity}
           useMobileLayout={useMobileLayout}
           showingPanels={showingPanels}
           setShowingPanels={setShowingPanels}
@@ -796,6 +731,24 @@ export const SimulationComponent = (props: SimulationProps) => {
     : null
 
 
+  const shouldDisableGameSceneInput = shouldShowMenuPanel ||
+    shouldShowHelpPanel ||
+    getSimulationInfoResponse == null ||
+    chatInputIsFocused
+
+  if (dynamicState.scene != null &&
+    dynamicState.scene.input !== undefined &&
+    dynamicState.scene.input.keyboard != null) {
+
+    if (shouldDisableGameSceneInput) {
+      dynamicState.scene.input.keyboard.enabled = false
+      dynamicState.scene.input.keyboard.disableGlobalCapture()
+    } else {
+      dynamicState.scene.input.keyboard.enabled = true
+      dynamicState.scene.input.keyboard.enableGlobalCapture()
+    }
+  }
+
   return <div
     style={{
       backgroundColor: "#D7EAC0",
@@ -832,6 +785,14 @@ export const SimulationComponent = (props: SimulationProps) => {
             height: "100%",
             position: "relative"
           }}
+        />
+
+        <TopHeader
+          dynamicState={dynamicState}
+          useMobileLayout={useMobileLayout}
+          perspectiveEntity={perspectiveEntity}
+          userControlledEntity={userControlledEntity}
+          forceUpdateCounter={forceUpdateCounter}
         />
 
         <div
@@ -892,7 +853,9 @@ export const SimulationComponent = (props: SimulationProps) => {
         terminateSimulation={terminateSimulation}
         viewReplay={viewReplay}
         wasDisconnected={wasDisconnected}
-
+        setIsInForceSpectateMode={setIsInForceSpectateMode}
+        isInForceSpectateMode={isInForceSpectateMode}
+        rawUserControlledEntity={rawUserControlledEntity}
       /> : null}
 
     {simulation != null && shouldShowHelpPanel ?
@@ -908,7 +871,7 @@ export const SimulationComponent = (props: SimulationProps) => {
 
 export function renderPanelButton(
   panelType: PanelTypes,
-  icon: JSX.Element,
+  icon: ReactElement,
   showingPanels: PanelTypes[],
   setShowingPanels: (panelTypes: PanelTypes[]) => void
 ) {

@@ -1,5 +1,5 @@
 import {ActionIcon} from "@mantine/core";
-import React from "react";
+import React, {ReactElement} from "react";
 import {DynamicState} from "./DynamicState";
 import {Entity} from "../simulation/Entity";
 import {InventoryComponentData} from "../game/CharacterComponentData";
@@ -12,6 +12,7 @@ interface QuickInventoryProps {
   windowWidth: number
   dynamicState: DynamicState
   userControlledEntity: Entity | null
+  perspectiveEntity: Entity
   useMobileLayout: boolean
   showingPanels: PanelTypes[]
   setShowingPanels: (panels: PanelTypes[]) => void
@@ -25,20 +26,16 @@ interface QuickInventoryEntry {
   equippedStackIndex: number | null
 }
 
-export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
+export function QuickInventory(props: QuickInventoryProps): ReactElement | null {
   const simulation = props.dynamicState.simulation
 
   if (simulation == null) {
     return null
   }
 
-  const userControlledEntity = props.userControlledEntity
+  const perspectiveEntity = props.perspectiveEntity
 
-  if (userControlledEntity == null) {
-    return null
-  }
-
-  const inventoryComponent = userControlledEntity.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
+  const inventoryComponent = perspectiveEntity.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
 
   if (inventoryComponent == null) {
     return null
@@ -121,6 +118,7 @@ export function QuickInventory(props: QuickInventoryProps): JSX.Element | null {
         color={isEquipped ? "blue" : "gray"}
         size={50}
         variant={isEquipped ? "filled" : "subtle"}
+        disabled={props.perspectiveEntity !== props.userControlledEntity}
         onClick={() => {
           buttonRef?.blur()
 

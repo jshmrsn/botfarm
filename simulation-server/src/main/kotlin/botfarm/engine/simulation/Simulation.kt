@@ -90,7 +90,6 @@ class PendingReplayData {
    val sentMessages = mutableListOf<ReplaySentMessage>()
 }
 
-
 class SimulationContext(
    val coroutineScope: CoroutineScope,
    val clientReceiveInteractionTimeoutSeconds: Double?,
@@ -125,8 +124,6 @@ open class Simulation(
 
    val wasCreatedByAdmin = this.context.wasCreatedByAdmin
    val simulationContainer = this.context.simulationContainer
-
-   var shouldPauseAi = false
 
    val startedAtUnixTime = data.simulationStartedAtUnixTime
    var simulationTime = 0.0

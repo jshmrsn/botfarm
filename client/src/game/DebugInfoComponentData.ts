@@ -19,4 +19,5 @@ interface CollisionMapDebugInfo {
 
 export interface DebugInfoComponentData extends EntityComponentData {
   collisionMapDebugInfo: CollisionMapDebugInfo
+  aiPaused: boolean
 }

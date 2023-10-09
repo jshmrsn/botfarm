@@ -310,16 +310,19 @@ class StartContext()
 class SimulationContainer(
    val scenarioRegistration: ScenarioRegistration
 ) {
-   val threadPool = Executors.newCachedThreadPool()
-   val coroutineDispatcher: ExecutorCoroutineDispatcher = this.threadPool.asCoroutineDispatcher()
-
    private val simulations = mutableListOf<Simulation>()
    private val terminatedSimulations = mutableListOf<Simulation>()
 
+   companion object {
+      // jshmrsn: Defaulting based on serverHasAdminSecret with the idea that deployed servers have admin access
+      // configured, and deployed servers want to conserve resources, while disconnecting is inconvenient for local servers
+      val shouldDisconnectByDefault = AdminRequest.serverHasAdminSecret
+   }
+
    fun createSimulation(
-      clientReceiveInteractionTimeoutSeconds: Double? = 180.0,
-      clientReceiveMessageTimeoutSeconds: Double? = 180.0,
-      noClientsConnectedTerminationTimeoutSeconds: Double? = 120.0,
+      clientReceiveInteractionTimeoutSeconds: Double? = if (shouldDisconnectByDefault) 180.0 else null,
+      clientReceiveMessageTimeoutSeconds: Double? = if (shouldDisconnectByDefault) 180.0 else null,
+      noClientsConnectedTerminationTimeoutSeconds: Double? = if (shouldDisconnectByDefault) 120.0 else null,
       wasCreatedByAdmin: Boolean,
       createdByUserSecret: UserSecret,
       scenario: Scenario,

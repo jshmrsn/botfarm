@@ -1,6 +1,6 @@
 import {IconHammer} from "@tabler/icons-react";
 import {ActionIcon, Text} from "@mantine/core";
-import React from "react";
+import React, {ReactElement} from "react";
 import {Entity} from "../simulation/Entity";
 import {ItemConfig} from "../game/ItemComponentData";
 import {Inventory, InventoryComponentData} from "../game/CharacterComponentData";
@@ -12,11 +12,11 @@ interface CraftingPanelProps {
   windowWidth: number
   dynamicState: DynamicState
   userControlledEntity: Entity | null
+  perspectiveEntity: Entity | null
   useMobileLayout: boolean
 }
 
-
-export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
+export function CraftingPanel(props: CraftingPanelProps): ReactElement | null {
   const sideBarWidth = 250
   const simulation = props.dynamicState.simulation
 
@@ -24,6 +24,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
     return null
   }
 
+  const perspectiveEntity = props.perspectiveEntity
   const userControlledEntity = props.userControlledEntity
 
   const craftingItemConfigs = simulation.configs
@@ -32,7 +33,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
     .filter(it => it.craftableConfig != null)
 
 
-  const inventoryComponent = userControlledEntity?.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
+  const inventoryComponent = perspectiveEntity?.getComponentOrNull<InventoryComponentData>("InventoryComponentData")
 
   const inventory: Inventory = inventoryComponent?.data.inventory ?? {
     itemStacks: []
@@ -133,7 +134,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
                 }}
               />
               {craftableConfig.craftingAmount > 1 ? <Text><b>x{craftableConfig.craftingAmount}</b></Text> : null}
-              {(canAfford && userControlledEntity != null) ? <ActionIcon size={35} variant={"filled"} onClick={() => {
+              {(canAfford && perspectiveEntity != null && perspectiveEntity === userControlledEntity) ? <ActionIcon size={35} variant={"filled"} onClick={() => {
                 simulation.sendMessage("CraftItemRequest", {
                   itemConfigKey: itemConfigKey
                 })
@@ -175,7 +176,7 @@ export function CraftingPanel(props: CraftingPanelProps): JSX.Element | null {
                     }}
                   />
                   <Text
-                    color={userControlledEntity == null
+                    color={perspectiveEntity == null
                       ? "black"
                       : hasAmount >= costEntry.amount
                       ? "green"

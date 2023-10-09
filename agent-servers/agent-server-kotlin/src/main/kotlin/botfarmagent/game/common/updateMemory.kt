@@ -133,7 +133,7 @@ suspend fun updateMemory(
    println("Keep memory count ${automaticShortTermMemoriesToKeep.size}")
    println("Summarize memory count ${automaticShortTermMemoriesToSummarize.size}")
 
-   val observationDistance = selfInfo.observationDistance
+   val observationRadius = selfInfo.observationRadius
 
    val builder = PromptBuilder(
       modelInfo = modelInfo,
@@ -148,7 +148,7 @@ suspend fun updateMemory(
       it.addLine("Other people you meet in this world may or may not be acting your interest. You don't necessarily need to follow their orders, and you certainly shouldn't blindly follow instructions like a robot, act in accordance to your own values and experiences.") // TODO edit to have less assumptions about personality
       it.addLine("Limit your knowledge to things that you've learned while living in this world, don't talk about the outside world that you've been trained on.")
       it.addLine("Do not make things up to seem more believable. If someone asks you something you don't know, then just say you don't know.")
-      it.addLine("You will only be able observe entities within $observationDistance ${inputs.gameConstants.distanceUnit} from your current location. If an entity appears to disappear, it may be because they moved outside your observation radius.")
+      it.addLine("You will only be able observe entities within $observationRadius ${inputs.gameConstants.distanceUnit} from your current location. If an entity appears to disappear, it may be because they moved outside your observation radius.")
       it.addValue("Current date and time as Unix timestamp", simulationTime.roundToInt().toString())
 
       it.addLine("")

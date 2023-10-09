@@ -1,4 +1,4 @@
-import React, {Fragment, useEffect, useState} from "react";
+import React, {Fragment, ReactElement, useEffect, useState} from "react";
 
 import {ActionIcon, PasswordInput, Switch, Text} from "@mantine/core";
 import {IconSettings, IconTrashFilled} from "@tabler/icons-react";
@@ -87,7 +87,7 @@ export const SelectSimulationComponent = (props: SelectSimulationProps) => {
   }, []);
 
 
-  function renderSimulationsList(simulations: SimulationInfo[]): JSX.Element[] {
+  function renderSimulationsList(simulations: SimulationInfo[]): ReactElement[] {
     return simulations.map((simulationInfo, index) => <ListButton
         key={index + ":" + simulationInfo.simulationId}
         style={{}}

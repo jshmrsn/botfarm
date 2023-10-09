@@ -57,7 +57,8 @@ export interface CharacterComponentData extends EntityComponentData {
   pendingInteractionTargetEntityId: EntityId | null
   pendingUseEquippedToolItemRequest: UseEquippedToolItemRequest | null
   bodySelections: CharacterBodySelections,
-  performedAction: PerformedAction | null
+  performedAction: PerformedAction | null,
+  observationRadius: number
 }
 
 export const CharacterComponent = new EntityComponentGetter<CharacterComponentData>("CharacterComponentData")

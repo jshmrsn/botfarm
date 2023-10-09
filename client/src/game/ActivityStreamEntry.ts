@@ -1,11 +1,19 @@
 import {Vector2} from "../misc/Vector2";
 import {EntityId} from "../simulation/EntityData";
-import {CharacterBodySelections} from "./CharacterComponentData";
+
+export interface SpawnedItemEntity {
+  name: string
+  amount: number
+  itemConfigKey: string
+  entityId: EntityId
+}
 
 export interface ActivityStreamEntry {
   time: number
   title: string
   message: string | null
+  longMessage: string | null
+  onlyShowForPerspectiveEntity: boolean
   sourceLocation: Vector2 | null
   sourceIconPath: string | null
   actionType: string | null
@@ -13,4 +21,6 @@ export interface ActivityStreamEntry {
   targetIconPath: string | null
   sourceEntityId: EntityId | null
   targetEntityId: EntityId | null
+  observedByEntityIds: EntityId[] | null
+  spawnedItems: SpawnedItemEntity[] | null
 }

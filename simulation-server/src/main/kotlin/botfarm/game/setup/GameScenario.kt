@@ -17,10 +17,11 @@ open class GameScenario(
    identifier: String,
    name: String? = null,
    description: String? = null,
-   val spawnPlayersEntityMode: SpawnPlayersMode = SpawnPlayersMode.All,
+   val autoSpawnPlayersEntityMode: SpawnPlayersMode = SpawnPlayersMode.All,
    requiresAdmin: Boolean = true,
    val buildMockAgent: ((context: MockAgentContext) -> MockAgent)? = null,
-   val configureGameSimulationCallback: (GameSimulation) -> Unit = {}
+   val configureGameSimulationCallback: (GameSimulation) -> Unit = {},
+   val autoPauseAiPerSpentDollars: Double? = 1.0
 ) : Scenario(
    identifier = identifier,
    gameIdentifier = "game",

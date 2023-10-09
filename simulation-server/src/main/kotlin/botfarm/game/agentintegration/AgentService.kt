@@ -64,10 +64,12 @@ class AgentService(
             setBody(bodyString)
          }
 
+         val responseBodyText = httpResponse.bodyAsText()
+
          val response = try {
-            httpResponse.body<AgentSyncResponse>()
+            Json.decodeFromString<AgentSyncResponse>(responseBodyText)
          } catch (exception: Exception) {
-            throw Exception("Exception getting parsed HTTP body:${httpResponse.bodyAsText()}\n", exception)
+            throw Exception("Exception getting parsed HTTP body: $responseBodyText\n", exception)
          }
 
          return response.outputs

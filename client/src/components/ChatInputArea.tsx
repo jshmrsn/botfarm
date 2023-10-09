@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {ReactElement, useState} from "react";
 import {ActionIcon, Textarea} from "@mantine/core";
 import {IconSend} from "@tabler/icons-react";
 import {PanelTypes} from "./SimulationComponent";
@@ -13,7 +13,7 @@ interface ChatInputAreaProps {
   notifyChatInputIsFocused: (focused: boolean) => void
 }
 
-export function ChatInputArea(props: ChatInputAreaProps): JSX.Element {
+export function ChatInputArea(props: ChatInputAreaProps): ReactElement {
   const windowWidth = props.windowWidth
   const dynamicState = props.dynamicState
 

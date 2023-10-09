@@ -102,7 +102,11 @@ export function InspectionPanel(props: InspectionPanelProps) {
       <Text><b>Position</b> x{position.x.toFixed(0)}, y{position.y.toFixed(0)}</Text>
 
       <Text weight={"bold"}>Inventory</Text>
-      {inventoryComponent != null ? <InventoryListComponent entity={entity} dynamicState={props.dynamicState} viewOnly={true}/> : null}
+      {inventoryComponent != null ? <InventoryListComponent
+        perspectiveEntity={entity}
+        userControlledEntity={null}
+        dynamicState={props.dynamicState}
+        viewOnly={true}/> : null}
 
       <Switch checked={debugMode}
               onChange={(event) => setDebugMode(event.currentTarget.checked)}

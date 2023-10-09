@@ -39,44 +39,6 @@ class MovementRecord(
 )
 
 @Serializable
-class ActionOnEntityRecord(
-   val startedAtTime: Double,
-   val desiredAutoInteractType: AutoInteractType,
-   val resultAutoInteractType: AutoInteractType,
-   val targetEntityId: EntityId,
-   val reason: String?
-)
-
-enum class ActionOnInventoryType {
-   Failed,
-   NoToolItemEquipped,
-   Obstructed,
-   NoActionForEquippedTool,
-   ItemNotInInventory,
-
-   Drop,
-   Equip,
-   Use
-}
-
-@Serializable
-class ActionOnInventoryItemRecord(
-   val startedAtTime: Double,
-   val itemConfigKey: String?,
-   val desiredActionOnInventoryType: ActionOnInventoryType,
-   val resultActionOnInventoryType: ActionOnInventoryType,
-   val reason: String? = null,
-   val amount: Int? = null
-)
-
-@Serializable
-class CraftItemActionRecord(
-   val startedAtTime: Double,
-   val itemConfigKey: String,
-   val reason: String?
-)
-
-@Serializable
 class ItemInfo(
    val name: String,
    val description: String,
@@ -135,31 +97,84 @@ class EntityInfo(
    val growerInfo: GrowerEntityInfo? = null
 )
 
+enum class ActionType {
+   UseToolToDamageEntity,
+   PlaceGrowableInGrower,
+   DropItem,
+   PickupItem,
+   UseEquippedTool,
+   EquipItem,
+   UnequipItem,
+   Speak,
+   Thought,
+   Craft
+}
+
+enum class ActionResultType {
+   Success,
+   Failed,
+   NoValidAction,
+   TargetNotAnItem,
+   UnexpectedItemInStack,
+   UnexpectedEquippedItem,
+   StillTooFarAfterMoving,
+   FailedToMoveForAction,
+   TargetNoLongerExists,
+   InvalidTargetEntityId,
+   TargetAlreadyDead,
+   NoToolItemEquipped,
+   Busy,
+   Obstructed,
+   NoActionForEquippedTool,
+   ItemNotInInventory,
+   UnexpectedAutoAction
+}
+
+
 @Serializable
-class ActivityStreamEntryRecord(
+data class SpawnedItemEntity(
+   val name: String,
+   val amount: Int,
+   val itemConfigKey: String,
+   val entityId: EntityId
+)
+
+@Serializable
+data class ActivityStreamEntry(
    val time: Double,
-   val title: String,
+   val title: String?,
    val message: String? = null,
-   val actionType: String? = null,
+   val longMessage: String? = null,
+
+   val actionType: ActionType? = null,
+   val actionResultType: ActionResultType? = null,
+   val actionIconPath: String? = null,
+   val actionItemName: String? = null,
+   val actionItemConfigKey: String? = null,
+
+   val shouldReportToAi: Boolean = true,
+
+
    val sourceLocation: Vector2? = null,
+   val sourceName: String? = null,
+   val sourceIconPath: String? = null,
    val sourceEntityId: EntityId? = null,
-   val targetEntityId: EntityId? = null
-)
 
-@Serializable
-class SelfSpokenMessage(
-   val message: String,
-   val location: Vector2,
-   val time: Double,
-   val reason: String?
-)
+   val targetIconPath: String? = null,
+   val targetEntityId: EntityId? = null,
+   val targetName: String? = null,
+   val targetConfigKey: String? = null,
 
-@Serializable
-class SelfThought(
-   val thought: String,
-   val location: Vector2,
-   val time: Double,
-   val reason: String?
+   val resultName: String? = null,
+   val resultIconPath: String? = null,
+
+   val agentReason: String? = null,
+
+   val onlyShowForPerspectiveEntity: Boolean,
+
+
+   val observedByEntityIds: List<EntityId>? = null,
+   val spawnedItems: List<SpawnedItemEntity>? = null
 )
 
 @Serializable
@@ -172,17 +187,11 @@ class EntityInfoWrapper(
 @Serializable
 class Observations(
    val scriptExecutionErrors: List<ScriptExecutionError>,
-   val spokenMessages: List<ObservedSpokenMessage>,
-   val selfSpokenMessages: List<SelfSpokenMessage>,
    val entitiesById: Map<EntityId, EntityInfoWrapper>,
    val movementRecords: List<MovementRecord>,
-   val actionOnEntityRecords: List<ActionOnEntityRecord>,
-   val actionOnInventoryItemActionRecords: List<ActionOnInventoryItemRecord>,
-   val craftItemActionRecords: List<CraftItemActionRecord>,
-   val activityStreamEntries: List<ActivityStreamEntryRecord>,
+   val activityStreamEntries: List<ActivityStreamEntry>,
    val actionResults: List<ActionResult>,
-   val startedActionUniqueIds: List<String>,
-   val selfThoughts: List<SelfThought>
+   val startedActionUniqueIds: List<String>
 )
 
 @Serializable
@@ -219,7 +228,7 @@ class SelfInfo(
    val entityInfoWrapper: EntityInfoWrapper,
    val corePersonality: String,
    val initialMemories: List<String>,
-   val observationDistance: Double,
+   val observationRadius: Double,
    val inventoryInfo: InventoryInfo,
    val equippedItemConfigKey: String?
 )
@@ -255,18 +264,3 @@ class AgentSyncInput(
    val agentTypeScriptInterfaceString: String,
    val mostRecentCompletedScriptId: String?
 )
-
-enum class AutoInteractType {
-   // Results
-   Failed,
-   StillTooFarAfterMoving,
-   FailedToMove,
-   TargetNoLongerExists,
-   TargetAlreadyDead,
-
-   // Behaviors
-   PickUp,
-   AttackWithEquippedTool,
-   UseEquippedTool,
-   PlacedGrowableInGrower
-}

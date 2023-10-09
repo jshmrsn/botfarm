@@ -8,7 +8,7 @@ import botfarm.engine.simulation.TickSystemContext
 import botfarm.game.GameSimulation
 import botfarm.game.components.*
 import botfarm.game.config.EquipmentSlot
-import botfarmshared.game.apidata.AutoInteractType
+import botfarmshared.game.apidata.ActionResultType
 
 fun pendingInteractionTickSystem(
    context: TickSystemContext,
@@ -55,29 +55,32 @@ fun pendingInteractionTickSystem(
       )
    }
 
+   // TODO: Only perform action if it matches characterComponentData.pendingInteractionActionType, otherwise result in ActionResultType.UnexpectedAction
+
    if (characterComponentData.pendingUseEquippedToolItemRequest != null) {
       val result = simulation.useEquippedToolItem(
          interactingEntity = entity,
          expectedItemConfigKey = characterComponentData.pendingUseEquippedToolItemRequest.expectedItemConfigKey
       )
 
-      if (result !is GameSimulation.UseEquippedItemResult.Success) {
-         pendingCallback(AutoInteractType.Failed)
-      } else {
-         pendingCallback(AutoInteractType.UseEquippedTool)
+      when (result) {
+         is GameSimulation.UseEquippedItemResult.Success -> pendingCallback(ActionResultType.Success)
+         is GameSimulation.UseEquippedItemResult.UnexpectedEquippedItem -> pendingCallback(ActionResultType.UnexpectedEquippedItem)
+         is GameSimulation.UseEquippedItemResult.NoActionForEquippedTool -> pendingCallback(ActionResultType.NoActionForEquippedTool)
+         is GameSimulation.UseEquippedItemResult.NoToolItemEquipped -> pendingCallback(ActionResultType.NoToolItemEquipped)
+         is GameSimulation.UseEquippedItemResult.Busy -> pendingCallback(ActionResultType.Busy)
+         is GameSimulation.UseEquippedItemResult.Obstructed -> pendingCallback(ActionResultType.Obstructed)
+         else -> pendingCallback(ActionResultType.Failed)
       }
    } else if (characterComponentData.pendingInteractionTargetEntityId != null) {
       val targetEntity =
          context.simulation.getEntityOrNull(characterComponentData.pendingInteractionTargetEntityId)
 
       if (targetEntity == null) {
-         pendingCallback(AutoInteractType.TargetNoLongerExists)
+         pendingCallback(ActionResultType.TargetNoLongerExists)
       } else if (targetEntity.isDead) {
-         pendingCallback(AutoInteractType.TargetAlreadyDead)
+         pendingCallback(ActionResultType.TargetAlreadyDead)
       } else {
-         val targetPosition = targetEntity.resolvePosition()
-
-
          val itemConfig = targetEntity.itemConfigOrNull
 
          val targetGrowerComponent = targetEntity.getComponentOrNull<GrowerComponentData>()
@@ -91,12 +94,12 @@ fun pendingInteractionTickSystem(
 
                when (result) {
                   GameSimulation.PickUpItemResult.Success -> {
-                     pendingCallback(AutoInteractType.PickUp)
+                     pendingCallback(ActionResultType.Success)
                   }
 
                   GameSimulation.PickUpItemResult.TooFar -> {
                      sendAlertToControlledClient("Too far away to pick up item")
-                     pendingCallback(AutoInteractType.Failed)
+                     pendingCallback(ActionResultType.StillTooFarAfterMoving)
                   }
                }
             } else if (itemConfig.damageableConfig?.damageableByEquippedToolItemConfigKey != null &&
@@ -109,14 +112,11 @@ fun pendingInteractionTickSystem(
                )
 
                when (result) {
-                  GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {
-                     pendingCallback(AutoInteractType.AttackWithEquippedTool)
-                  }
-
-                  else -> {
-                     sendAlertToControlledClient("Can't damage this item: " + result.name)
-                     pendingCallback(AutoInteractType.Failed)
-                  }
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> pendingCallback(ActionResultType.Success)
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.NoToolItemEquipped -> pendingCallback(ActionResultType.NoToolItemEquipped)
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.TooFar -> pendingCallback(ActionResultType.StillTooFarAfterMoving)
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.TargetEntityIsDead -> pendingCallback(ActionResultType.TargetAlreadyDead)
+                  else -> pendingCallback(ActionResultType.Failed)
                }
             } else if (itemConfig.growerConfig != null &&
                equippedToolItemConfig != null &&
@@ -131,22 +131,19 @@ fun pendingInteractionTickSystem(
                )
 
                when (result) {
-                  GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> {
-                     pendingCallback(AutoInteractType.PlacedGrowableInGrower)
-                  }
-
-                  else -> {
-                     sendAlertToControlledClient("Can't place growable in grower: " + result.name)
-                     pendingCallback(AutoInteractType.Failed)
-                  }
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.Success -> pendingCallback(ActionResultType.Success)
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.NoToolItemEquipped -> pendingCallback(ActionResultType.NoToolItemEquipped)
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.TooFar -> pendingCallback(ActionResultType.StillTooFarAfterMoving)
+                  GameSimulation.InteractWithEntityUsingEquippedItemResult.TargetEntityIsDead -> pendingCallback(ActionResultType.TargetAlreadyDead)
+                  else -> pendingCallback(ActionResultType.Failed)
                }
             } else {
                // No valid action
-               pendingCallback(AutoInteractType.Failed)
+               pendingCallback(ActionResultType.NoValidAction)
             }
          } else {
             // Target not an item
-            pendingCallback(AutoInteractType.Failed)
+            pendingCallback(ActionResultType.TargetNotAnItem)
          }
       }
    }

@@ -1,6 +1,6 @@
 import {Text} from "@mantine/core";
 import {IconGridDots} from "@tabler/icons-react";
-import React from "react";
+import React, {ReactElement} from "react";
 import {InventoryListComponent} from "./InventoryListComponent";
 import {Entity} from "../simulation/Entity";
 import {ActivityStreamComponentData} from "../game/activityStreamComponentData";
@@ -10,10 +10,11 @@ import {useWindowSize} from "@react-hook/window-size";
 interface MyInventoryPanelProps {
   dynamicState: DynamicState
   userControlledEntity: Entity | null
+  perspectiveEntity: Entity | null
   useMobileLayout: boolean
 }
 
-export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | null {
+export function MyInventoryPanel(props: MyInventoryPanelProps): ReactElement | null {
   const dynamicState = props.dynamicState
   const sideBarWidth = 250
   const simulation = props.dynamicState.simulation
@@ -23,9 +24,9 @@ export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | nu
     return null
   }
 
-  const userControlledEntity = props.userControlledEntity
+  const perspectiveEntity = props.perspectiveEntity
 
-  if (userControlledEntity == null) {
+  if (perspectiveEntity == null) {
     return null
   }
 
@@ -67,7 +68,10 @@ export function MyInventoryPanel(props: MyInventoryPanelProps): JSX.Element | nu
         overflowY: "auto"
       }}
     >
-      {<InventoryListComponent dynamicState={dynamicState} entity={userControlledEntity} viewOnly={false}/>}
+      {<InventoryListComponent dynamicState={dynamicState}
+                               perspectiveEntity={perspectiveEntity}
+                               userControlledEntity={props.userControlledEntity}
+                               viewOnly={perspectiveEntity !== props.userControlledEntity}/>}
     </div>
   </div>
 }

@@ -6,7 +6,7 @@ import {PositionComponent} from "../common/PositionComponentData";
 import {AgentControlledComponent} from "../game/AgentControlledComponentData";
 import ReactMarkdown from "react-markdown";
 import {getUnixTimeSeconds} from "../misc/utils";
-import {Fragment} from "react";
+import {Fragment, ReactElement} from "react";
 
 export function renderSelectedEntityInspection(
   entity: Entity
@@ -18,7 +18,7 @@ export function renderSelectedEntityInspection(
 
   const simulationTime = simulation.getCurrentSimulationTime()
 
-  let positionDiv: JSX.Element | null
+  let positionDiv: ReactElement | null
   if (positionComponent != null) {
     const position = Vector2Animation.resolve(positionComponent.data.positionAnimation, simulationTime)
     positionDiv = <div>
@@ -28,7 +28,7 @@ export function renderSelectedEntityInspection(
     positionDiv = null
   }
 
-  let agentDiv: JSX.Element | null
+  let agentDiv: ReactElement | null
   if (agentControlledComponent != null) {
     const agentControlledComponentData = agentControlledComponent.data
     agentDiv = <div>
