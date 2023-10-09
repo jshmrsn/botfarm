@@ -23,7 +23,7 @@ class SpawnItemOnUseConfig(
    val quantity: RandomItemQuantity = RandomItemQuantity.amount(1)
 )
 
-class SpawnItemOnDestructionConfig(
+class SpawnItemOnKillConfig(
    val spawnItemConfigKey: String,
    val quantity: RandomItemQuantity
 )
@@ -43,7 +43,7 @@ enum class EquipmentSlot {
 
 class DamageableConfig(
    val maxHp: Int,
-   val spawnItemOnDestructionConfig: SpawnItemOnDestructionConfig? = null,
+   val spawnItemOnKillConfig: SpawnItemOnKillConfig? = null,
    val damageableByEquippedToolItemConfigKey: String? = null
 )
 
@@ -77,7 +77,7 @@ class ItemConfig(
    val storableConfig: StorableConfig? = null,
    val damageableConfig: DamageableConfig? = null,
    val craftableConfig: CraftableConfig? = null,
-   val spawnItemOnDestructionConfig: SpawnItemOnDestructionConfig? = null, // tree spawns wood when cut down
+   val spawnItemOnKillConfig: SpawnItemOnKillConfig? = null, // tree spawns wood when cut down
    val growerConfig: GrowerConfig? = null, // farm plots receive and grow carrot seeds
    val growableConfig: GrowableConfig? = null, // carrot seeds grow into carrots
    val spawnItemOnUseConfig: SpawnItemOnUseConfig? = null // hoe spawns farm plots

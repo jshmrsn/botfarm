@@ -961,18 +961,18 @@ class AgentIntegration(
             simulation.broadcastAlertAsGameMessage("Unable to find available item stack to drop ($debugInfo): actionUniqueId = $actionUniqueId, itemConfigKey = $itemConfigKey")
             false
          } else {
-            val didDrop = simulation.dropItemStack(
+            val droppedItemEntity = simulation.dropItemStack(
                droppingEntity = entity,
                expectedItemConfigKey = itemConfigKey,
                stackIndex = stackIndex,
                amountToDropFromStack = amount
             )
 
-            if (!didDrop) {
+            if (droppedItemEntity == null) {
                simulation.broadcastAlertAsGameMessage("Unable to drop item stack for agent ($debugInfo): actionUniqueId = $actionUniqueId, stackIndex = $stackIndex, amount = $amount, itemConfigKey = $itemConfigKey")
             }
 
-            didDrop
+            droppedItemEntity != null
          }
 
          this.pendingObservations.actionOnInventoryItemActionRecords.add(

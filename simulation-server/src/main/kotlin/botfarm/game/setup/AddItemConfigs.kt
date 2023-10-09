@@ -24,7 +24,7 @@ fun addItemConfigs(configs: MutableList<Config>) {
       storableConfig: StorableConfig? = null,
       craftableConfig: CraftableConfig? = null,
       equippableConfig: EquippableConfig? = null,
-      spawnItemOnDestructionConfig: SpawnItemOnDestructionConfig? = null, // tree spawns wood when cut down
+      spawnItemOnKillConfig: SpawnItemOnKillConfig? = null, // tree spawns wood when cut down
       growerConfig: GrowerConfig? = null, // farm plots receive and grow carrot seeds
       growableConfig: GrowableConfig? = null, // carrot seeds grow into carrots
       spawnItemOnUseConfig: SpawnItemOnUseConfig? = null, // hoe spawns farm plots
@@ -59,7 +59,7 @@ fun addItemConfigs(configs: MutableList<Config>) {
          storableConfig = storableConfig,
          equippableConfig = equippableConfig,
          craftableConfig = craftableConfig,
-         spawnItemOnDestructionConfig = spawnItemOnDestructionConfig,
+         spawnItemOnKillConfig = spawnItemOnKillConfig,
          growableConfig = growableConfig,
          growerConfig = growerConfig,
          spawnItemOnUseConfig = spawnItemOnUseConfig,
@@ -231,7 +231,7 @@ fun addItemConfigs(configs: MutableList<Config>) {
       iconUrl = "/assets/items/tree/tree.png",
       spriteBaseScale = Vector2.uniform(0.7),
       spriteBaseOffset = Vector2(0.0, -38.0),
-      spawnItemOnDestructionConfig = SpawnItemOnDestructionConfig(
+      spawnItemOnKillConfig = SpawnItemOnKillConfig(
          spawnItemConfigKey = "wood",
          quantity = RandomItemQuantity.stacksOfAmount(
             stackCount = RandomConfig.range(1, 3),
@@ -245,8 +245,8 @@ fun addItemConfigs(configs: MutableList<Config>) {
       collisionConfig = CollisionConfig(
          width = 3,
          height = 4,
-         cellOffsetY = 0,
-         collisionOffset = Vector2(0.0, -20.0)
+         //cellOffsetY = 0
+         //collisionOffset = Vector2(0.0, -20.0)
       )
    )
 
@@ -256,7 +256,7 @@ fun addItemConfigs(configs: MutableList<Config>) {
       description = "A boulder",
       textureUrl = "/assets/items/boulder/boulder.png",
       iconUrl = "/assets/items/boulder/boulder.png",
-      spawnItemOnDestructionConfig = SpawnItemOnDestructionConfig(
+      spawnItemOnKillConfig = SpawnItemOnKillConfig(
          spawnItemConfigKey = "stone",
          quantity = RandomItemQuantity.stacksOfAmount(
             stackCount = RandomConfig.range(1, 3),

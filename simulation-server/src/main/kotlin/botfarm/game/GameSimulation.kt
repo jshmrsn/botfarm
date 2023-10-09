@@ -661,15 +661,15 @@ class GameSimulation(
          return
       }
 
-      val didDrop = this.dropItemStack(
+      val droppedItemEntity = this.dropItemStack(
          droppingEntity = entity,
          expectedItemConfigKey = message.itemConfigKey,
          amountToDropFromStack = message.amountFromStack,
          stackIndex = message.stackIndex
       )
 
-      if (!didDrop) {
-         sendAlertMessage(client, "Not enough to drop")
+      if (droppedItemEntity == null) {
+         sendAlertMessage(client, "Unable to drop")
       }
    }
 
@@ -678,7 +678,7 @@ class GameSimulation(
       expectedItemConfigKey: String,
       stackIndex: Int,
       amountToDropFromStack: Int? = null
-   ): Boolean {
+   ): Entity? {
       val itemConfig = this.getConfig<ItemConfig>(expectedItemConfigKey)
 
       if (itemConfig.storableConfig == null || !itemConfig.storableConfig.canBeDropped) {
@@ -690,7 +690,7 @@ class GameSimulation(
       val stack = inventory.itemStacks.getOrNull(stackIndex)
 
       if (stack == null || stack.itemConfigKey != expectedItemConfigKey) {
-         return false
+         return null
       }
 
       val resolvedAmountToDrop: Int
@@ -698,7 +698,7 @@ class GameSimulation(
          if (amountToDropFromStack <= stack.amount) {
             resolvedAmountToDrop = amountToDropFromStack
          } else {
-            return false
+            return null
          }
       } else {
          resolvedAmountToDrop = stack.amount
@@ -736,8 +736,7 @@ class GameSimulation(
          actionType = ActionType.DropItem
       )
 
-
-      this.spawnItem(
+      val spawnedEntity = this.spawnItem(
          itemConfigKey = stack.itemConfigKey,
          amount = resolvedAmountToDrop,
          location = droppingEntity.resolvePosition() + Vector2.randomSignedXY(50.0)
@@ -758,7 +757,7 @@ class GameSimulation(
          )
       )
 
-      return true
+      return spawnedEntity
    }
 
    enum class PickUpItemResult {
@@ -909,14 +908,12 @@ class GameSimulation(
 
       val equippedToolItemConfigAndStackIndex = interactingEntity.getEquippedItemConfigAndStackIndex(EquipmentSlot.Tool)
 
-
       if (equippedToolItemConfigAndStackIndex == null) {
          return InteractWithEntityUsingEquippedItemResult.NoToolItemEquipped
       }
 
       val equippedStackIndex = equippedToolItemConfigAndStackIndex.first
       val equippedToolItemConfig = equippedToolItemConfigAndStackIndex.second
-
 
       val targetEntityIsDead = targetEntity.isDead
 
@@ -968,22 +965,52 @@ class GameSimulation(
             simulationTimeDelay = 0.45,
             isValid = { targetEntity.exists && killableComponent.data.killedAtTime == null }
          ) {
-            this.addActivityStreamEntry(
-               ActivityStreamEntry(
-                  time = this.getCurrentSimulationTime(),
-                  title = "$interactingEntityName harvested a ${targetItemConfig.name} using a ${equippedToolItemConfig.name}",
-                  sourceIconPath = null,
-                  sourceLocation = interactingEntityPosition,
-                  targetIconPath = targetItemConfig.iconUrl,
-                  actionIconPath = equippedToolItemConfig.iconUrl,
-                  actionType = "harvest"
-               )
-            )
-
-            this.applyDamageToEntity(
+            val applyDamageResult = this.applyDamageToEntity(
                targetEntity = targetEntity,
                damage = 1000
             )
+
+            if (applyDamageResult is ApplyDamageResult.Killed) {
+               val spawnedItemsMessage = if (applyDamageResult.spawnedItemEntitiesOnKill.isNotEmpty()) {
+                  val suffixComponents = applyDamageResult.spawnedItemEntitiesOnKill.map {
+                     val itemComponent = it.getComponent<ItemComponentData>()
+                     val itemConfig = this.getConfig<ItemConfig>(itemComponent.data.itemConfigKey)
+                     val amount = itemComponent.data.amount
+                     itemConfig.name + " (x$amount)"
+                  }
+
+                  " (dropping ${suffixComponents.joinToString(", ")})"
+               } else {
+                  null
+               }
+
+               this.addActivityStreamEntry(
+                  ActivityStreamEntry(
+                     time = this.getCurrentSimulationTime(),
+                     title = "$interactingEntityName harvested a ${targetItemConfig.name} using a ${equippedToolItemConfig.name}",
+                     message = spawnedItemsMessage,
+                     sourceIconPath = null,
+                     sourceLocation = interactingEntityPosition,
+                     targetIconPath = targetItemConfig.iconUrl,
+                     actionIconPath = equippedToolItemConfig.iconUrl,
+                     actionType = "harvest",
+                     sourceEntityId = interactingEntity.entityId
+                  )
+               )
+            } else {
+               this.addActivityStreamEntry(
+                  ActivityStreamEntry(
+                     time = this.getCurrentSimulationTime(),
+                     title = "$interactingEntityName damaged a ${targetItemConfig.name} using a ${equippedToolItemConfig.name}",
+                     sourceIconPath = null,
+                     sourceLocation = interactingEntityPosition,
+                     targetIconPath = targetItemConfig.iconUrl,
+                     actionIconPath = equippedToolItemConfig.iconUrl,
+                     actionType = "harvest",
+                     sourceEntityId = interactingEntity.entityId
+                  )
+               )
+            }
          }
 
          return InteractWithEntityUsingEquippedItemResult.Success
@@ -1045,10 +1072,20 @@ class GameSimulation(
       return InteractWithEntityUsingEquippedItemResult.NoActionAvailable
    }
 
+   sealed interface ApplyDamageResult {
+      data object AlreadyDead : ApplyDamageResult
+      class Killed(
+         val spawnedItemEntitiesOnKill: List<Entity> = listOf(),
+         val droppedInventoryItemEntities: List<Entity> = listOf()
+      ) : ApplyDamageResult
+
+      class Damaged : ApplyDamageResult
+   }
+
    fun applyDamageToEntity(
       targetEntity: Entity,
       damage: Int
-   ) {
+   ): ApplyDamageResult {
       if (damage < 0) {
          throw Exception("Damage cannot be negative")
       }
@@ -1056,7 +1093,7 @@ class GameSimulation(
       val killableComponent = targetEntity.getComponent<DamageableComponentData>()
 
       if (killableComponent.data.killedAtTime != null) {
-         return
+         return ApplyDamageResult.AlreadyDead
       }
 
       val newHp = Math.max(0, killableComponent.data.hp - damage)
@@ -1078,19 +1115,20 @@ class GameSimulation(
          this.collisionMap.clearEntity(targetEntity.entityId)
          this.collisionMapDebugInfoIsOutOfDate = true
 
-         val itemComponent = targetEntity.getComponentOrNull<ItemComponentData>()
+         val spawnedItemEntitiesOnKill = mutableListOf<Entity>()
+         val droppedInventoryItemEntities = mutableListOf<Entity>()
 
-         if (itemComponent != null) {
-            val itemConfig = this.getConfig<ItemConfig>(itemComponent.data.itemConfigKey)
+         val itemConfig = targetEntity.itemConfigOrNull
 
-            if (itemConfig.spawnItemOnDestructionConfig != null) {
+         if (itemConfig?.spawnItemOnKillConfig != null) {
+            spawnedItemEntitiesOnKill.addAll(
                this.spawnItems(
-                  itemConfigKey = itemConfig.spawnItemOnDestructionConfig.spawnItemConfigKey,
+                  itemConfigKey = itemConfig.spawnItemOnKillConfig.spawnItemConfigKey,
                   baseLocation = targetEntity.resolvePosition(),
                   randomLocationScale = 50.0,
-                  quantity = itemConfig.spawnItemOnDestructionConfig.quantity
+                  quantity = itemConfig.spawnItemOnKillConfig.quantity
                )
-            }
+            )
          }
 
          val inventoryComponent = targetEntity.getComponentOrNull<InventoryComponentData>()
@@ -1098,29 +1136,36 @@ class GameSimulation(
          if (inventoryComponent != null) {
             val inventory = inventoryComponent.data.inventory
 
-            while (true) {
-               var stackIndex = 0
-               for (itemStack in inventory.itemStacks) {
-                  val inventoryItemConfig = this.getConfig<ItemConfig>(itemStack.itemConfigKey)
+            var stackIndex = 0
+            for (itemStack in inventory.itemStacks) {
+               val inventoryItemConfig = this.getConfig<ItemConfig>(itemStack.itemConfigKey)
 
-                  if (inventoryItemConfig.storableConfig != null) {
-                     val didDrop = this.dropItemStack(
-                        droppingEntity = targetEntity,
-                        expectedItemConfigKey = itemStack.itemConfigKey,
-                        stackIndex = stackIndex
-                     )
+               if (inventoryItemConfig.storableConfig != null) {
+                  val droppedItemEntity = this.dropItemStack(
+                     droppingEntity = targetEntity,
+                     expectedItemConfigKey = itemStack.itemConfigKey,
+                     stackIndex = stackIndex
+                  )
 
-                     if (!didDrop) {
-                        throw Exception("Unexpected failure to drop item: " + inventoryItemConfig.key + ", " + stackIndex)
-                     }
-
-                     // jshmrsn: Don't increment stack index to account for this stack being removed via dropping
-                  } else {
-                     ++stackIndex
+                  if (droppedItemEntity == null) {
+                     throw Exception("Unexpected failure to drop item: " + inventoryItemConfig.key + ", " + stackIndex)
                   }
+
+                  droppedInventoryItemEntities.add(droppedItemEntity)
+
+                  // jshmrsn: Don't increment stack index to account for this stack being removed via dropping
+               } else {
+                  ++stackIndex
                }
             }
          }
+
+         return ApplyDamageResult.Killed(
+            spawnedItemEntitiesOnKill = spawnedItemEntitiesOnKill,
+            droppedInventoryItemEntities = droppedInventoryItemEntities
+         )
+      } else {
+         return ApplyDamageResult.Damaged()
       }
    }
 
@@ -1372,23 +1417,44 @@ class GameSimulation(
    ): Entity {
       val collisionConfig = itemConfig.collisionConfig
       val resolvedLocation = if (collisionConfig != null) {
-         val cellCenter = this.collisionMap.pointToNearestCellCenter(location)
-         val cellCorner = this.collisionMap.pointToNearestCorner(location)
+         val desiredTopLeftCell = this.collisionMap.pointToIndexPair(location).let {
+            IndexPair(
+               row = it.row - (collisionConfig.height * 0.5).toInt(),
+               col = it.col - (collisionConfig.width * 0.5).toInt()
+            )
+         }
+
+         val openTopLeftCell = this.collisionMap.findOpenTopLeftCellForShapeOrFallback(
+            startIndexPair = desiredTopLeftCell,
+            fitShapeWidth = collisionConfig.width,
+            fitShapeHeight = collisionConfig.height
+         )
+
+         val openBottomRightCell = openTopLeftCell.let {
+            IndexPair(
+               row = it.row + collisionConfig.height - 1,
+               col = it.col + collisionConfig.width - 1
+            )
+         }
+
+         val topLeft = this.collisionMap.indexPairToCellTopLeftCorner(openTopLeftCell)
+         val bottomRight = this.collisionMap.indexPairToCellBottomRightCorner(openBottomRightCell)
+         val center = topLeft.lerp(bottomRight, 0.5)
 
          itemConfig.collisionConfig.collisionOffset + Vector2(
-            x = if (collisionConfig.width % 2 == 0) {
-               cellCorner.x
-            } else {
-               cellCenter.x
-            },
-            y = if (collisionConfig.height % 2 == 0) {
-               cellCorner.y
-            } else {
-               cellCenter.y
-            }
+            x = center.x,
+            y = center.y
          )
       } else {
-         location
+         val desiredCell = this.collisionMap.pointToIndexPair(location)
+
+         val openCell = this.collisionMap.findOpenTopLeftCellForShapeOrFallback(
+            startIndexPair = desiredCell,
+            fitShapeWidth = 1,
+            fitShapeHeight = 1
+         )
+         // jshmrsn: Consider maintaining within-cell offset
+         this.collisionMap.indexPairToCellCenter(openCell)
       }
 
       val components = mutableListOf(

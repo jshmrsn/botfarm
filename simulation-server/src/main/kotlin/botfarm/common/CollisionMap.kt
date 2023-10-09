@@ -11,6 +11,10 @@ class CollisionMap(
    val cellWidth: Double,
    val cellHeight: Double
 ) {
+   companion object {
+      val defaultMaxSearchOffset = 15
+   }
+
    class OccupyingEntity(
       val occupyingCellsIndices: List<IndexPair>
    )
@@ -62,6 +66,26 @@ class CollisionMap(
       )
    }
 
+   fun indexPairToCellTopLeftCorner(indexPair: IndexPair): Vector2 {
+      val tileWidth = this.cellWidth
+      val tileHeight = this.cellHeight
+
+      return Vector2(
+         x = tileWidth * (indexPair.col),
+         y = tileHeight * (indexPair.row)
+      )
+   }
+
+   fun indexPairToCellBottomRightCorner(indexPair: IndexPair): Vector2 {
+      val tileWidth = this.cellWidth
+      val tileHeight = this.cellHeight
+
+      return Vector2(
+         x = tileWidth * (indexPair.col + 1),
+         y = tileHeight * (indexPair.row + 1)
+      )
+   }
+
    fun pointToNearestCorner(point: Vector2): Vector2 {
       return Vector2(
          x = (point.x / this.cellWidth).roundToInt() * this.cellWidth,
@@ -72,7 +96,7 @@ class CollisionMap(
    fun pointToNearestCellCenter(point: Vector2): Vector2 {
       return Vector2(
          x = ((point.x / this.cellWidth).toInt() + 0.5) * this.cellWidth,
-         y =( (point.y / this.cellHeight).toInt() + 0.5) * this.cellHeight
+         y = ((point.y / this.cellHeight).toInt() + 0.5) * this.cellHeight
       )
    }
 
@@ -167,10 +191,10 @@ class CollisionMap(
       )
    }
 
-   fun findOpenCell(startPoint: Vector2, endPoint: Vector2): IndexPair? {
+   fun findOpenCellBetween(startPoint: Vector2, endPoint: Vector2): IndexPair? {
       val attempts = Math.ceil(startPoint.distance(endPoint) / Math.min(this.cellWidth, this.cellHeight)).toInt() + 1
 
-      for (attempt in (0 .. attempts)) {
+      for (attempt in (0..attempts)) {
          val percent = attempt / attempts.toDouble()
          val point = startPoint.lerp(endPoint, percent)
 
@@ -184,12 +208,125 @@ class CollisionMap(
       return null
    }
 
+   fun findOpenTopLeftCellForShape(
+      startIndexPair: IndexPair,
+      maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
+      fitShapeWidth: Int = 1,
+      fitShapeHeight: Int = 1
+   ): IndexPair? {
+      if (maxSearchOffset < 0) {
+         throw Exception("maxSearchOffset must not be negative (was $maxSearchOffset)")
+      }
+
+      val clampedStartIndexPair = this.clampIndexPair(startIndexPair)
+
+      fun areCellsUnderShapeOpen(indexPair: IndexPair): Boolean {
+         for (checkOffsetRow in 0..<fitShapeHeight) {
+            for (checkOffsetCol in 0..<fitShapeWidth) {
+               if (!this.isCellOpen(
+                     row = indexPair.row + checkOffsetRow,
+                     col = indexPair.col + checkOffsetCol
+                  )) {
+                  return false
+               }
+            }
+         }
+
+         return true
+      }
+
+      if (areCellsUnderShapeOpen(clampedStartIndexPair)) {
+         return clampedStartIndexPair
+      }
+
+      for (searchOffset in 1..maxSearchOffset) {
+         for (rowOffsetToCheck in listOf(-searchOffset, searchOffset)) {
+            for (columnOffsetToCheck in -searchOffset..searchOffset) {
+               val indexPairToCheck = IndexPair(
+                  row = clampedStartIndexPair.row + rowOffsetToCheck,
+                  col = clampedStartIndexPair.col + columnOffsetToCheck
+               )
+
+               if (areCellsUnderShapeOpen(indexPairToCheck)) {
+                  return indexPairToCheck
+               }
+            }
+         }
+
+         for (columnOffsetToCheck in listOf(-searchOffset, searchOffset)) {
+            val searchOffsetWithoutTopOrBottomRows = searchOffset - 1
+
+            for (rowOffsetToCheck in -searchOffsetWithoutTopOrBottomRows..searchOffsetWithoutTopOrBottomRows) {
+               val indexPairToCheck = IndexPair(
+                  row = clampedStartIndexPair.row + rowOffsetToCheck,
+                  col = clampedStartIndexPair.col + columnOffsetToCheck
+               )
+
+               if (areCellsUnderShapeOpen(indexPairToCheck)) {
+                  return indexPairToCheck
+               }
+            }
+         }
+      }
+
+      return null
+   }
+
+   fun findOpenTopLeftCellForShapeOrFallback(
+      startIndexPair: IndexPair,
+      maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
+      fitShapeWidth: Int = 1,
+      fitShapeHeight: Int = 1
+   ): IndexPair {
+      return this.findOpenTopLeftCellForShape(
+         startIndexPair = startIndexPair,
+         maxSearchOffset = maxSearchOffset,
+         fitShapeWidth = fitShapeWidth,
+         fitShapeHeight = fitShapeHeight
+      ) ?: this.clampIndexPair(startIndexPair)
+   }
+
+   fun findOpenCellCenterAround(
+      startPoint: Vector2,
+      searchRadius: Int = 6,
+      fitShapeWidth: Int = 1,
+      fitShapeHeight: Int = 1
+   ): Vector2? {
+      val startIndexPair = this.pointToIndexPair(startPoint)
+      val indexPairResult = this.findOpenTopLeftCellForShape(
+         startIndexPair = startIndexPair,
+         maxSearchOffset = searchRadius,
+         fitShapeWidth = fitShapeWidth,
+         fitShapeHeight = fitShapeHeight
+      ) ?: return null
+
+      return this.indexPairToCellCenter(indexPairResult)
+   }
+
+   fun findOpenCellCenterAroundOrFallback(
+      startPoint: Vector2,
+      maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
+      fitShapeWidth: Int = 1,
+      fitShapeHeight: Int = 1
+   ): Vector2 {
+      val startIndexPair = this.pointToIndexPair(startPoint)
+      val indexPairResult = this.findOpenTopLeftCellForShapeOrFallback(
+         startIndexPair = startIndexPair,
+         maxSearchOffset = maxSearchOffset,
+         fitShapeWidth = fitShapeWidth,
+         fitShapeHeight = fitShapeHeight
+      )
+
+      return this.indexPairToCellCenter(indexPairResult)
+   }
+
    fun findPath(startPoint: Vector2, endPoint: Vector2): List<IndexPair> {
-      val startIndexPair = this.findOpenCell(startPoint, endPoint)
-      val endIndexPair = this.findOpenCell(endPoint, startPoint)
+      val startIndexPair = this.findOpenCellBetween(startPoint, endPoint)
+      val endIndexPair = this.findOpenCellBetween(endPoint, startPoint)
 
       if (startIndexPair == null ||
-         endIndexPair == null) {
+         endIndexPair == null
+      ) {
          return listOf()
       }
 

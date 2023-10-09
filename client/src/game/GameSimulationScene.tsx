@@ -1280,7 +1280,7 @@ export class GameSimulationScene extends Phaser.Scene {
     return this.simulation.getConfig<T>(configKey, serverSerializationTypeName)
   }
 
-  renderEntities() {
+  renderEntities(didRenderDebugInfo: boolean) {
     const simulationTime = this.getCurrentSimulationTime()
 
     const renderContext = this.renderContext
@@ -1303,6 +1303,19 @@ export class GameSimulationScene extends Phaser.Scene {
       const characterComponent = entity.getComponentOrNull<CharacterComponentData>("CharacterComponentData")
 
       let position = resolvePositionForTime(positionComponent, simulationTime)
+
+      const spriteScale = Vector2.uniform(5.0 / 64.0)
+
+      if (didRenderDebugInfo) {
+        renderContext.renderSprite("center-debug:" + entity.entityId, {
+          layer: this.highlightRingLayer,
+          textureName: "circle",
+          position: position,
+          scale: spriteScale,
+          alpha: 0.8,
+          depth: 10000
+        })
+      }
 
       if (playerCharacterComponent != null &&
         playerCharacterComponent.data.pendingInteractionTargetEntityId === entity.entityId) {
@@ -1362,10 +1375,10 @@ export class GameSimulationScene extends Phaser.Scene {
     }
   }
 
-  renderDebugInfo() {
+  renderDebugInfo(): boolean {
     const debugInfoEntity = this.simulation.getEntityOrNull("debug-info")
     if (debugInfoEntity == null) {
-      return
+      return false
     }
 
     const renderContext = this.renderContext
@@ -1388,12 +1401,14 @@ export class GameSimulationScene extends Phaser.Scene {
 
       ++cellIndex
     }
+
+    return collisionMapDebugInfo.cells.length > 0
   }
 
   render() {
     this.renderContext.render(() => {
-      this.renderDebugInfo()
-      this.renderEntities()
+      const didRenderDebugInfo = this.renderDebugInfo()
+      this.renderEntities(didRenderDebugInfo)
     })
   }
 

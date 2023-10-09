@@ -15,7 +15,6 @@ interface ActivityPanelProps {
 }
 
 export function ActivityPanel(props: ActivityPanelProps) {
-  const windowHeight = props.windowHeight
   const windowWidth = props.windowWidth
   const dynamicState = props.dynamicState
   const sideBarWidth = props.useMobileLayout
