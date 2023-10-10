@@ -176,6 +176,7 @@ class GameSimulation(
 
       resultName: String? = null,
       resultIconPath: String? = null,
+      resultEntityId: EntityId? = null,
 
       shouldLimitObservation: Boolean = sourceLocation != null,
       onlySourceEntityCanObserve: Boolean = onlyShowForPerspectiveEntity,
@@ -240,6 +241,7 @@ class GameSimulation(
                targetName = targetName,
                resultIconPath = resultIconPath,
                resultName = resultName,
+               resultEntityId = resultEntityId,
                agentReason = agentReason,
                onlyShowForPerspectiveEntity = onlyShowForPerspectiveEntity,
                spawnedItems = spawnedItems
@@ -476,6 +478,7 @@ class GameSimulation(
       this.addActivityStreamEntry(
          title = "$name crafted a ${itemConfig.name}",
          sourceName = name,
+         sourceEntityId = entity.entityId,
          targetName = itemConfig.name,
          sourceLocation = entityPosition,
          targetIconPath = itemConfig.iconUrl,
@@ -970,6 +973,15 @@ class GameSimulation(
             ) {
                val spawnItemConfig = this.getConfig<ItemConfig>(spawnItemOnUseConfig.spawnItemConfigKey)
 
+               val spawnedItems = this.spawnItems(
+                  itemConfigKey = spawnItemOnUseConfig.spawnItemConfigKey,
+                  quantity = spawnItemOnUseConfig.quantity,
+                  baseLocation = interactingEntity.resolvePosition(),
+                  randomLocationScale = spawnItemOnUseConfig.randomDistanceScale
+               )
+
+               val spawnedItem = spawnedItems.firstOrNull()
+
                this.addActivityStreamEntry(
                   title = "$interactingEntityName created a ${spawnItemConfig.name}",
 
@@ -983,25 +995,8 @@ class GameSimulation(
                   targetIconPath = equippedToolItemConfig.iconUrl,
 
                   resultName = spawnItemConfig.name,
-                  resultIconPath = spawnItemConfig.iconUrl
-               )
-
-//               startedAtTime = simulationTimeForStep,
-//               reason = reason,
-//               itemConfigKey = equippedToolItemConfigAndStackIndex?.second?.key,
-//               desiredActionOnInventoryType = ActionOnInventoryType.Use,
-//               resultActionOnInventoryType = when (result) {
-//                  is GameSimulation.UseEquippedItemResult.Success -> ActionOnInventoryType.Use
-//                  is GameSimulation.UseEquippedItemResult.NoActionForEquippedTool -> ActionOnInventoryType.Failed
-//                  is GameSimulation.UseEquippedItemResult.NoToolItemEquipped -> ActionOnInventoryType.NoToolItemEquipped
-//                  is GameSimulation.UseEquippedItemResult.Obstructed -> ActionOnInventoryType.Obstructed
-//                  else -> ActionOnInventoryType.Failed
-
-               this.spawnItems(
-                  itemConfigKey = spawnItemOnUseConfig.spawnItemConfigKey,
-                  quantity = spawnItemOnUseConfig.quantity,
-                  baseLocation = interactingEntity.resolvePosition(),
-                  randomLocationScale = spawnItemOnUseConfig.randomDistanceScale
+                  resultIconPath = spawnItemConfig.iconUrl,
+                  resultEntityId = spawnedItem?.entityId
                )
             }
 
@@ -1357,13 +1352,15 @@ class GameSimulation(
          title = "$name picked up a ${targetItemConfig.name}",
 
          sourceLocation = entityPosition,
+         sourceName = name,
          sourceEntityId = pickingUpEntity.entityId,
 
          actionType = ActionType.PickupItem,
          actionResultType = ActionResultType.Success,
 
          targetName = targetItemConfig.name,
-         targetIconPath = targetItemConfig.iconUrl
+         targetIconPath = targetItemConfig.iconUrl,
+         targetEntityId = targetEntity.entityId
       )
 
       return PickUpItemResult.Success
@@ -1811,6 +1808,23 @@ class GameSimulation(
             this.handleCraftItemRequest(client, request)
          }
 
+         "ReRollRequest" -> {
+            client.notifyInteractionReceived()
+
+            val entity = this.getUserControlledEntities(userId = client.userId).firstOrNull()
+
+            if (entity != null) {
+               val characterComponent = entity.getComponent<CharacterComponentData>()
+
+               characterComponent.modifyData {
+                  it.copy(
+                     bodySelections = this.buildRandomCharacterBodySelections()
+                  )
+               }
+            }
+         }
+
+
          "ClearPendingInteractionTargetRequest" -> {
             client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<ClearPendingInteractionTargetRequest>(messageData)
@@ -1934,7 +1948,6 @@ class GameSimulation(
 
             if (entity != null) {
                val characterComponent = entity.getComponent<CharacterComponentData>()
-//               this.broadcastAlertAsGameMessage("${characterComponent.data.name} re-rolled")
 
                characterComponent.modifyData {
                   it.copy(

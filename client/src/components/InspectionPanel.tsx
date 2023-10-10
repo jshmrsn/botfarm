@@ -1,11 +1,11 @@
 import {CharacterComponentData, InventoryComponentData} from "../game/CharacterComponentData";
 import {ItemComponentData, ItemConfig} from "../game/ItemComponentData";
-import {ActionIcon, Button, Switch, Text} from "@mantine/core";
+import {ActionIcon, Button, Text} from "@mantine/core";
 import {renderSelectedEntityInspection} from "./RenderSelectedEntityInspection";
 import React, {Fragment, useState} from "react";
 import {Entity} from "../simulation/Entity";
 import {InventoryListComponent} from "./InventoryListComponent";
-import {IconBug, IconInfoCircle, IconSend, IconX} from "@tabler/icons-react";
+import {IconBug} from "@tabler/icons-react";
 import {resolveEntityPositionForCurrentTime} from "../common/PositionComponentData";
 import {DynamicState} from "./DynamicState";
 import {PanelCloseButton} from "./PanelCloseButton";
@@ -19,6 +19,7 @@ interface InspectionPanelProps {
   dynamicState: DynamicState
   selectedEntity: Entity
   useMobileLayout: boolean
+  isViewingReplay: boolean
 }
 
 export function InspectionPanel(props: InspectionPanelProps) {
@@ -43,6 +44,7 @@ export function InspectionPanel(props: InspectionPanelProps) {
 
   const position = resolveEntityPositionForCurrentTime(entity)
 
+  const canSendMessages = !props.isViewingReplay
 
   return <div
     key={"inspection-panel"}
@@ -134,7 +136,32 @@ export function InspectionPanel(props: InspectionPanelProps) {
     >
       <Text><b>Position</b> x{position.x.toFixed(0)}, y{position.y.toFixed(0)}</Text>
 
-      {dynamicState.userControlledEntity === null ? <Button
+
+      {canSendMessages && dynamicState.userControlledEntity === entity
+        ? <Button
+          variant={"filled"}
+          onClick={() => {
+            dynamicState.simulation?.sendMessage("ReRollRequest", {})
+          }}
+        >
+          Re-Roll
+        </Button>
+        : null}
+
+      {canSendMessages && dynamicState.userControlledEntity === entity
+        ? <Button
+          variant={"filled"}
+          onClick={() => {
+            dynamicState.simulation?.sendDespawnRequest()
+          }}
+        >
+          De-spawn
+        </Button>
+        : null}
+
+      {characterComponent != null &&
+      (dynamicState.rawUserControlledEntity !== entity ||
+        dynamicState.perspectiveEntity == null) ? <Button
         style={{}}
         variant={"filled"}
         onClick={() => {
@@ -158,7 +185,7 @@ export function InspectionPanel(props: InspectionPanelProps) {
             <InventoryListComponent
               perspectiveEntity={entity}
               userControlledEntity={null}
-              dynamicState={props.dynamicState}
+              dynamicState={dynamicState}
               viewOnly={true}/>
           </Fragment> : null}
 

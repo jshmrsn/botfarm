@@ -101,18 +101,19 @@ export const GameSimulationComponent = (props: SimulationProps) => {
     }
   }
 
+  const [isViewingReplay, setIsViewingReplay] = useState(false)
+  const [loadReplayError, setLoadReplayError] = useState<string | null>(null)
+  const [isInForceSpectateMode, setIsInForceSpectateMode] = useState(false)
+
   const dynamicStateContext: DynamicStateContext = {
     setForceUpdateCounter: setForceUpdateCounter,
     selectEntity: selectEntity,
-    setPerspectiveEntityIdOverride: setPerspectiveEntityIdOverride
+    setPerspectiveEntityIdOverride: setPerspectiveEntityIdOverride,
+    setIsInForceSpectateMode: setIsInForceSpectateMode
   }
 
   const [dynamicState, _setDynamicState] = useState<DynamicState>(new DynamicState(userId, dynamicStateContext))
   dynamicState.buildAdminRequest = props.buildAdminRequest
-
-  const [isViewingReplay, setIsViewingReplay] = useState(false)
-  const [loadReplayError, setLoadReplayError] = useState<string | null>(null)
-  const [isInForceSpectateMode, setIsInForceSpectateMode] = useState(false)
 
   const navigate = useNavigate();
 
@@ -371,10 +372,6 @@ export const GameSimulationComponent = (props: SimulationProps) => {
   }) ?? null
     : null
 
-  if (rawUserControlledEntity != null && !isInForceSpectateMode && perspectiveEntityIdOverride != null) {
-    setPerspectiveEntityIdOverride(null)
-  }
-
   const userControlledEntity: Entity | null = (!isInForceSpectateMode && (perspectiveEntityIdOverride == null || perspectiveEntityIdOverride === rawUserControlledEntity?.entityId))
     ? rawUserControlledEntity
     : null
@@ -386,6 +383,7 @@ export const GameSimulationComponent = (props: SimulationProps) => {
     : null
 
   dynamicState.perspectiveEntity = perspectiveEntity
+  dynamicState.rawUserControlledEntity = rawUserControlledEntity
   dynamicState.userControlledEntity = userControlledEntity
 
   function isShowingPanel(panel: PanelType): boolean {
@@ -447,6 +445,7 @@ export const GameSimulationComponent = (props: SimulationProps) => {
         windowWidth={windowWidth}
         useMobileLayout={useMobileLayout}
         selectedEntity={selectedEntity}
+        isViewingReplay={isViewingReplay}
       /> : null
   }
 

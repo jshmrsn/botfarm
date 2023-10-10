@@ -1001,7 +1001,8 @@ class AgentIntegration(
                   actionResultType = ActionResultType.TargetNoLongerExists,
                   sourceEntityId = entity.entityId,
                   onlySourceEntityCanObserve = true,
-                  targetEntityId = targetEntityId
+                  targetEntityId = targetEntityId,
+                  targetConfigKey = destroyedTargetEntity.itemConfigOrNull?.key
                )
             } else {
                simulation.addActivityStreamEntry(
@@ -1028,7 +1029,9 @@ class AgentIntegration(
                      actionType = expectedActionType,
                      actionResultType = actionResult,
                      sourceEntityId = entity.entityId,
-                     onlySourceEntityCanObserve = true
+                     onlySourceEntityCanObserve = true,
+                     targetEntityId = targetEntity.entityId,
+                     targetConfigKey = targetEntity.itemConfigOrNull?.key
                   )
                }
 

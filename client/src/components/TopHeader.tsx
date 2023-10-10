@@ -4,6 +4,8 @@ import {Entity} from "../simulation/Entity";
 import styled from "styled-components";
 import {CharacterComponent} from "../game/CharacterComponentData";
 import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
+import {ActionIcon} from "@mantine/core";
+import {IconEye} from "@tabler/icons-react";
 
 export interface TopHeaderProps {
   dynamicState: DynamicState
@@ -78,9 +80,27 @@ export function TopHeader(props: TopHeaderProps): ReactElement | null {
         WebkitBackdropFilter: "blur(5px)",
         borderRadius: 5,
         gap: 8,
-        padding: 6
+        padding: 6,
+        pointerEvents: "auto"
       }}
     >
+      <ActionIcon
+        size={50}
+        variant={dynamicState.perspectiveEntity == null ? "filled" : "subtle"}
+        color={dynamicState.perspectiveEntity == null ? "blue" : "gray"}
+        onClick={() => {
+          if (dynamicState.perspectiveEntity == null) {
+            dynamicState.context.setIsInForceSpectateMode(false)
+          } else {
+            dynamicState.context.setIsInForceSpectateMode(true)
+          }
+
+          dynamicState.setPerspectiveEntityIdOverride(null)
+        }}
+      >
+        <IconEye size={25} color={dynamicState.perspectiveEntity !== null ? "rgba(0, 0, 0, 0.5)" : undefined}/>
+      </ActionIcon>
+
       {renderedCharacters.map(renderedCharacter => {
         const entityId = renderedCharacter.entity.entityId;
         return <ListButton

@@ -12,6 +12,7 @@ export interface DynamicStateContext {
   selectEntity: (entityId: EntityId | null) => void
   setPerspectiveEntityIdOverride: (entityId: EntityId | null) => void
   setForceUpdateCounter: (counter: number) => void
+  setIsInForceSpectateMode: (value: boolean) => void
 }
 
 export class DynamicState {
@@ -24,6 +25,7 @@ export class DynamicState {
   selectedEntityId: EntityId | null = null
   perspectiveEntity: Entity | null = null
   userControlledEntity: Entity | null = null
+  rawUserControlledEntity: Entity | null = null
   selectEntity: (entityId: EntityId | null) => void
   setPerspectiveEntityIdOverride: (entityId: EntityId | null) => void
   context: DynamicStateContext

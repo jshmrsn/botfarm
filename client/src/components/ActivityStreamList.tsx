@@ -20,7 +20,7 @@ interface Props {
 const ListItem = styled.div`
   display: flex;
   flex-direction: row;
-  align-items: center;
+  //align-items: center;
   border-radius: 8px;
   padding: 5px;
   padding-left: 10px;
@@ -79,6 +79,9 @@ export function buildCharacterProfileIconButton(
     })
 
     return <ObservedCharacterButton
+      style={{
+        height: (options.profileIconSize || 50) + 4
+      }}
       onClick={(event) => {
         event.stopPropagation()
         onClick()
@@ -164,7 +167,10 @@ export function ActivityStreamList(props: Props): ReactElement | null {
         display: "flex",
         flexDirection: "row",
         gap: 5,
-        padding: 5
+        padding: 5,
+        alignItems: "top",
+        alignContent: "top",
+        justifyContent: "top"
       }}
     >
       {sourceProfileIconDiv}

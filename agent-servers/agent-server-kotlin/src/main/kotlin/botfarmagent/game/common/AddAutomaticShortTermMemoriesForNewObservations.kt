@@ -54,7 +54,7 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                }
             } else if (entry.actionType == ActionType.PickupItem) {
                if (entry.actionResultType == ActionResultType.Success) {
-                  val shared = "an item: ${entry.targetName?.quotedAndEscaped}"
+                  val shared = "an item ${entry.targetName?.quotedAndEscaped} (${entry.targetEntityId?.value})"
 
                   if (entry.sourceEntityId == selfEntityId) {
                      summary = "I picked up $shared"
@@ -63,11 +63,11 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                   }
                } else {
                   summary =
-                     "I attempted to pick up an item ${entry.targetName?.quotedAndEscaped}, but got failure ${entry.actionResultType?.name}"
+                     "I attempted to pick up an item ${entry.targetName?.quotedAndEscaped} (${entry.targetEntityId?.value}), but got failure ${entry.actionResultType?.name}"
                }
             } else if (entry.actionType == ActionType.UseEquippedTool) {
                if (entry.actionResultType == ActionResultType.Success) {
-                  val shared = "the item ${entry.targetName?.quotedAndEscaped} to create an ${entry.resultName?.quotedAndEscaped}"
+                  val shared = "the item ${entry.targetName?.quotedAndEscaped} to create an ${entry.resultName?.quotedAndEscaped} (${entry.resultEntityId?.value})"
 
                   if (entry.sourceEntityId == selfEntityId) {
                      summary = "I used $shared"
@@ -83,7 +83,7 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                   val shared =
                      "'${entry.actionItemName}' to harvest a '${entry.targetName}'" + if (entry.spawnedItems != null) {
                         ", which created new item entities on the ground: ${
-                           entry.spawnedItems.map { it.itemConfigKey }.joinToString(", ")
+                           entry.spawnedItems.map { it.itemConfigKey + " (${it.entityId.value})" }.joinToString(", ")
                         }"
                      } else {
                         ""

@@ -27,15 +27,14 @@ interface MenuPanelProps {
 
 export function MenuPanel(props: MenuPanelProps) {
   const panelWidth = Math.min(props.windowWidth - 20, 350)
-  const panelHeight = Math.min(props.windowHeight - 30, 400)
 
   const simulationInfoResponse = props.getSimulationInfoResponse;
   const simulationInfo = simulationInfoResponse?.simulationInfo;
 
 
-  const userControlledEntity = props.dynamicState.userControlledEntity
+  const dynamicState = props.dynamicState;
 
-  const debugInfoEntity = props.dynamicState.simulation?.getEntityOrNull("debug-info")
+  const debugInfoEntity = dynamicState.simulation?.getEntityOrNull("debug-info")
   const debugInfo = debugInfoEntity?.getComponentData<DebugInfoComponentData>("DebugInfoComponentData")
 
   const canClose = simulationInfoResponse != null &&
@@ -113,17 +112,8 @@ export function MenuPanel(props: MenuPanelProps) {
       ? <Text>This simulation has ended.</Text>
       : null}
 
-
     {props.isViewingReplay
       ? <Text>Viewing Replay</Text>
-      : null}
-
-    {canSendMessages &&
-    props.rawUserControlledEntity != null
-      ? <Switch checked={props.isInForceSpectateMode}
-                onChange={(event) => props.setIsInForceSpectateMode(event.currentTarget.checked)}
-                label={"Force Spectate"}
-      />
       : null}
 
     {canSendMessages &&
@@ -132,7 +122,7 @@ export function MenuPanel(props: MenuPanelProps) {
         ? <Button
           variant={"filled"}
           onClick={() => {
-            props.dynamicState.simulation?.sendMessage("ResumeAiRequest", {})
+            dynamicState.simulation?.sendMessage("ResumeAiRequest", {})
           }}
         >
           Resume AI
@@ -140,7 +130,7 @@ export function MenuPanel(props: MenuPanelProps) {
         : <Button
           variant={"filled"}
           onClick={() => {
-            props.dynamicState.simulation?.sendMessage("PauseAiRequest", {})
+            dynamicState.simulation?.sendMessage("PauseAiRequest", {})
           }}
         >
           Pause AI
@@ -152,19 +142,12 @@ export function MenuPanel(props: MenuPanelProps) {
         ? <Button
           variant={"filled"}
           onClick={() => {
-            props.dynamicState.simulation?.sendSpawnRequest()
+            dynamicState.simulation?.sendSpawnRequest()
           }}
         >
           Spawn
         </Button>
-        : <Button
-          variant={"filled"}
-          onClick={() => {
-            props.dynamicState.simulation?.sendDespawnRequest()
-          }}
-        >
-          De-spawn
-        </Button>
+        : null
       : null}
 
     <div key={"spacer"} style={{flexGrow: 1.0}}/>

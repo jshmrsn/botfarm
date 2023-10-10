@@ -167,6 +167,7 @@ data class ActivityStreamEntry(
 
    val resultName: String? = null,
    val resultIconPath: String? = null,
+   val resultEntityId: EntityId? = null,
 
    val agentReason: String? = null,
 
