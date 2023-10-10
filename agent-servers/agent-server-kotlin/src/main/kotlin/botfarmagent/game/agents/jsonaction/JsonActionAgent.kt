@@ -146,14 +146,6 @@ class JsonActionAgent(
          return
       }
 
-      this.addPendingOutput(
-         AgentSyncOutput(
-            agentStatus = "running-prompt",
-            statusStartUnixTime = getCurrentUnixTimeSeconds(),
-            statusDuration = null
-         )
-      )
-
       println("Preparing to run prompt...")
 
       val selfInfo = input.selfInfo
@@ -405,14 +397,29 @@ class JsonActionAgent(
          }
       }
 
-
+      val prompt = builder.buildText()
       val promptId = buildShortRandomIdentifier()
+
+      this.addPendingOutput(
+         AgentSyncOutput(
+            agentStatus = "running-prompt",
+            startedRunningPrompt = RunningPromptInfo(
+               prompt = prompt,
+               promptId = promptId,
+               description = "Logic",
+               inputTokens = builder.totalTokens
+            ),
+            statusStartUnixTime = getCurrentUnixTimeSeconds(),
+            statusDuration = null
+         )
+      )
 
       val promptSendTime = getCurrentUnixTimeSeconds()
 
       val promptResult: RunJsonPromptResult = runPromptWithJsonOutput(
          languageModelService = languageModelService,
          modelInfo = modelInfo,
+         prompt = prompt,
          promptBuilder = builder,
          functionName = constants.functionName,
          functionSchema = constants.functionSchema,
@@ -628,6 +635,12 @@ class JsonActionAgent(
             debugInfoByKey = mapOf("Prompt Run Info" to newDebugInfoLines.joinToString("\n")),
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",
+            promptResult = PromptResultInfo(
+               promptId = promptId,
+               response = promptResult.responseText,
+               description = "Logic",
+               completionTokens = promptResult.usage.completionTokens
+            ),
             promptUsages = promptUsages,
             wasRateLimited = wasRateLimited,
             error = if (errors.isNotEmpty()) {

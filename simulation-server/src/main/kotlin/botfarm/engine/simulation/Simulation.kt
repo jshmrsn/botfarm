@@ -159,8 +159,8 @@ open class Simulation(
    private val requestsFromBackgroundThread = mutableListOf<RequestFromBackgroundThread>()
 
    fun addRequestFromBackgroundThread(
-      task: () -> Unit,
-      handleException: (Exception) -> Unit
+      handleException: (Exception) -> Unit = { println("addRequestFromBackgroundThread: Exception while executing task") },
+      task: () -> Unit
    ) {
       synchronized(this) {
          this.requestsFromBackgroundThread.add(RequestFromBackgroundThread(

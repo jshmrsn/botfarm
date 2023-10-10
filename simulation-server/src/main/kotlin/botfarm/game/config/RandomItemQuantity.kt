@@ -60,7 +60,7 @@ class RandomItemQuantity private constructor(
          val stackAmounts = mutableListOf<Int>()
          val stackCount = this.stackCount.rollInt()
 
-         for (i in 0..stackCount) {
+         for (i in 0..< stackCount) {
             if (this.amountPerStack != null) {
                val amountPerStack = this.amountPerStack.rollInt()
                stackAmounts.add(amountPerStack)

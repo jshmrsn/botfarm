@@ -8,12 +8,12 @@ import botfarm.engine.simulation.CoroutineSystemContext
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
-import botfarm.game.scripting.JavaScriptCodeSerialization
-import botfarm.game.scripting.UnwindScriptThreadThrowable
-import botfarm.game.scripting.jsdata.*
 import botfarm.game.components.*
 import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
+import botfarm.game.scripting.JavaScriptCodeSerialization
+import botfarm.game.scripting.UnwindScriptThreadThrowable
+import botfarm.game.scripting.jsdata.*
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.GameConstants
 import botfarmshared.game.GameSimulationInfo
@@ -23,34 +23,9 @@ import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.graalvm.polyglot.Context
 import org.graalvm.polyglot.PolyglotException
 import org.graalvm.polyglot.Source
 import kotlin.concurrent.thread
-
-class AgentJavaScriptRuntime(
-   val agentJavaScriptApi: AgentJavaScriptApi
-) {
-   val javaScriptContext: Context =
-      Context.newBuilder("js")
-         .option("js.strict", "true")
-         .build()
-
-   val bindings = this.javaScriptContext.getBindings("js").also {
-      it.putMember("api", this.agentJavaScriptApi)
-   }
-
-   init {
-      val sourceName = "scripted-agent-runtime.js"
-
-      val runtimeSource =
-         this::class.java.getResource("/$sourceName")?.readText()
-            ?: throw Exception("Scripted agent runtime JavaScript resource not found")
-
-      val javaScriptSource = Source.newBuilder("js", runtimeSource, sourceName).build()
-      this.javaScriptContext.eval(javaScriptSource)
-   }
-}
 
 class AgentIntegration(
    val simulation: GameSimulation,
@@ -59,7 +34,6 @@ class AgentIntegration(
    val agentId: AgentId,
    val fastJavaScriptThreadSleep: Boolean
 ) {
-   private val allObservedMessageIds = mutableSetOf<String>()
    private val startedActionUniqueIds = mutableSetOf<String>()
    private val agentControlledComponent = this.entity.getComponent<AgentControlledComponentData>()
    private val characterComponent = this.entity.getComponent<CharacterComponentData>()
@@ -294,10 +268,6 @@ class AgentIntegration(
 
       this.mostRecentSyncInput = agentSyncInput
 
-//      newObservationsForInput.spokenMessages.forEach {
-//         println(" Sending spoken message observation: " + it.message)
-//      }
-
       val agentSyncOutputs = agentServerIntegration.sendSyncRequest(agentSyncInput)
       coroutineSystemContext.unwindIfNeeded()
 
@@ -460,12 +430,25 @@ class AgentIntegration(
 
       val agentId = this.agentId
 
-      if (agentSyncOutput.agentStatus == "running-prompt") {
+      if (agentSyncOutput.startedRunningPrompt != null) {
          simulation.addActivityStreamEntry(
-            title = "Running prompt...",
+            title = "Running prompt: ${agentSyncOutput.startedRunningPrompt.description} (${agentSyncOutput.startedRunningPrompt.promptId})",
             sourceEntityId = entity.entityId,
             onlyShowForPerspectiveEntity = true,
-            shouldReportToAi = false
+            shouldReportToAi = false,
+            longMessage = agentSyncOutput.startedRunningPrompt.prompt,
+            message = "Input Tokens: ${agentSyncOutput.startedRunningPrompt.inputTokens}"
+         )
+      }
+
+      if (agentSyncOutput.promptResult != null) {
+         simulation.addActivityStreamEntry(
+            title = "Prompt result: ${agentSyncOutput.promptResult.description} (${agentSyncOutput.promptResult.promptId})",
+            sourceEntityId = entity.entityId,
+            onlyShowForPerspectiveEntity = true,
+            shouldReportToAi = false,
+            longMessage = agentSyncOutput.promptResult.response,
+            message = "Output Tokens: ${agentSyncOutput.promptResult.completionTokens}"
          )
       }
 
@@ -616,6 +599,15 @@ class AgentIntegration(
                      if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
                         this.runningScript = null
                         this.mostRecentCompletedScriptId = scriptId
+
+                        simulation.addRequestFromBackgroundThread {
+                           simulation.addActivityStreamEntry(
+                              title = "Finished executing script",
+                              sourceEntityId = entity.entityId,
+                              onlyShowForPerspectiveEntity = true,
+                              shouldReportToAi = false
+                           )
+                        }
                      }
                   }
                } catch (unwindScriptThreadThrowable: UnwindScriptThreadThrowable) {

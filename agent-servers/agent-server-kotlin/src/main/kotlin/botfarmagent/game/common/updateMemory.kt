@@ -2,9 +2,7 @@ package botfarmagent.game.common
 
 import botfarmagent.misc.*
 import botfarmshared.engine.apidata.PromptUsageInfo
-import botfarmshared.game.apidata.AgentSyncInput
-import botfarmshared.game.apidata.AgentSyncOutput
-import botfarmshared.game.apidata.SelfInfo
+import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlin.math.roundToInt
@@ -225,22 +223,31 @@ suspend fun updateMemory(
 
    builder.getRecursiveReservedOrAllocatedTokens()
 
+   val startTime = getCurrentUnixTimeSeconds()
+
+   val prompt = builder.buildText()
+
    provideResult(
       AgentSyncOutput(
          agentStatus = "updating-memory",
          statusStartUnixTime = getCurrentUnixTimeSeconds(),
          statusDuration = null,
-         debugInfoByKey = mapOf("Memory Update: Previous Memory" to memoryState.shortTermMemory)
+         debugInfoByKey = mapOf("Memory Update: Previous Memory" to memoryState.shortTermMemory),
+         startedRunningPrompt = RunningPromptInfo(
+            prompt = prompt,
+            promptId = promptId,
+            description = "Update Memory",
+            inputTokens = builder.totalTokens
+         )
       )
    )
-
-   val startTime = getCurrentUnixTimeSeconds()
 
    val promptResult = runPrompt(
       modelInfo = modelInfo,
       languageModelService = languageModelService,
       promptBuilder = builder,
-      debugInfo = "${inputs.agentType} (Update Memory) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)"
+      debugInfo = "${inputs.agentType} (Update Memory) ($simulationId, $agentId, syncId = $syncId, promptId = $promptId)",
+      prompt = prompt
    )
 
    when (promptResult) {
@@ -283,7 +290,13 @@ suspend fun updateMemory(
             AgentSyncOutput(
                agentStatus = "update-memory-success",
                statusDuration = getCurrentUnixTimeSeconds() - startTime,
-               debugInfoByKey = mapOf("Memory Update: New Memory" to updatedShortTermMemory)
+               debugInfoByKey = mapOf("Memory Update: New Memory" to updatedShortTermMemory),
+               promptResult = PromptResultInfo(
+                  promptId = promptId,
+                  response = updatedShortTermMemory,
+                  description = "Update Memory",
+                  completionTokens = promptResult.usage.completionTokens
+               )
             )
          )
 

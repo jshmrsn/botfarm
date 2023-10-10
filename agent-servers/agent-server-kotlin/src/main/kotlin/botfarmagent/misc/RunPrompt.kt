@@ -36,6 +36,7 @@ suspend fun runPrompt(
    debugInfo: String,
    languageModelService: LanguageModelService,
    modelInfo: ModelInfo,
+   prompt: String,
    promptBuilder: PromptBuilder,
    useFunctionCalling: Boolean = false,
    functionName: String? = null,
@@ -47,7 +48,6 @@ suspend fun runPrompt(
    temperature: Double = 0.0,
    shouldPrintResponse: Boolean = true
 ): RunPromptResult {
-   val prompt = promptBuilder.buildText()
    println("Running prompt using model ${modelInfo.modelId}, ${debugInfo}:\n$prompt")
    println("Prompt token usage summary ${modelInfo.modelId}, ${debugInfo}:\n${promptBuilder.buildTokenUsageSummary()}")
 
@@ -191,6 +191,7 @@ suspend fun runPrompt(
 sealed class RunJsonPromptResult {
    class Success(
       val responseData: JsonObject,
+      val responseText: String,
       val textBeforeJson: String,
       val textAfterJson: String,
       val usage: PromptUsage
@@ -211,6 +212,7 @@ suspend fun runPromptWithJsonOutput(
    debugInfo: String,
    languageModelService: LanguageModelService,
    modelInfo: ModelInfo,
+   prompt: String,
    promptBuilder: PromptBuilder,
    useFunctionCalling: Boolean = false,
    functionName: String? = null,
@@ -225,6 +227,7 @@ suspend fun runPromptWithJsonOutput(
       debugInfo = debugInfo,
       languageModelService = languageModelService,
       modelInfo = modelInfo,
+      prompt = prompt,
       promptBuilder = promptBuilder,
       useFunctionCalling = useFunctionCalling,
       functionName = functionName,
@@ -267,6 +270,7 @@ suspend fun runPromptWithJsonOutput(
          return RunJsonPromptResult.Success(
             usage = result.usage,
             responseData = extractJsonResult.jsonData,
+            responseText = responseText,
             textBeforeJson = extractJsonResult.textBeforeJson,
             textAfterJson = extractJsonResult.textAfterJson
          )

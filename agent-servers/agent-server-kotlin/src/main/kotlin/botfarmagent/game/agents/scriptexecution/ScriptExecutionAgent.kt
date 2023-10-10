@@ -7,10 +7,7 @@ import botfarmagent.misc.*
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.PromptUsage
 import botfarmshared.engine.apidata.PromptUsageInfo
-import botfarmshared.game.apidata.AgentSyncInput
-import botfarmshared.game.apidata.AgentSyncOutput
-import botfarmshared.game.apidata.EntityInfoWrapper
-import botfarmshared.game.apidata.ScriptToRun
+import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
 import kotlin.math.roundToInt
@@ -181,14 +178,6 @@ class ScriptExecutionAgent(
          println("Not prompting yet (${timeSincePrompt.roundToInt()} / $newPromptTimeLimit seconds) ($agentId)")
          return
       }
-
-      this.addPendingOutput(
-         AgentSyncOutput(
-            agentStatus = "running-prompt",
-            statusStartUnixTime = getCurrentUnixTimeSeconds(),
-            statusDuration = null
-         )
-      )
 
       println("Preparing to run prompt...")
 
@@ -598,6 +587,22 @@ class ScriptExecutionAgent(
 
       this.previousPromptSendSimulationTime = simulationTimeForStep
 
+      val prompt = builder.buildText()
+
+
+      this.addPendingOutput(
+         AgentSyncOutput(
+            agentStatus = "running-prompt",
+            startedRunningPrompt = RunningPromptInfo(
+               prompt = prompt,
+               promptId = promptId,
+               description = "Logic",
+               inputTokens = builder.totalTokens
+            ),
+            statusStartUnixTime = getCurrentUnixTimeSeconds(),
+            statusDuration = null
+         )
+      )
 
       val promptResult = if (this.shouldUseMockResponses) {
          fun getResponseTextOrNull(): String? {
@@ -628,6 +633,7 @@ class ScriptExecutionAgent(
          runPrompt(
             languageModelService = this.context.languageModelService,
             modelInfo = modelInfo,
+            prompt = prompt,
             promptBuilder = builder,
             debugInfo = "${input.agentType} (step) (simulationId = ${simulationId.value}, agentId = ${this.agentId.value}, syncId = $syncId, promptId = $promptId)",
             completionPrefix = completionPrefix,
@@ -726,6 +732,12 @@ class ScriptExecutionAgent(
             scriptToRun = ScriptToRun(
                script = responseScript,
                scriptId = scriptId
+            ),
+            promptResult = PromptResultInfo(
+               promptId = promptId,
+               response = responseText,
+               description = "Logic",
+               completionTokens = promptResult.usage.completionTokens
             ),
             debugInfoByKey = mapOf(
                "Prompt Result Info" to newDebugInfoLines.joinToString("\n")

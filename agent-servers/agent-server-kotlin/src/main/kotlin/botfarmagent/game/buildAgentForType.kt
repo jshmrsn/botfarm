@@ -12,7 +12,7 @@ fun buildAgentForType(
       return JsonActionAgent(
          agentContext = agentContext,
          useGpt4 = !agentType.contains("gpt3"),
-         useFunctionCalling = agentType.contains("func")
+         useFunctionCalling = true
       )
    } else if (agentType.startsWith("script")) {
       return ScriptExecutionAgent(

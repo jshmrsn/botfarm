@@ -17,11 +17,29 @@ class AgentSyncRequest(
 )
 
 @Serializable
+class RunningPromptInfo(
+   val prompt: String,
+   val promptId: String,
+   val description: String,
+   val inputTokens: Int
+)
+
+@Serializable
+class PromptResultInfo(
+   val response: String,
+   val promptId: String,
+   val description: String,
+   val completionTokens: Int
+)
+
+@Serializable
 class AgentSyncOutput(
    val statusStartUnixTime: Double? = null,
    val statusDuration: Double? = null,
    val agentStatus: String? = null,
    val debugInfoByKey: Map<String, String>? = null,
+   val startedRunningPrompt: RunningPromptInfo? = null,
+   val promptResult: PromptResultInfo? = null,
    val actions: List<Action>? = null,
    val scriptToRun: ScriptToRun? = null,
    val error: String? = null,
