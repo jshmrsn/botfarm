@@ -52,7 +52,8 @@ export class DynamicState {
 
   sendWebSocketMessage(type: string, data: object) {
     if (this.webSocket == null) {
-      throw new Error("Attempt to send web socket message while no web socket is available: " + type + "\n" + JSON.stringify(data))
+      console.error("Attempt to send web socket message while no web socket is available: " + type + "\n" + JSON.stringify(data))
+      return
     }
 
     this.webSocket.send(JSON.stringify({

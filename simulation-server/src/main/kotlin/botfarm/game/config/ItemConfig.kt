@@ -60,9 +60,7 @@ class EquippableConfig(
 class CollisionConfig(
    val width: Int,
    val height: Int,
-   val collisionOffset: Vector2 = Vector2.zero,
-   val cellOffsetY: Int = 0,
-   val cellOffsetX: Int = 0
+   val collisionOffset: Vector2 = Vector2.zero
 )
 
 class ItemConfig(

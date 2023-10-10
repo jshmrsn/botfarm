@@ -1030,6 +1030,7 @@ class AgentIntegration(
                      actionResultType = actionResult,
                      sourceEntityId = entity.entityId,
                      onlySourceEntityCanObserve = true,
+                     onlyShowForPerspectiveEntity = true,
                      targetEntityId = targetEntity.entityId,
                      targetConfigKey = targetEntity.itemConfigOrNull?.key
                   )

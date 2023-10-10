@@ -221,11 +221,11 @@ export class GameSimulationScene extends Phaser.Scene {
     const mainCamera = this.cameras.main
     this.mainCamera = mainCamera
 
-    var screenWidth = uiCamera.width
-    var screenHeight = uiCamera.height
+    let screenWidth = uiCamera.width
+    let screenHeight = uiCamera.height
 
-    var progressBar = this.add.graphics()
-    var progressBox = this.add.graphics()
+    let progressBar = this.add.graphics()
+    let progressBox = this.add.graphics()
     progressBox.fillStyle(0x222222, 0.2)
     const progressBoxWidth = 320
     const progressBoxHeight = 20
@@ -248,7 +248,7 @@ export class GameSimulationScene extends Phaser.Scene {
     loadingText.setOrigin(0.5, 0.5)
     mainCamera.ignore(loadingText)
 
-    var assetText = this.make.text({
+    let assetText = this.make.text({
       x: screenWidth / 2,
       y: screenHeight / 2 + 50,
       text: '',
@@ -494,9 +494,9 @@ export class GameSimulationScene extends Phaser.Scene {
 
 
     const rawLayers: RawSheetDefinitionLayer[] = []
-    var layerIndexToCheck = 1
+    let layerIndexToCheck = 1
     while (true) {
-      var layerKey = "layer_" + layerIndexToCheck
+      let layerKey = "layer_" + layerIndexToCheck
       const rawLayer = (rawSheetDefinition as any as Record<string, RawSheetDefinitionLayer>)[layerKey]
       if (rawLayer == null) {
         break
@@ -1215,7 +1215,7 @@ export class GameSimulationScene extends Phaser.Scene {
         const distance = Vector2.distance(targetPosition, playerPosition)
         const nearestEntityPosition = resolveEntityPositionForTime(targetEntity, simulationTime)
         const delta = Vector2.minus(playerPosition, nearestEntityPosition)
-        const desiredDistance = Math.min(distance, 25.0)
+        const desiredDistance = Math.min(distance, 14.0)
 
         const desiredLocation = Vector2.plus(nearestEntityPosition, Vector2.timesScalar(Vector2.normalize(delta), desiredDistance))
 
@@ -1421,7 +1421,7 @@ export class GameSimulationScene extends Phaser.Scene {
       }
     }
 
-    var anyChangedFogOfWarEntities = false
+    let anyChangedFogOfWarEntities = false
 
     for (let fogOfWarVisibleEntityId in this.fogOfWarVisibleEntitiesById) {
       if (!previousFogOfWarVisibleEntitiesById[fogOfWarVisibleEntityId]) {
@@ -1451,18 +1451,36 @@ export class GameSimulationScene extends Phaser.Scene {
     const debugInfoComponentData = debugInfoEntity.getComponent<DebugInfoComponentData>("DebugInfoComponentData").data
     const collisionMapDebugInfo = debugInfoComponentData.collisionMapDebugInfo
 
-    var cellIndex = 0
-    for (let cell of collisionMapDebugInfo.cells) {
-      const spriteScale = Vector2.timesScalar(collisionMapDebugInfo.cellSize, 1.0 / 64.0)
+    const mainCamera = this.mainCamera
+    const cameraScroll = new Vector2(mainCamera.scrollX, mainCamera.scrollY)
+    const canvasSize = new Vector2(this.game.canvas.width, this.game.canvas.height)
+    const zoom = mainCamera.zoom
 
-      renderContext.renderSprite("cell:" + cellIndex, {
-        layer: this.observationRingsLayer,
-        textureName: "circle",
-        position: cell.center,
-        scale: spriteScale,
-        alpha: cell.occupied ? 0.75 : 0.3,
-        depth: 0
-      })
+    const cameraCenter = Vector2.plus(cameraScroll, Vector2.timesScalar(canvasSize, 0.5))
+
+    const clampedCanvasSize = new Vector2(Math.min(canvasSize.x / zoom, 1000), Math.min(canvasSize.y/ zoom , 1000))
+
+    const cameraMin = Vector2.minus(cameraCenter, new Vector2(clampedCanvasSize.x * 0.5, clampedCanvasSize.y * 0.5))
+    const cameraMax = Vector2.plus(cameraCenter, new Vector2(clampedCanvasSize.x * 0.5, clampedCanvasSize.y * 0.5))
+    const spriteScale = Vector2.timesScalar(collisionMapDebugInfo.cellSize, 1.0 / 64.0)
+
+    let cellIndex = 0
+    for (let cell of collisionMapDebugInfo.cells) {
+      const center = cell.center
+
+      if (center.x > cameraMin.x &&
+        center.x < cameraMax.x &&
+        center.y > cameraMin.y &&
+        center.y < cameraMax.y) {
+        renderContext.renderSprite("cell:" + cellIndex, {
+          layer: this.observationRingsLayer,
+          textureName: "circle",
+          position: cell.center,
+          scale: spriteScale,
+          alpha: cell.occupied ? 0.75 : 0.3,
+          depth: 0
+        })
+      }
 
       ++cellIndex
     }
@@ -1819,7 +1837,7 @@ export class GameSimulationScene extends Phaser.Scene {
         const animationScale = lerp(lerp(0.85, 1, fadeInPercent), 0.85, fadeOutPercent + interruptFadeOutPercent) *
           lerp(1.15, 1.0, Math.pow(fadeInPercent, 2.0))
 
-        var spokenMessageText = message.message
+        let spokenMessageText = message.message
 
         const maxBubbleWidth = 250
         const minBubbleWidth = 70
@@ -2161,8 +2179,8 @@ export class GameSimulationScene extends Phaser.Scene {
       }
 
       if (inventoryComponent != null) {
-        var hasPants = false
-        var hasShirt = false
+        let hasPants = false
+        let hasShirt = false
 
         for (let itemStack of inventoryComponent.inventory.itemStacks) {
           if (itemStack.isEquipped) {

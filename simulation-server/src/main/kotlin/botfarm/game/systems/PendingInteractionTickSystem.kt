@@ -37,7 +37,6 @@ fun pendingInteractionTickSystem(
       return
    }
 
-   val position = positionComponent.entity.resolvePosition()
    val lastKeyFrame = positionComponent.data.positionAnimation.keyFrames.last()
    val hasFinishedMoving = simulationTime >= lastKeyFrame.time
 

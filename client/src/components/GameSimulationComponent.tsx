@@ -491,7 +491,7 @@ export const GameSimulationComponent = (props: SimulationProps) => {
     />
     : null
 
-  var helpButtonRef: HTMLButtonElement | null = null
+  let helpButtonRef: HTMLButtonElement | null = null
 
   function renderGameUi() {
     const debugOverlayValueKeys = Object.keys(dynamicState.debugOverlayValuesByKey).sort()
@@ -552,6 +552,15 @@ export const GameSimulationComponent = (props: SimulationProps) => {
           </ActionIcon>
         </div>
       </div>
+
+
+      <TopHeader
+        dynamicState={dynamicState}
+        useMobileLayout={useMobileLayout}
+        perspectiveEntity={perspectiveEntity}
+        userControlledEntity={userControlledEntity}
+        forceUpdateCounter={forceUpdateCounter}
+      />
 
       {!useMobileLayout && simulation != null ? <div
         key={"left-panel-container"}
@@ -806,14 +815,6 @@ export const GameSimulationComponent = (props: SimulationProps) => {
           }}
         />
 
-        <TopHeader
-          dynamicState={dynamicState}
-          useMobileLayout={useMobileLayout}
-          perspectiveEntity={perspectiveEntity}
-          userControlledEntity={userControlledEntity}
-          forceUpdateCounter={forceUpdateCounter}
-        />
-
         <div
           key="left-header"
           style={{
@@ -898,7 +899,7 @@ export function renderPanelButton(
     return showingPanels.includes(panel)
   }
 
-  var button: HTMLButtonElement | null = null
+  let button: HTMLButtonElement | null = null
 
   return <div
     key={"panel-button:" + panelType}

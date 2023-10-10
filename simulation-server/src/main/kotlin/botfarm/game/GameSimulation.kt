@@ -269,10 +269,7 @@ class GameSimulation(
             val cellHeight = this.collisionMap.cellHeight
             val collisionGridHeight = cellHeight * collisionConfig.height
 
-            val offsetFromCollisionCenter = offset + Vector2(
-               cellWidth * collisionConfig.cellOffsetX,
-               cellHeight * collisionConfig.cellOffsetY
-            )
+            val offsetFromCollisionCenter = offset
 
             val edgeDistances = Vector2(
                offsetFromCollisionCenter.x.absoluteValue - collisionGridWidth * 0.5,
@@ -338,7 +335,7 @@ class GameSimulation(
          val collisionConfig = itemConfig.collisionConfig
 
          if (collisionConfig != null) {
-            val entityPosition = entity.resolvePosition()
+            val entityPosition = entity.resolvePosition() + collisionConfig.collisionOffset
             val anchorPair = this.collisionMap.pointToIndexPair(entityPosition)
             val anchorCellCenter = this.collisionMap.indexPairToCellCenter(anchorPair)
 
@@ -372,8 +369,8 @@ class GameSimulation(
 
             this.collisionMap.addEntity(
                entityId = entity.entityId,
-               topLeftCol = topLeftCol + collisionConfig.cellOffsetX,
-               topLeftRow = topLeftRow + collisionConfig.cellOffsetY,
+               topLeftCol = topLeftCol,
+               topLeftRow = topLeftRow,
                width = collisionConfig.width,
                height = collisionConfig.height
             )
@@ -1170,36 +1167,38 @@ class GameSimulation(
                           interactingEntity.getEquippedItemConfig(EquipmentSlot.Tool) == equippedToolItemConfig
                }
             ) {
-               this.addActivityStreamEntry(
-                  sourceIconPath = null,
-                  title = "$interactingEntityName planted ${equippedToolItemConfig.name}",
-
-                  sourceLocation = interactingEntity.resolvePosition(),
-                  sourceEntityId = interactingEntity.entityId,
-
-                  actionType = ActionType.PlaceGrowableInGrower,
-
-                  targetName = targetItemConfig.name,
-                  targetIconPath = targetItemConfig.iconUrl,
-
-                  resultName = equippedToolItemConfig.name,
-                  resultIconPath = equippedToolItemConfig.iconUrl
-               )
-
-               growerComponent.modifyData {
-                  it.copy(
-                     activeGrowth = ActiveGrowth(
-                        startTime = this.getCurrentSimulationTime(),
-                        itemConfigKey = equippedToolItemConfig.key
-                     )
-                  )
-               }
-
-               interactingEntity.takeInventoryItemFromStack(
-                  itemConfigKey = equippedToolItemConfig.spriteConfigKey,
+               val didTake = interactingEntity.takeInventoryItemFromStack(
+                  itemConfig = equippedToolItemConfig,
                   stackIndex = equippedStackIndex,
                   amountToTake = 1
                )
+
+               if (didTake) {
+                  this.addActivityStreamEntry(
+                     sourceIconPath = null,
+                     title = "$interactingEntityName planted ${equippedToolItemConfig.name}",
+
+                     sourceLocation = interactingEntity.resolvePosition(),
+                     sourceEntityId = interactingEntity.entityId,
+
+                     actionType = ActionType.PlaceGrowableInGrower,
+
+                     targetName = targetItemConfig.name,
+                     targetIconPath = targetItemConfig.iconUrl,
+
+                     resultName = equippedToolItemConfig.name,
+                     resultIconPath = equippedToolItemConfig.iconUrl
+                  )
+
+                  growerComponent.modifyData {
+                     it.copy(
+                        activeGrowth = ActiveGrowth(
+                           startTime = this.getCurrentSimulationTime(),
+                           itemConfigKey = equippedToolItemConfig.key
+                        )
+                     )
+                  }
+               }
             }
 
             return InteractWithEntityUsingEquippedItemResult.Success
@@ -1557,7 +1556,8 @@ class GameSimulation(
    ): Entity {
       val collisionConfig = itemConfig.collisionConfig
       val resolvedLocation = if (collisionConfig != null) {
-         val desiredTopLeftCell = this.collisionMap.pointToIndexPair(location).let {
+         val locationWithOffset = location - collisionConfig.collisionOffset
+         val desiredTopLeftCell = this.collisionMap.pointToIndexPair(locationWithOffset).let {
             IndexPair(
                row = it.row - (collisionConfig.height * 0.5).toInt(),
                col = it.col - (collisionConfig.width * 0.5).toInt()

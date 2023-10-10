@@ -7,9 +7,12 @@ import botfarm.game.components.RegisteredCompositeAnimation
 import botfarm.game.config.*
 import botfarmshared.misc.Vector2
 
-fun addBasicConfigs(configs: MutableList<Config>, worldBounds: Vector2 = Vector2(5000.0, 5000.0)) {
+fun addBasicConfigs(
+   configs: MutableList<Config>,
+   worldBounds: Vector2 = Vector2(4096.0, 4096.0)
+) {
    configs.add(GameSimulationConfig(
-      worldBounds = Vector2(4096.0, 4096.0)
+      worldBounds = worldBounds
    ))
 }
 

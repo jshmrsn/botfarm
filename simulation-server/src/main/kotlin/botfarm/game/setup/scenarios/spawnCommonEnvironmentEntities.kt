@@ -8,36 +8,8 @@ fun spawnCommonEnvironmentEntities(simulation: GameSimulation) {
    val worldCenter = worldBounds * 0.5
 
    simulation.spawnItems(
-      itemConfigKey = "tomato-seeds",
-      quantity = RandomItemQuantity.stacks(3),
-      baseLocation = worldCenter,
-      randomLocationScale = 400.0
-   )
-
-//   simulation.spawnItems(
-//      itemConfigKey = "hoe",
-//      quantity = RandomItemQuantity.stacks(3),
-//      baseLocation = worldCenter,
-//      randomLocationScale = 400.0
-//   )
-
-   simulation.spawnItems(
-      itemConfigKey = "axe",
-      quantity = RandomItemQuantity.stacks(3),
-      baseLocation = worldCenter,
-      randomLocationScale = 400.0
-   )
-
-//   simulation.spawnItems(
-//      itemConfigKey = "pickaxe",
-//      quantity = RandomItemQuantity.stacks(3),
-//      baseLocation = worldCenter,
-//      randomLocationScale = 400.0
-//   )
-
-   simulation.spawnItems(
       itemConfigKey = "tree",
-      quantity = RandomItemQuantity.stacks(300),
+      quantity = RandomItemQuantity.stacks(250),
       baseLocation = worldCenter,
       randomLocationScale = worldBounds.x * 0.5,
       randomLocationExponent = 1.0
@@ -45,9 +17,23 @@ fun spawnCommonEnvironmentEntities(simulation: GameSimulation) {
 
    simulation.spawnItems(
       itemConfigKey = "boulder",
-      quantity = RandomItemQuantity.stacks(90),
+      quantity = RandomItemQuantity.stacks(60),
       baseLocation = worldCenter,
       randomLocationScale = worldBounds.x * 0.5,
       randomLocationExponent = 1.0
+   )
+
+   simulation.spawnItems(
+      itemConfigKey = "tomato-seeds",
+      quantity = RandomItemQuantity.stacks(3),
+      baseLocation = worldCenter,
+      randomLocationScale = 400.0
+   )
+
+   simulation.spawnItems(
+      itemConfigKey = "axe",
+      quantity = RandomItemQuantity.stacks(5),
+      baseLocation = worldCenter,
+      randomLocationScale = 700.0
    )
 }

@@ -181,7 +181,8 @@ fun addItemConfigs(configs: MutableList<Config>) {
          canReceiveGrowableItemConfigKeys = listOf(
             "tomato-seeds"
          )
-      )
+      ),
+      collisionConfig = null
    )
 
    addItemConfig(
@@ -245,10 +246,10 @@ fun addItemConfigs(configs: MutableList<Config>) {
       collisionConfig = CollisionConfig(
          width = 3,
          height = 4,
-         //cellOffsetY = 0
-         //collisionOffset = Vector2(0.0, -20.0)
+         collisionOffset = Vector2(0.0, -20.0)
       )
    )
+
 
    addItemConfig(
       key = "boulder",

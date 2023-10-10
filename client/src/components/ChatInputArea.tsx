@@ -35,7 +35,7 @@ export function ChatInputArea(props: ChatInputAreaProps): ReactElement {
   const chatAreaWidth = Math.min(windowWidth - 20, 500)
   const remainingWindowWidth = windowWidth - chatAreaWidth
 
-  var sendButton: HTMLButtonElement | null = null
+  let sendButton: HTMLButtonElement | null = null
 
   return <div
     key={"chat-input-area"}

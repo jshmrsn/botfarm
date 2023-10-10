@@ -85,7 +85,7 @@ fun Entity.takeInventoryItemCollection(itemCollection: ItemCollection): Boolean 
 }
 
 fun Entity.takeInventoryItemFromStack(
-   itemConfigKey: String,
+   itemConfig: ItemConfig,
    stackIndex: Int,
    amountToTake: Int
 ): Boolean {
@@ -102,7 +102,7 @@ fun Entity.takeInventoryItemFromStack(
    val itemStack = inventoryComponent.data.inventory.itemStacks.getOrNull(stackIndex)
 
    if (itemStack == null ||
-      itemStack.itemConfigKey != itemConfigKey) {
+      itemStack.itemConfigKey != itemConfig.key) {
       return false
    }
 
