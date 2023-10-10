@@ -4,7 +4,7 @@ import {DynamicState} from "./DynamicState";
 import {Entity} from "../simulation/Entity";
 import {InventoryComponentData} from "../game/CharacterComponentData";
 import {ItemConfig} from "../game/ItemComponentData";
-import {PanelTypes, renderPanelButton} from "./SimulationComponent";
+import {PanelType, renderPanelButton} from "./GameSimulationComponent";
 import {IconGridDots} from "@tabler/icons-react";
 
 interface QuickInventoryProps {
@@ -14,8 +14,8 @@ interface QuickInventoryProps {
   userControlledEntity: Entity | null
   perspectiveEntity: Entity
   useMobileLayout: boolean
-  showingPanels: PanelTypes[]
-  setShowingPanels: (panels: PanelTypes[]) => void
+  showingPanels: PanelType[]
+  setShowingPanels: (panels: PanelType[]) => void
 }
 
 interface QuickInventoryEntry {
@@ -178,6 +178,6 @@ export function QuickInventory(props: QuickInventoryProps): ReactElement | null 
       {content}
     </div>
 
-    {renderPanelButton(PanelTypes.Inventory, <IconGridDots size={24}/>, props.showingPanels, props.setShowingPanels)}
+    {renderPanelButton(PanelType.Inventory, <IconGridDots size={24}/>, props.showingPanels, props.setShowingPanels)}
   </div>
 }

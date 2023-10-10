@@ -1,10 +1,10 @@
 import {MantineProvider} from '@mantine/core';
 import {SelectSimulationComponent} from "./SelectSimulationComponent";
 import {useState} from "react";
-import {SimulationComponent} from "./SimulationComponent";
+import {GameSimulationComponent} from "./GameSimulationComponent";
 import {createBrowserRouter, RouterProvider} from "react-router-dom";
 import {UserId, UserSecret} from "../simulation/Simulation";
-import {generateId, getUnixTimeSeconds} from "../misc/utils";
+import {generateId} from "../misc/utils";
 import {AdminRequest, buildAdminRequestForSecret} from "./AdminRequest";
 
 
@@ -63,7 +63,7 @@ export default function App() {
     },
     {
       path: "/simulation/:simulationId",
-      element: <SimulationComponent
+      element: <GameSimulationComponent
         shouldAllowWebGl={shouldAllowWebGl}
         shouldForceWebGl={shouldForceWebGl}
         userId={userId}

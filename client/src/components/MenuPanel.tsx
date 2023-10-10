@@ -1,14 +1,11 @@
 import {useOnKeyDown} from "./useOnKeyDown";
-import React, {useEffect} from "react";
-import {ActionIcon, Button, Switch, Text} from "@mantine/core";
-import {IconArrowDown, IconX} from "@tabler/icons-react";
-import ReactMarkdown from "react-markdown";
-import {attributionsMarkdown, howToPlayMarkdown} from "./HowToPlayMarkdown";
+import React from "react";
+import {Button, Switch, Text} from "@mantine/core";
 import {DynamicState} from "./DynamicState";
-import {GetSimulationInfoResponse} from "./SimulationComponent";
-import {useNavigate} from "react-router-dom";
+import {GetSimulationInfoResponse} from "./GameSimulationComponent";
 import {Entity} from "../simulation/Entity";
 import {DebugInfoComponentData} from "../game/DebugInfoComponentData";
+import {PanelCloseButton} from "./PanelCloseButton";
 
 interface MenuPanelProps {
   simulationId: string
@@ -239,31 +236,9 @@ export function MenuPanel(props: MenuPanelProps) {
         alignItems: "center"
       }}
     >
-
-      {canClose ? <div
-        key="close-button-container"
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          display: "flex",
-          flexDirection: "row",
-          padding: 0,
-          alignItems: "center",
-          backgroundColor: "rgba(255, 255, 255, 0.75)",
-          height: 40,
-          backdropFilter: "blur(5px)",
-          WebkitBackdropFilter: "blur(5px)",
-          borderRadius: 5,
-          gap: 10
-        }}
-      >
-        <ActionIcon size={40} variant={"subtle"} onClick={() => {
-          props.close()
-        }}>
-          <IconX size={20}/>
-        </ActionIcon>
-      </div> : null}
+      <PanelCloseButton
+        close={props.close}
+      />
 
       <div
         key="header"

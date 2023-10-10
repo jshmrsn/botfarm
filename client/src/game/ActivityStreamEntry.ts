@@ -14,7 +14,7 @@ export interface ActivityStreamEntry {
   message: string | null
   longMessage: string | null
   onlyShowForPerspectiveEntity: boolean
-  sourceLocation: Vector2 | null
+  readonly sourceLocation: Vector2 | null
   sourceIconPath: string | null
   actionType: string | null
   actionIconPath: string | null

@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import {attributionsMarkdown, howToPlayMarkdown} from "./HowToPlayMarkdown";
 import {DynamicState} from "./DynamicState";
 import {useOnKeyDown} from "./useOnKeyDown";
+import {PanelCloseButton} from "./PanelCloseButton";
 
 interface HelpPanelProps {
   windowHeight: number
@@ -55,30 +56,7 @@ export function HelpPanel(props: HelpPanelProps) {
         position: "absolute"
       }}
     >
-      <div
-        key="close-button-container"
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          display: "flex",
-          flexDirection: "row",
-          padding: 0,
-          alignItems: "center",
-          backgroundColor: "rgba(255, 255, 255, 0.75)",
-          height: 40,
-          backdropFilter: "blur(5px)",
-          WebkitBackdropFilter: "blur(5px)",
-          borderRadius: 5,
-          gap: 10
-        }}
-      >
-        <ActionIcon size={40} variant={"subtle"} onClick={() => {
-          props.close()
-        }}>
-          <IconX size={20}/>
-        </ActionIcon>
-      </div>
+      <PanelCloseButton close={props.close} />
 
       <div
         key="header"

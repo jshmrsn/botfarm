@@ -9,7 +9,7 @@ import {Entity} from "../simulation/Entity";
 
 
 export interface DynamicStateContext {
-  setSelectedEntityId: (entityId: EntityId | null) => void
+  selectEntity: (entityId: EntityId | null) => void
   setPerspectiveEntityIdOverride: (entityId: EntityId | null) => void
   setForceUpdateCounter: (counter: number) => void
 }
@@ -24,7 +24,7 @@ export class DynamicState {
   selectedEntityId: EntityId | null = null
   perspectiveEntity: Entity | null = null
   userControlledEntity: Entity | null = null
-  setSelectedEntityId: (entityId: EntityId | null) => void
+  selectEntity: (entityId: EntityId | null) => void
   setPerspectiveEntityIdOverride: (entityId: EntityId | null) => void
   context: DynamicStateContext
 
@@ -44,7 +44,7 @@ export class DynamicState {
     this.context = context
     this.userId = userId
     this.setForceUpdateCounter = context.setForceUpdateCounter
-    this.setSelectedEntityId = context.setSelectedEntityId
+    this.selectEntity = context.selectEntity
     this.setPerspectiveEntityIdOverride = context.setPerspectiveEntityIdOverride
   }
 

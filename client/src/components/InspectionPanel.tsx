@@ -1,13 +1,16 @@
 import {CharacterComponentData, InventoryComponentData} from "../game/CharacterComponentData";
 import {ItemComponentData, ItemConfig} from "../game/ItemComponentData";
-import {Switch, Text} from "@mantine/core";
+import {ActionIcon, Button, Switch, Text} from "@mantine/core";
 import {renderSelectedEntityInspection} from "./RenderSelectedEntityInspection";
-import React, {useState} from "react";
+import React, {Fragment, useState} from "react";
 import {Entity} from "../simulation/Entity";
 import {InventoryListComponent} from "./InventoryListComponent";
-import {IconInfoCircle} from "@tabler/icons-react";
+import {IconBug, IconInfoCircle, IconSend, IconX} from "@tabler/icons-react";
 import {resolveEntityPositionForCurrentTime} from "../common/PositionComponentData";
 import {DynamicState} from "./DynamicState";
+import {PanelCloseButton} from "./PanelCloseButton";
+import {useWindowHeight} from "@react-hook/window-size";
+import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
 
 
 interface InspectionPanelProps {
@@ -20,12 +23,14 @@ interface InspectionPanelProps {
 
 export function InspectionPanel(props: InspectionPanelProps) {
   const dynamicState = props.dynamicState
-  const sideBarWidth = 400
   const simulation = dynamicState.simulation
 
+  const windowHeight = useWindowHeight()
   const [debugMode, setDebugMode] = useState(false)
 
-  if (simulation == null) {
+  const scene = dynamicState.scene
+
+  if (simulation == null || scene == null) {
     return null
   }
 
@@ -40,7 +45,7 @@ export function InspectionPanel(props: InspectionPanelProps) {
 
 
   return <div
-    key={"selected-entity-side-bar"}
+    key={"inspection-panel"}
     style={{
       width: props.useMobileLayout
         ? "100%"
@@ -53,30 +58,58 @@ export function InspectionPanel(props: InspectionPanelProps) {
       right: 10,
       display: "flex",
       flexDirection: "column",
-      height: props.useMobileLayout ? props.windowHeight * 0.65 : undefined
+      height: props.useMobileLayout ? props.windowHeight * 0.65 : undefined,
+      pointerEvents: "auto"
     }}
   >
+    <PanelCloseButton close={() => {
+      props.dynamicState.selectEntity(null)
+    }} size={30} right={-5} top={-5}/>
+
+    <div
+      key={"debug-row"}
+      style={{
+        width: "100%",
+        justifyContent: "right",
+        display: "flex",
+        flexDirection: "row",
+        height: 1
+      }}
+    >
+      <ActionIcon
+        style={{
+          top: -5,
+          right: 30
+        }}
+        size={30}
+        color={debugMode ? "blue" : "gray"}
+        variant={debugMode ? "filled" : "subtle"}
+        onClick={() => {
+          setDebugMode(!debugMode)
+        }}
+      >
+        <IconBug size="1.125rem"/>
+      </ActionIcon>
+    </div>
+
     <div
       key="header"
       style={{
         display: "flex",
-        flexDirection: "column",
-        gap: 1,
-        marginBottom: 3
+        flexDirection: "row",
+        gap: 10,
+        marginBottom: 3,
+        alignItems: "center"
       }}
     >
-      <div
-        key="header-title"
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 5
-        }}
-      >
-        <IconInfoCircle size={15}/>
-        <Text>Inspection</Text>
-      </div>
+      {buildEntityProfileIconDiv(
+        entity.entityId,
+        simulation,
+        scene,
+        {
+          profileIconSize: 40
+        }
+      )}
 
       {characterComponent != null
         ? <Text weight={"bold"}>{characterComponent.data.name}</Text>
@@ -95,25 +128,43 @@ export function InspectionPanel(props: InspectionPanelProps) {
         gap: 6,
         flexDirection: "column",
         display: "flex",
-        paddingTop: 10,
-        paddingBottom: 10
+        paddingTop: 5,
+        paddingBottom: 0
       }}
     >
       <Text><b>Position</b> x{position.x.toFixed(0)}, y{position.y.toFixed(0)}</Text>
 
-      <Text weight={"bold"}>Inventory</Text>
-      {inventoryComponent != null ? <InventoryListComponent
-        perspectiveEntity={entity}
-        userControlledEntity={null}
-        dynamicState={props.dynamicState}
-        viewOnly={true}/> : null}
+      {dynamicState.userControlledEntity === null ? <Button
+        style={{}}
+        variant={"filled"}
+        onClick={() => {
+          if (entity.entityId === dynamicState.perspectiveEntity?.entityId) {
+            dynamicState.setPerspectiveEntityIdOverride(null)
+          } else {
+            dynamicState.setPerspectiveEntityIdOverride(entity.entityId)
+            scene.centerCameraOnEntityId(entity.entityId)
+          }
+        }}
+      >
+        {entity.entityId === dynamicState.perspectiveEntity?.entityId
+          ? "Clear Perspective"
+          : "View Perspective"}
+      </Button> : null}
 
-      <Switch checked={debugMode}
-              onChange={(event) => setDebugMode(event.currentTarget.checked)}
-              label={"Debug Mode"}
-      />
+      {
+        debugMode ? <Fragment>
+          {inventoryComponent != null ? <Fragment>
+            <Text weight={"bold"}>Inventory</Text>
+            <InventoryListComponent
+              perspectiveEntity={entity}
+              userControlledEntity={null}
+              dynamicState={props.dynamicState}
+              viewOnly={true}/>
+          </Fragment> : null}
 
-      {debugMode ? renderSelectedEntityInspection(entity) : null}
+          {debugMode ? renderSelectedEntityInspection(entity, windowHeight) : null}
+        </Fragment> : null
+      }
     </div>
   </div>
 }

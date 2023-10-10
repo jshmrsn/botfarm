@@ -5,6 +5,7 @@ import {Entity} from "../simulation/Entity";
 import {ItemConfig} from "../game/ItemComponentData";
 import {Inventory, InventoryComponentData} from "../game/CharacterComponentData";
 import {DynamicState} from "./DynamicState";
+import {PanelCloseButton} from "./PanelCloseButton";
 
 
 interface CraftingPanelProps {
@@ -14,6 +15,7 @@ interface CraftingPanelProps {
   userControlledEntity: Entity | null
   perspectiveEntity: Entity | null
   useMobileLayout: boolean
+  close: () => void
 }
 
 export function CraftingPanel(props: CraftingPanelProps): ReactElement | null {
@@ -63,6 +65,8 @@ export function CraftingPanel(props: CraftingPanelProps): ReactElement | null {
       pointerEvents: "auto"
     }}
   >
+    <PanelCloseButton close={props.close} size={30} right={-5} top={-5}/>
+
     <div
       key="header"
       style={{

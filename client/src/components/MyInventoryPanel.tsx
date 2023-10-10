@@ -3,15 +3,16 @@ import {IconGridDots} from "@tabler/icons-react";
 import React, {ReactElement} from "react";
 import {InventoryListComponent} from "./InventoryListComponent";
 import {Entity} from "../simulation/Entity";
-import {ActivityStreamComponentData} from "../game/activityStreamComponentData";
 import {DynamicState} from "./DynamicState";
 import {useWindowSize} from "@react-hook/window-size";
+import {PanelCloseButton} from "./PanelCloseButton";
 
 interface MyInventoryPanelProps {
   dynamicState: DynamicState
   userControlledEntity: Entity | null
   perspectiveEntity: Entity | null
   useMobileLayout: boolean
+  close: () => void
 }
 
 export function MyInventoryPanel(props: MyInventoryPanelProps): ReactElement | null {
@@ -47,6 +48,8 @@ export function MyInventoryPanel(props: MyInventoryPanelProps): ReactElement | n
       pointerEvents: "auto"
     }}
   >
+    <PanelCloseButton close={props.close} size={30} right={-5} top={-5}/>
+
     <div
       key="header"
       style={{

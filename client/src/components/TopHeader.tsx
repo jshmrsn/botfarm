@@ -3,7 +3,7 @@ import {DynamicState} from "./DynamicState";
 import {Entity} from "../simulation/Entity";
 import styled from "styled-components";
 import {CharacterComponent} from "../game/CharacterComponentData";
-import {buildDivForProfileIconLayers} from "./BuildDivForProfileIconLayers";
+import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
 
 export interface TopHeaderProps {
   dynamicState: DynamicState
@@ -16,12 +16,9 @@ export interface TopHeaderProps {
 const ListButton = styled.div`
   display: flex;
   flex-direction: row;
-  gap: 10px;
-  align-items: center;
-  border-radius: 3px;
+  //align-items: center;
   padding: 5px;
-  padding-left: 10px;
-  background-color: rgba(255, 255, 255, 0.5);
+  padding-left: 10px;;
 
   &:hover {
     background-color: rgba(255, 255, 255, 1);
@@ -44,13 +41,8 @@ export function TopHeader(props: TopHeaderProps): ReactElement | null {
     return null
   }
 
-  if (dynamicState.userControlledEntity != null) {
-    return null
-  }
-
-  const renderedCharacters = scene.fogOfWarVisibleEntities
-    .filter(entity => CharacterComponent.getDataOrNull(entity) != null &&
-      entity != dynamicState.userControlledEntity)
+  const renderedCharacters = simulation.entities // scene.fogOfWarVisibleEntities
+    .filter(entity => CharacterComponent.getDataOrNull(entity) != null)
     .map(entity => {
       const characterComponentData = CharacterComponent.getData(entity) != null
 
@@ -80,47 +72,54 @@ export function TopHeader(props: TopHeaderProps): ReactElement | null {
         display: "flex",
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.5)",
+        backgroundColor: "rgba(255, 255, 255, 0.4)",
         flexBasis: 50,
         backdropFilter: "blur(5px)",
         WebkitBackdropFilter: "blur(5px)",
         borderRadius: 5,
-        gap: 10,
-        padding: 4
+        gap: 8,
+        padding: 6
       }}
     >
       {renderedCharacters.map(renderedCharacter => {
+        const entityId = renderedCharacter.entity.entityId;
         return <ListButton
-          key={"rendered-character:" + renderedCharacter.entity.entityId}
+          key={"rendered-character:" + entityId}
           style={{
             display: "flex",
             flexDirection: "row",
-            padding: 0,
+            padding: 4,
             alignItems: "center",
             justifyContent: "center",
-            height: 60,
-            width: 60,
-            backdropFilter: "blur(5px)",
-            WebkitBackdropFilter: "blur(5px)",
+
+            // backdropFilter: "blur(5px)",
+            // WebkitBackdropFilter: "blur(5px)",
             borderRadius: 5,
-            gap: 10,
             pointerEvents: "auto",
-            paddingBottom: 10,
             backgroundColor: dynamicState.perspectiveEntity === renderedCharacter.entity ?
-              "#228BE6" : undefined
+              "#228BE6" : "rgba(255, 255, 255, 0.4)",
+            outlineColor: "white",
+            outlineWidth: 2,
+            outlineStyle: dynamicState.selectedEntityId === entityId ?
+              "solid" : "none"
           }}
           onClick={() => {
-            if (dynamicState.perspectiveEntity === renderedCharacter.entity) {
-              dynamicState.setPerspectiveEntityIdOverride(null)
+            if (dynamicState.selectedEntityId === entityId) {
+              dynamicState.selectEntity(null)
             } else {
-              dynamicState.setPerspectiveEntityIdOverride(renderedCharacter.entity.entityId)
+              dynamicState.selectEntity(entityId)
+              scene.centerCameraOnEntityId(entityId)
             }
           }}
         >
-          {buildDivForProfileIconLayers(
-            renderedCharacter.entity.entityId,
+          {buildEntityProfileIconDiv(
+            entityId,
             simulation,
-            scene
+            scene,
+            {
+              profileIconSize: 40,
+              alpha: scene.fogOfWarVisibleEntitiesById[entityId] ? 1.0 : 0.5
+            }
           )}
         </ListButton>
       })}

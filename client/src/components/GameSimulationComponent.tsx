@@ -1,6 +1,6 @@
 import React, {ReactElement, useEffect, useState} from "react";
 import {ActionIcon, Button, Text} from "@mantine/core";
-import {IconHammer, IconInfoCircle, IconMenu2, IconMessages, IconQuestionMark} from "@tabler/icons-react";
+import {IconHammer, IconMenu2, IconMessages, IconQuestionMark} from "@tabler/icons-react";
 import Phaser from "phaser";
 import {AutoInteractActionType, GameSimulationScene, SimulationSceneContext} from "../game/GameSimulationScene";
 import {ClientSimulationData, EntityId, ReplayData} from "../simulation/EntityData";
@@ -10,19 +10,12 @@ import {GameSimulation} from "../game/GameSimulation";
 import {ChatInputArea} from "./ChatInputArea";
 import {MyInventoryPanel} from "./MyInventoryPanel";
 import {handleWebSocketMessage} from "../common/handleWebSocketMessage";
-import {DebugPanel} from "./DebugPanel";
 import {AgentControlledComponent} from "../game/AgentControlledComponentData";
 import {UserControlledComponentData} from "../game/userControlledComponentData";
 import {ActivityPanel} from "./ActivityPanel";
 import {CraftingPanel} from "./CraftingPanel";
 import {InspectionPanel} from "./InspectionPanel";
 import {Entity} from "../simulation/Entity";
-import {
-  PositionComponentData,
-  resolveEntityPositionForCurrentTime,
-  resolvePositionForCurrentTime
-} from "../common/PositionComponentData";
-import {Vector2} from "../misc/Vector2";
 import {HelpPanel} from "./HelpPanel";
 import {SimulationId, UserId, UserSecret} from "../simulation/Simulation";
 import {useNavigate, useParams} from "react-router-dom";
@@ -37,7 +30,7 @@ import {QuickInventory} from "./QuickInventory";
 import {TopHeader} from "./TopHeader";
 
 
-export enum PanelTypes {
+export enum PanelType {
   Activity,
   Inventory,
   Crafting
@@ -60,7 +53,7 @@ export interface GetSimulationInfoResponse {
 }
 
 
-export const SimulationComponent = (props: SimulationProps) => {
+export const GameSimulationComponent = (props: SimulationProps) => {
   const {simulationId} = useParams<SimulationComponentParams>()
 
   if (!simulationId) {
@@ -70,11 +63,10 @@ export const SimulationComponent = (props: SimulationProps) => {
   const [windowWidth, windowHeight] = useWindowSize()
   const useMobileLayout = windowWidth < 600
 
-  const [shouldShowDebugPanel, setShouldShowDebugPanel] = useState(false)
   const [shouldShowHelpPanel, setShouldShowHelpPanel] = useState(false)
   const [shouldShowMenuPanel, setShouldShowMenuPanel] = useState(false)
 
-  const [showingPanels, setShowingPanels] = useState<PanelTypes[]>(useMobileLayout ? [] : [PanelTypes.Activity])
+  const [showingPanels, setShowingPanels] = useState<PanelType[]>(useMobileLayout ? [] : [PanelType.Activity])
   const [chatInputIsFocused, setChatInputIsFocused] = useState(false)
 
   const [forceUpdateCounter, setForceUpdateCounter] = useState(0)
@@ -89,11 +81,29 @@ export const SimulationComponent = (props: SimulationProps) => {
   const [getSimulationInfoResponse, setGetSimulationInfoResponse] = useState<GetSimulationInfoResponse | null>(null)
   const [perspectiveEntityIdOverride, setPerspectiveEntityIdOverride] = useState<EntityId | null>(null)
 
+  function closePanel(panelType: PanelType) {
+    setShowingPanels(showingPanels.filter(it => it !== panelType))
+  }
+
   const userId = props.userId
+
+  const selectEntity = (entityId: EntityId | null) => {
+    if (entityId == null) {
+      setSelectedEntityId(null)
+    } else if (dynamicState.scene != null) {
+      const visibleEntity = dynamicState.scene.fogOfWarVisibleEntitiesById[entityId]
+
+      if (visibleEntity != null) {
+        setSelectedEntityId(entityId)
+        // const entityLocation = resolveEntityPositionForCurrentTime(visibleEntity)
+        //dynamicState.scene.mainCamera.centerOn(entityLocation.x, entityLocation.y)
+      }
+    }
+  }
 
   const dynamicStateContext: DynamicStateContext = {
     setForceUpdateCounter: setForceUpdateCounter,
-    setSelectedEntityId: setSelectedEntityId,
+    selectEntity: selectEntity,
     setPerspectiveEntityIdOverride: setPerspectiveEntityIdOverride
   }
 
@@ -378,38 +388,50 @@ export const SimulationComponent = (props: SimulationProps) => {
   dynamicState.perspectiveEntity = perspectiveEntity
   dynamicState.userControlledEntity = userControlledEntity
 
-  function isShowingPanel(panel: PanelTypes): boolean {
+  function isShowingPanel(panel: PanelType): boolean {
     return showingPanels.includes(panel)
   }
 
   function renderActivityPanel() {
-    return isShowingPanel(PanelTypes.Activity)
-      ? <ActivityPanel dynamicState={dynamicState}
-                       windowHeight={windowHeight}
-                       windowWidth={windowWidth}
-                       useMobileLayout={useMobileLayout}
-                       perspectiveEntity={perspectiveEntity}
-                       userControlledEntity={userControlledEntity}
+    return isShowingPanel(PanelType.Activity)
+      ? <ActivityPanel
+        dynamicState={dynamicState}
+        windowHeight={windowHeight}
+        windowWidth={windowWidth}
+        useMobileLayout={useMobileLayout}
+        perspectiveEntity={perspectiveEntity}
+        userControlledEntity={userControlledEntity}
+        close={() => {
+          closePanel(PanelType.Activity)
+        }}
       /> : null
   }
 
   function renderInventoryPanel() {
-    return isShowingPanel(PanelTypes.Inventory)
-      ? <MyInventoryPanel dynamicState={dynamicState}
-                          userControlledEntity={userControlledEntity}
-                          perspectiveEntity={perspectiveEntity}
-                          useMobileLayout={useMobileLayout}
+    return isShowingPanel(PanelType.Inventory)
+      ? <MyInventoryPanel
+        dynamicState={dynamicState}
+        userControlledEntity={userControlledEntity}
+        perspectiveEntity={perspectiveEntity}
+        useMobileLayout={useMobileLayout}
+        close={() => {
+          closePanel(PanelType.Inventory)
+        }}
       /> : null
   }
 
   function renderCraftingPanel() {
-    return isShowingPanel(PanelTypes.Crafting)
-      ? <CraftingPanel dynamicState={dynamicState}
-                       windowHeight={windowHeight}
-                       windowWidth={windowWidth}
-                       userControlledEntity={userControlledEntity}
-                       perspectiveEntity={perspectiveEntity}
-                       useMobileLayout={useMobileLayout}
+    return isShowingPanel(PanelType.Crafting)
+      ? <CraftingPanel
+        dynamicState={dynamicState}
+        windowHeight={windowHeight}
+        windowWidth={windowWidth}
+        userControlledEntity={userControlledEntity}
+        perspectiveEntity={perspectiveEntity}
+        useMobileLayout={useMobileLayout}
+        close={() => {
+          closePanel(PanelType.Crafting)
+        }}
       /> : null
   }
 
@@ -419,15 +441,17 @@ export const SimulationComponent = (props: SimulationProps) => {
 
   function renderInspectionPanel() {
     return simulation != null && selectedEntity != null ?
-      <InspectionPanel dynamicState={dynamicState}
-                       windowHeight={windowHeight}
-                       windowWidth={windowWidth}
-                       useMobileLayout={useMobileLayout}
-                       selectedEntity={selectedEntity}/> : null
+      <InspectionPanel
+        dynamicState={dynamicState}
+        windowHeight={windowHeight}
+        windowWidth={windowWidth}
+        useMobileLayout={useMobileLayout}
+        selectedEntity={selectedEntity}
+      /> : null
   }
 
   function renderPanelButtonHelper(
-    panelType: PanelTypes,
+    panelType: PanelType,
     icon: ReactElement
   ) {
     return renderPanelButton(panelType, icon, showingPanels, setShowingPanels)
@@ -543,7 +567,6 @@ export const SimulationComponent = (props: SimulationProps) => {
         }}
       >
         {renderActivityPanel()}
-        {renderInspectionPanel()}
       </div> : null}
 
       {!useMobileLayout && simulation != null ? <div
@@ -562,10 +585,6 @@ export const SimulationComponent = (props: SimulationProps) => {
         {renderCraftingPanel()}
       </div> : null}
 
-      {simulation != null && shouldShowDebugPanel ?
-        <DebugPanel dynamicState={dynamicState} windowHeight={windowHeight}
-                    selectedEntityId={selectedEntityId}/> : null}
-
       <div
         key={"bottom-center-ui"}
         style={{
@@ -578,13 +597,14 @@ export const SimulationComponent = (props: SimulationProps) => {
           flexDirection: "column",
           gap: 5,
           paddingBottom: 5,
-          pointerEvents: "none"
+          pointerEvents: "none",
+          alignItems: "center"
         }}
       >
         {useMobileLayout ? renderInventoryPanel() : null}
         {useMobileLayout ? renderActivityPanel() : null}
         {useMobileLayout ? renderCraftingPanel() : null}
-        {useMobileLayout ? renderInspectionPanel() : null}
+        {renderInspectionPanel()}
 
         {replayControlsDiv}
 
@@ -602,8 +622,8 @@ export const SimulationComponent = (props: SimulationProps) => {
             gap: 10
           }}
         >
-          {renderPanelButtonHelper(PanelTypes.Activity, <IconMessages size={24}/>)}
-          {renderPanelButtonHelper(PanelTypes.Crafting, <IconHammer size={24}/>)}
+          {renderPanelButtonHelper(PanelType.Activity, <IconMessages size={24}/>)}
+          {renderPanelButtonHelper(PanelType.Crafting, <IconHammer size={24}/>)}
           <div style={{
             flexBasis: 30
           }}/>
@@ -870,12 +890,12 @@ export const SimulationComponent = (props: SimulationProps) => {
 }
 
 export function renderPanelButton(
-  panelType: PanelTypes,
+  panelType: PanelType,
   icon: ReactElement,
-  showingPanels: PanelTypes[],
-  setShowingPanels: (panelTypes: PanelTypes[]) => void
+  showingPanels: PanelType[],
+  setShowingPanels: (panelTypes: PanelType[]) => void
 ) {
-  function isShowingPanel(panel: PanelTypes): boolean {
+  function isShowingPanel(panel: PanelType): boolean {
     return showingPanels.includes(panel)
   }
 

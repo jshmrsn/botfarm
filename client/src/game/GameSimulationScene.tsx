@@ -1231,6 +1231,14 @@ export class GameSimulationScene extends Phaser.Scene {
     this.mainCamera.centerOn(location.x, location.y)
   }
 
+  centerCameraOnEntityId(entityId: EntityId) {
+    const visibleEntity = this.fogOfWarVisibleEntitiesById[entityId]
+
+    if (visibleEntity != null) {
+      this.centerCameraOnLocation(resolveEntityPositionForCurrentTime(visibleEntity))
+    }
+  }
+
   create() {
     this.scale.on('resize', this.resize, this)
 
@@ -1289,10 +1297,13 @@ export class GameSimulationScene extends Phaser.Scene {
     return this.simulation.getConfig<T>(configKey, serverSerializationTypeName)
   }
 
-  fogOfWarVisibleEntities: Entity[] = []
+  readonly fogOfWarVisibleEntities: Entity[] = []
+  fogOfWarVisibleEntitiesById: Record<EntityId, Entity> = {}
 
   renderEntities(didRenderDebugInfo: boolean, fogOfWarInfo: FogOfWarInfo | null, perspectiveEntity: Entity | null) {
     this.fogOfWarVisibleEntities.splice(0, this.fogOfWarVisibleEntities.length)
+    const previousFogOfWarVisibleEntitiesById = this.fogOfWarVisibleEntitiesById
+    this.fogOfWarVisibleEntitiesById = {}
 
     const simulationTime = this.getCurrentSimulationTime()
 
@@ -1323,6 +1334,7 @@ export class GameSimulationScene extends Phaser.Scene {
       }
 
       if (fogOfWarOccludePercent < 0.1) {
+        this.fogOfWarVisibleEntitiesById[entity.entityId] = entity
         this.fogOfWarVisibleEntities.push(entity)
       }
 
@@ -1402,11 +1414,29 @@ export class GameSimulationScene extends Phaser.Scene {
     }
 
     if (this.dynamicState.selectedEntityId != null) {
-      const selectedVisibleFogOfWarEntity = this.fogOfWarVisibleEntities.find(entity => entity.entityId === this.dynamicState.selectedEntityId)
+      const selectedVisibleFogOfWarEntity = this.fogOfWarVisibleEntitiesById[this.dynamicState.selectedEntityId]
 
       if (!selectedVisibleFogOfWarEntity) {
         this.context.setSelectedEntityId(null)
       }
+    }
+
+    var anyChangedFogOfWarEntities = false
+
+    for (let fogOfWarVisibleEntityId in this.fogOfWarVisibleEntitiesById) {
+      if (!previousFogOfWarVisibleEntitiesById[fogOfWarVisibleEntityId]) {
+        anyChangedFogOfWarEntities = true
+      }
+    }
+
+    for (let previousFogOfWarVisibleEntityId in previousFogOfWarVisibleEntitiesById) {
+      if (!this.fogOfWarVisibleEntitiesById[previousFogOfWarVisibleEntityId]) {
+        anyChangedFogOfWarEntities = true
+      }
+    }
+
+    if (anyChangedFogOfWarEntities) {
+      this.dynamicState.forceUpdate()
     }
   }
 

@@ -9,7 +9,8 @@ import {getUnixTimeSeconds} from "../misc/utils";
 import {Fragment, ReactElement} from "react";
 
 export function renderSelectedEntityInspection(
-  entity: Entity
+  entity: Entity,
+  windowHeight: number
 ) {
   const simulation = entity.simulation
 
@@ -103,7 +104,8 @@ export function renderSelectedEntityInspection(
     width: "100%",
     // display: "flex",
     gap: 2,
-    flexDirection: "column"
+    flexDirection: "column",
+    height: windowHeight * 0.4
   }}>
     <Text><b>Entity</b> ({entity.entityId})</Text>
 

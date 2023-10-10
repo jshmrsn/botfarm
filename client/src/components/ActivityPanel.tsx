@@ -5,6 +5,7 @@ import {ActivityStreamList} from "./ActivityStreamList";
 import React from "react";
 import {Entity} from "../simulation/Entity";
 import {DynamicState} from "./DynamicState";
+import {PanelCloseButton} from "./PanelCloseButton";
 
 interface ActivityPanelProps {
   windowHeight: number
@@ -13,6 +14,7 @@ interface ActivityPanelProps {
   useMobileLayout: boolean
   perspectiveEntity: Entity | null
   userControlledEntity: Entity | null
+  close: () => void
 }
 
 export function ActivityPanel(props: ActivityPanelProps) {
@@ -47,6 +49,8 @@ export function ActivityPanel(props: ActivityPanelProps) {
       pointerEvents: "auto"
     }}
   >
+    <PanelCloseButton close={props.close} size={30} right={-5} top={-5}/>
+
     <div
       key="header"
       style={{

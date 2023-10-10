@@ -1,14 +1,15 @@
 import {ActivityStreamEntry} from "../game/ActivityStreamEntry";
 import {ActionIcon, Button, Text} from "@mantine/core";
 import React, {ReactElement, useState} from "react";
-import {IconArrowDown} from "@tabler/icons-react";
+import {IconArrowDown, IconMapPin} from "@tabler/icons-react";
 import {DynamicState} from "./DynamicState";
 import styled from "styled-components";
-import {resolveEntityPositionForCurrentTime} from "../common/PositionComponentData";
 import {formatSeconds} from "./ReplayControls";
 import {Entity} from "../simulation/Entity";
-import {ItemConfig} from "../game/ItemComponentData";
-import {buildDivForProfileIconLayers} from "./BuildDivForProfileIconLayers";
+import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
+import {EntityId} from "../simulation/EntityData";
+import {Simulation} from "../simulation/Simulation";
+import {GameSimulationScene} from "../game/GameSimulationScene";
 
 interface Props {
   activityStream: ActivityStreamEntry[]
@@ -16,14 +17,23 @@ interface Props {
   perspectiveEntity: Entity | null
 }
 
-const ListButton = styled.div`
+const ListItem = styled.div`
   display: flex;
   flex-direction: row;
-  gap: 10px;
   align-items: center;
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 5px;
   padding-left: 10px;
+`;
+
+const ObservedCharacterButton = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-items: center;
+  border-radius: 10px;
+  padding: 2px;
+  background-color: rgba(255, 255, 255, 0.0);
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.75);
@@ -31,6 +41,55 @@ const ListButton = styled.div`
 
   cursor: pointer;
 `;
+
+export function buildCharacterProfileIconButton(
+  entityId: EntityId | null,
+  simulation: Simulation,
+  scene: GameSimulationScene,
+  options?: {
+    profileIconSize?: number,
+    alpha?: number,
+    onClick?: () => void,
+    fallbackItemConfigKey?: string
+  }
+): ReactElement | null {
+  options = options || {}
+
+  const entity = entityId !== null ? scene.fogOfWarVisibleEntitiesById[entityId] : null
+
+  const alpha = options.alpha || (entity ? 1 : 0.3)
+
+  const iconLayersDiv = buildEntityProfileIconDiv(
+    entityId,
+    simulation,
+    scene,
+    {
+      profileIconSize: options.profileIconSize,
+      alpha: alpha,
+      fallbackItemConfigKey: options.fallbackItemConfigKey
+    }
+  )
+
+  if (iconLayersDiv != null) {
+    const onClick = options.onClick || (() => {
+      if (entity != null) {
+        scene.dynamicState.selectEntity(entity.entityId)
+        scene.centerCameraOnEntityId(entity.entityId)
+      }
+    })
+
+    return <ObservedCharacterButton
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+    >
+      {iconLayersDiv}
+    </ObservedCharacterButton>
+  } else {
+    return null
+  }
+}
 
 
 export function ActivityStreamList(props: Props): ReactElement | null {
@@ -71,19 +130,21 @@ export function ActivityStreamList(props: Props): ReactElement | null {
   }
 
   const content = filteredActivityStream.map((entry, activityStreamIndex) => {
-    const sourceProfileIconDiv = buildDivForProfileIconLayers(
+    const sourceLocation = entry.sourceLocation;
+
+    const sourceProfileIconDiv = buildCharacterProfileIconButton(
       entry.sourceEntityId,
       simulation,
       phaserScene
     )
 
-    const targetProfileIconDiv = buildDivForProfileIconLayers(
+    const targetProfileIconDiv = buildCharacterProfileIconButton(
       entry.targetEntityId,
       simulation,
       phaserScene
     )
 
-    return <ListButton
+    return <ListItem
       key={"activity-stream-entry-" + activityStreamIndex}
       ref={activityStreamIndex === (filteredActivityStream.length - 1)
         ? (entry => {
@@ -99,20 +160,6 @@ export function ActivityStreamList(props: Props): ReactElement | null {
           }
         })
         : null}
-      onClick={(event) => {
-        event.stopPropagation()
-
-        if (entry.sourceLocation != null) {
-          props.dynamicState.scene?.centerCameraOnLocation(entry.sourceLocation)
-        } else if (entry.sourceEntityId != null) {
-          const sourceEntity = simulation.getEntityOrNull(entry.sourceEntityId)
-
-          if (sourceEntity != null) {
-            const sourceEntityPosition = resolveEntityPositionForCurrentTime(sourceEntity)
-            props.dynamicState.scene?.centerCameraOnLocation(sourceEntityPosition)
-          }
-        }
-      }}
       style={{
         display: "flex",
         flexDirection: "row",
@@ -189,7 +236,9 @@ export function ActivityStreamList(props: Props): ReactElement | null {
               height: 40
             }}
           /> : null}
+
           {targetProfileIconDiv}
+
           {entry.targetIconPath != null ? <img
             src={entry.targetIconPath}
             alt={"Target icon"}
@@ -198,31 +247,69 @@ export function ActivityStreamList(props: Props): ReactElement | null {
               height: 40
             }}
           /> : null}
+
+          {entry.spawnedItems != null ? <div
+            key={"spawn-items-list"}
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              gap: 5
+            }}
+          >
+            {entry.spawnedItems.map(spawnedItem => {
+              return buildCharacterProfileIconButton(
+                spawnedItem.entityId,
+                simulation,
+                phaserScene,
+                {
+                  profileIconSize: 25,
+                  fallbackItemConfigKey: spawnedItem.itemConfigKey
+                }
+              )
+            })}
+          </div> : null}
+
+          <div style={{
+            flexGrow: 1.0
+          }}/>
+
+          {sourceLocation != null ?
+            <ObservedCharacterButton
+              onClick={(event) => {
+                event.stopPropagation()
+                props.dynamicState.scene?.centerCameraOnLocation(sourceLocation)
+              }}
+            >
+              <IconMapPin color={"rgba(0, 0, 0, 0.25)"} size={20}/>
+            </ObservedCharacterButton> : null}
         </div>
 
-        {entry.spawnedItems != null ? <div
-          key={"spawn-items-list"}
+        {entry.observedByEntityIds != null || sourceLocation != null ? <div
+          key={"observed-by-entities-list"}
           style={{
             display: "flex",
             flexDirection: "row",
-            gap: 5
+            gap: 5,
+            justifyContent: "right"
           }}
         >
-          {entry.spawnedItems.map(spawnedItem => {
-            const itemConfig = simulation.getConfig<ItemConfig>(spawnedItem.itemConfigKey, "ItemConfig")
-
-            return <img
-              src={itemConfig.iconUrl}
-              alt={"Spawned item icon"}
-              style={{
-                flexBasis: 25,
-                height: 25
-              }}
-            />
-          })}
+          {(entry.observedByEntityIds || [])
+            .filter(entityId => entityId !== entry.sourceEntityId)
+            .map(entityId => {
+              return buildCharacterProfileIconButton(
+                entityId,
+                simulation,
+                phaserScene,
+                {
+                  profileIconSize: 28
+                }
+              )
+            })}
         </div> : null}
+
+
       </div>
-    </ListButton>
+    </ListItem>
   }).reverse()
 
   const scrollForNewMessagesButton = <div
@@ -283,17 +370,7 @@ export function ActivityStreamList(props: Props): ReactElement | null {
     </ActionIcon>
   </div>
 
-  // joshr: I haven't figured out how to insert a container div that doesn't cause the parent to grow to fit
-  // the scrolling content, so I'm using a fragment for now...
   return <React.Fragment>
-  {/*  key="container2"*/}
-  {/*  style={{*/}
-  {/*    backgroundColor: "blue",*/}
-  {/*    flexGrow: 1.0,*/}
-  {/*    display: "flex",*/}
-  {/*    height: "100%"*/}
-  {/*  }}*/}
-  {/*>*/}
     <div
       key={"activity-stream-scroll"}
       onScroll={event => {

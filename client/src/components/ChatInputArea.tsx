@@ -1,15 +1,15 @@
 import React, {ReactElement, useState} from "react";
 import {ActionIcon, Textarea} from "@mantine/core";
 import {IconSend} from "@tabler/icons-react";
-import {PanelTypes} from "./SimulationComponent";
+import {PanelType} from "./GameSimulationComponent";
 import {DynamicState} from "./DynamicState";
 
 
 interface ChatInputAreaProps {
   windowWidth: number
   dynamicState: DynamicState
-  showingPanels: PanelTypes[]
-  setShowingPanels: (panels: PanelTypes[]) => void
+  showingPanels: PanelType[]
+  setShowingPanels: (panels: PanelType[]) => void
   notifyChatInputIsFocused: (focused: boolean) => void
 }
 
