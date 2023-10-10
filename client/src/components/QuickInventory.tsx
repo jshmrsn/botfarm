@@ -157,8 +157,6 @@ export function QuickInventory(props: QuickInventoryProps): ReactElement | null 
       display: "flex",
       flexDirection: "row",
       backgroundColor: "rgba(255, 255, 255, 0.5)",
-      backdropFilter: "blur(5px)",
-      WebkitBackdropFilter: "blur(5px)",
       gap: 4,
       alignItems: "center",
       pointerEvents: "auto"

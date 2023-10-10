@@ -537,8 +537,6 @@ export const GameSimulationComponent = (props: SimulationProps) => {
             alignItems: "center",
             backgroundColor: "rgba(255, 255, 255, 0.5)",
             height: 35,
-            backdropFilter: "blur(5px)",
-            WebkitBackdropFilter: "blur(5px)",
             borderRadius: 5,
             gap: 10,
             pointerEvents: "auto"
@@ -838,8 +836,6 @@ export const GameSimulationComponent = (props: SimulationProps) => {
               alignItems: "center",
               backgroundColor: "rgba(255, 255, 255, 0.5)",
               height: 35,
-              backdropFilter: "blur(5px)",
-              WebkitBackdropFilter: "blur(5px)",
               borderRadius: 5,
               gap: 10,
               pointerEvents: "auto"

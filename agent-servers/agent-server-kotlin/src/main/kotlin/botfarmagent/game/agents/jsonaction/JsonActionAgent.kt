@@ -496,111 +496,114 @@ class JsonActionAgent(
 
       this.previousPromptSendSimulationTime = simulationTimeForStep
 
-      val iWantToSay = response.iWantToSay
+      val responseActions = response.actions ?: listOf()
 
-      val reason = response.reason
+      val actions = responseActions.map { responseAction ->
+         val iWantToSay = responseAction.iWantToSay
 
-      val facialExpressionEmoji = response.facialExpressionEmoji
+         val reason = responseAction.reason
 
-      val locationToWalkTo = response.locationToWalkTo
+         val facialExpressionEmoji = responseAction.facialExpressionEmoji
 
-      val genericActionOnEntity = response.actionOnEntity
+         val locationToWalkTo = responseAction.locationToWalkTo
 
-      val genericActionOnInventoryItem = response.actionOnInventoryItem
-      val craftItemAction = response.craftItem
-      val useEquippedToolItem = response.useEquippedToolItem
+         val genericActionOnEntity = responseAction.actionOnEntity
 
-      val newThoughts = response.newThoughts ?: listOf()
+         val genericActionOnInventoryItem = responseAction.actionOnInventoryItem
+         val craftItemAction = responseAction.craftItem
+         val useEquippedToolItem = responseAction.useEquippedToolItem
 
-      val newLongTermMemories = newThoughts.map { newLongTermMemory ->
-         LongTermMemory(
-            createdTime = simulationTimeForStep,
-            content = newLongTermMemory,
-            id = this.memoryState.longTermMemories.size + 1,
-            createdAtLocation = currentLocation,
-            importance = 0
-         )
-      }
+         val newThoughts = responseAction.newThoughts ?: listOf()
 
-      this.memoryState.longTermMemories.addAll(newLongTermMemories)
-
-      newLongTermMemories.forEach { memory ->
-         this.memoryState.automaticShortTermMemories.add(
-            AutomaticShortTermMemory(
-               time = simulationTimeForStep,
-               summary = "I had the thought: " + memory.content,
+         val newLongTermMemories = newThoughts.map { newLongTermMemory ->
+            LongTermMemory(
+               createdTime = simulationTimeForStep,
+               content = newLongTermMemory,
+               id = this.memoryState.longTermMemories.size + 1,
+               createdAtLocation = currentLocation,
+               importance = 0
             )
-         )
-      }
-
-      val walk = if (locationToWalkTo != null) {
-         if (locationToWalkTo.size == 2) {
-            val endPoint = Vector2(locationToWalkTo.first(), locationToWalkTo.last())
-
-            WalkAction(
-               location = endPoint
-            )
-         } else {
-            throw Exception("Unexpected location size for locationToWalkToAndReason: ${locationToWalkTo.size}")
          }
-      } else {
-         null
-      }
 
-      val action = Action(
-         walk = walk,
-         reason = reason,
-         useEquippedToolItemOnEntity = genericActionOnEntity?.let {
-            if (it.actionId == "harvest") {
-               ActionOnEntity(
-                  targetEntityId = it.targetEntityId
+         this.memoryState.longTermMemories.addAll(newLongTermMemories)
+
+         newLongTermMemories.forEach { memory ->
+            this.memoryState.automaticShortTermMemories.add(
+               AutomaticShortTermMemory(
+                  time = simulationTimeForStep,
+                  summary = "I had the thought: " + memory.content,
+               )
+            )
+         }
+
+         val walk = if (locationToWalkTo != null) {
+            if (locationToWalkTo.size == 2) {
+               val endPoint = Vector2(locationToWalkTo.first(), locationToWalkTo.last())
+
+               WalkAction(
+                  location = endPoint
                )
             } else {
-               null
+               throw Exception("Unexpected location size for locationToWalkToAndReason: ${locationToWalkTo.size}")
             }
-         },
-         pickUpEntity = genericActionOnEntity?.let {
-            if (it.actionId == "pickup") {
-               ActionOnEntity(
-                  targetEntityId = it.targetEntityId
-               )
-            } else {
-               null
-            }
-         },
-         dropInventoryItem = genericActionOnInventoryItem?.let {
-            if (genericActionOnInventoryItem.actionId == "dropItem") {
-               ActionOnInventoryItem(
-                  itemConfigKey = genericActionOnInventoryItem.itemConfigKey,
-                  stackIndex = genericActionOnInventoryItem.stackIndex,
-                  amount = genericActionOnInventoryItem.amount
-               )
-            } else {
-               null
-            }
-         },
-         equipInventoryItem = genericActionOnInventoryItem?.let {
-            if (genericActionOnInventoryItem.actionId == "equipItem") {
-               ActionOnInventoryItem(
-                  itemConfigKey = genericActionOnInventoryItem.itemConfigKey,
-                  stackIndex = genericActionOnInventoryItem.stackIndex,
-                  amount = genericActionOnInventoryItem.amount
-               )
-            } else {
-               null
-            }
-         },
-         speak = iWantToSay,
-         facialExpressionEmoji = facialExpressionEmoji,
-         craftItem = craftItemAction,
-         useEquippedToolItem = useEquippedToolItem,
-         actionUniqueId = buildShortRandomIdentifier()
-      )
+         } else {
+            null
+         }
+
+         Action(
+            walk = walk,
+            reason = reason,
+            useEquippedToolItemOnEntity = genericActionOnEntity?.let {
+               if (it.actionId == "harvest") {
+                  ActionOnEntity(
+                     targetEntityId = it.targetEntityId
+                  )
+               } else {
+                  null
+               }
+            },
+            pickUpEntity = genericActionOnEntity?.let {
+               if (it.actionId == "pickup") {
+                  ActionOnEntity(
+                     targetEntityId = it.targetEntityId
+                  )
+               } else {
+                  null
+               }
+            },
+            dropInventoryItem = genericActionOnInventoryItem?.let {
+               if (genericActionOnInventoryItem.actionId == "dropItem") {
+                  ActionOnInventoryItem(
+                     itemConfigKey = genericActionOnInventoryItem.itemConfigKey,
+                     stackIndex = genericActionOnInventoryItem.stackIndex,
+                     amount = genericActionOnInventoryItem.amount
+                  )
+               } else {
+                  null
+               }
+            },
+            equipInventoryItem = genericActionOnInventoryItem?.let {
+               if (genericActionOnInventoryItem.actionId == "equipItem") {
+                  ActionOnInventoryItem(
+                     itemConfigKey = genericActionOnInventoryItem.itemConfigKey,
+                     stackIndex = genericActionOnInventoryItem.stackIndex,
+                     amount = genericActionOnInventoryItem.amount
+                  )
+               } else {
+                  null
+               }
+            },
+            speak = iWantToSay,
+            facialExpressionEmoji = facialExpressionEmoji,
+            craftItem = craftItemAction,
+            useEquippedToolItem = useEquippedToolItem,
+            actionUniqueId = buildShortRandomIdentifier()
+         )
+      }
 
       val newDebugInfoLines = mutableListOf<String>()
       newDebugInfoLines.add("### Sync ID: $syncId")
       newDebugInfoLines.add("")
-
 
       newDebugInfoLines.add("### Short-Term Memory")
       newDebugInfoLines.add("")
@@ -621,7 +624,7 @@ class JsonActionAgent(
 
       this.addPendingOutput(
          AgentSyncOutput(
-            actions = listOf(action),
+            actions = actions,
             debugInfoByKey = mapOf("Prompt Run Info" to newDebugInfoLines.joinToString("\n")),
             statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
             agentStatus = "prompt-finished",

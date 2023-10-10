@@ -363,8 +363,6 @@ export function ActivityStreamList(props: Props): ReactElement | null {
       alignItems: "center",
       backgroundColor: "rgba(255, 255, 255, 0.75)",
       height: 40,
-      backdropFilter: "blur(5px)",
-      WebkitBackdropFilter: "blur(5px)",
       borderRadius: 5,
       gap: 10
     }}

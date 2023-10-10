@@ -210,8 +210,6 @@ export function MenuPanel(props: MenuPanelProps) {
       style={{
         width: panelWidth,
         backgroundColor: "rgba(255, 255, 255, 0.9)",
-        backdropFilter: "blur(5px)",
-        WebkitBackdropFilter: "blur(5px)",
         padding: 10,
         borderRadius: 10,
         display: "flex",

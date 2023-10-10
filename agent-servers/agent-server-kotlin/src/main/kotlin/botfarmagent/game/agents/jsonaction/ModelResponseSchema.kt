@@ -9,6 +9,8 @@ import botfarmshared.misc.JsonStringSchema
 import kotlinx.serialization.Serializable
 
 object ModelResponseSchema {
+   val actionsKey = "actions"
+
    val reasonKey = "reason"
 
    val locationToWalkToKey = "locationToWalkTo"
@@ -47,7 +49,7 @@ object ModelResponseSchema {
    )
 
    @Serializable
-   class AgentResponseFunctionInputs(
+   class AgentResponseAction(
       val reason: String? = null,
       val locationToWalkTo: List<Double>? = null,
       val actionOnEntity: GenericActionOnEntity? = null,
@@ -59,7 +61,13 @@ object ModelResponseSchema {
       val useEquippedToolItem: UseEquippedToolItem? = null
    )
 
-   val functionSchema = JsonObjectSchema(
+   @Serializable
+   class AgentResponseFunctionInputs(
+      val actions: List<AgentResponseAction>? = null
+   )
+
+   val actionSchema = JsonObjectSchema(
+      description = "A single action to perform. You can provide a reason along with exactly one other top-level to perform different types of actions.",
       properties = mapOf(
          reasonKey to JsonStringSchema("Reason why you are taking this action"),
          locationToWalkToKey to JsonArraySchema(
@@ -94,6 +102,16 @@ object ModelResponseSchema {
          newThoughtsKey to JsonArraySchema(
             description = "Thoughts, memories, or reflections that you would like to store for the long term, so you can remember them in future prompts from the intelligence system.",
             items = JsonStringSchema()
+         )
+      ),
+      required = listOf(facialExpressionEmojiKey)
+   )
+
+   val functionSchema = JsonObjectSchema(
+      properties = mapOf(
+         actionsKey to JsonArraySchema(
+            description = "Actions to perform.",
+            items = this.actionSchema
          )
       ),
       required = listOf(facialExpressionEmojiKey)
