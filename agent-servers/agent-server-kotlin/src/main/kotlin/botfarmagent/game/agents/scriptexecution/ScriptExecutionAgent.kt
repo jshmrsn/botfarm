@@ -362,9 +362,8 @@ class ScriptExecutionAgent(
       finalInstructionsSection.addLine("Your output can perform multiple steps to achieve a more complex compound action.")
       finalInstructionsSection.addLine("It is best to achieve as many useful actions per script as possible, so you might want to use loops to repeat repetitive tasks.")
       finalInstructionsSection.addLine("When you call functions to perform actions, those actions will complete before the function returns, so you can safely call multiple action functions without manually waiting for actions to complete.")
-      finalInstructionsSection.addLine("Other people cannot see your code or comments in your code. If you want to express something to other people, you need to use the speak function.")
-      finalInstructionsSection.addLine("You will not remember your code or your comments in your next prompt. If you want to remember something, use the recordThought function.")
-
+      finalInstructionsSection.addLine("Do not write any comments in your code. If you want to express something to other people, you need to use the speak function.")
+      finalInstructionsSection.addLine("You will not automatically remember your response in your next prompt. If you want to remember something, use the recordThought function.")
       val completionPrefix = ""
 
       newActivitySection.also {

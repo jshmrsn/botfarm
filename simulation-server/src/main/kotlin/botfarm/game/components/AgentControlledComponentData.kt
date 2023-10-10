@@ -27,6 +27,6 @@ data class AgentControlledComponentData(
    val costDollars: Double = 0.0
 ) : EntityComponentData() {
    companion object {
-      val defaultAgentType = "default"
+      val defaultAgentType = "script"
    }
 }

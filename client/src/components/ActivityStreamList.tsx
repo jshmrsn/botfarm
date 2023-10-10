@@ -300,7 +300,7 @@ export function ActivityStreamList(props: Props): ReactElement | null {
           }}
         >
           {(entry.observedByEntityIds || [])
-            .filter(entityId => entityId !== entry.sourceEntityId)
+            .filter(entityId => entityId !== entry.sourceEntityId && entityId !== props.perspectiveEntity?.entityId)
             .map(entityId => {
               return buildCharacterProfileIconButton(
                 entityId,
