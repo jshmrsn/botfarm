@@ -75,6 +75,7 @@ export function buildCharacterProfileIconButton(
     })
 
     return <ObservedCharacterButton
+      key={"profile-icon-button:" + (entityId ?? options.fallbackItemConfigKey)}
       style={{
         height: (options.profileIconSize || 50) + 4
       }}
