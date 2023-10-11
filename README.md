@@ -27,6 +27,8 @@ You can also [watch a replay in the browser](https://botfarm.app/simulation/744F
 
 ![Demo Screenshot](https://github.com/jshmrsn/botfarm/blob/main/docs/screenshots/screenshot-1.png?raw=true)
 
+## How to Play
+See [How to Play](docs/how-to-play.md)
 
 ## Current Features
 - A playable browser-based 2D game with a basic implementation of harvesting, crafting, and farming mechanics.
@@ -41,7 +43,8 @@ You can also [watch a replay in the browser](https://botfarm.app/simulation/744F
 - Repeatable scenario system (using Kotlin code as configuration).
 - Replay system with timeline scrubbing support.
 - Playable on both desktop and mobile browsers.
-- Example agents written in Kotlin based on GPT-4, one based on using GPT-4 function calling to generate lists of actions, and another using GPT-4 to generate JavaScript behavior scripts.
+- Full example agents written in Kotlin based on GPT-4, one based on using GPT-4 function calling to generate lists of actions, and another using GPT-4 to generate JavaScript behavior scripts.
+- Minimal example agent written in Python
 
 ## Project Architecture
 
@@ -109,13 +112,16 @@ Use the Gradle tab to reload all gradle projects.
 Run the "Game Simulation Server" configuration.
 
 #### Running from the terminal (slower iteration)
-In the `simulation-server` directory.
+From the `simulation-server` directory, run:
 ```console
 gradle :shadowJar
 java -jar ./build/libs/botfarm-simulation-server-all.jar
 ```
 
-### 2. **Agent Server**
+### 2.A **Agent Server (Full Kotlin Example)**
+To run the full Kotlin example which includes a working agent built on GPT-4, follow this step.
+Alternatively, skip to step 2.B to run the minimal Python example.
+
 #### Running from IntelliJ (recommended)
 Open the `agent-servers/agent-server-kotlin` directory as an IntelliJ project.
 Use the Gradle tab to reload all gradle projects.
@@ -123,46 +129,73 @@ Run the "Game Agent Server" configuration.
 > **NOTE:** If you want to integrate your OpenAI key, then duplicate the Game Agent Server run configuration, and add BOTFARM_OPENAI_API_KEY environment variable to your new run configuration. To avoid checking your API key into the repository, leave the "Store as project file" checkbox ***disabled*** for this run configuration.
 
 #### Running from the terminal (slower iteration)
-In the `agent-servers/agent-server-kotlin` directory.
+From the `agent-servers/agent-server-kotlin` directory, run:
 ```console
 gradle :shadowJar
 java -jar ./build/libs/botfarm-agent-server-kotlin-all.jar
 ```
 
+### 2.B **Agent Server (Minimal Python Example)**
+NOTE: Skip this step if you are running the Full Kotlin Example from 2.A  
+This minimal Python agent server example simply defines the Pydantic types for the Agent API and then implements `/api/sync` with a response that instructs the agent's character to say "Hello from Python!"
+
+#### Running from the terminal
+From the `agent-servers/agent-server-python` directory, run:
+```console
+./run.sh
+```
+
 ### 3. **Client**
-In the `client` directory.
+From the `client` directory, run:
 ```console
 npm install
 npm start
 ```
 This should start a React/Webpack development server on port `3005`.  
 This will automatically recompile and reload the client whenever you change any client source code (Typescript) or assets.
-See [How to Play](docs/how-to-play.md)
+
+## Agent API
+Agent servers are expected to implement a JSON POST handler at `/api/sync`  
+
+The sync endpoint will be called frequently (currently once per second) by the simulation server to make the agent aware of the current state of the simulation, and to optionally respond with actions for the agent's character to perform.
+
+### The sync request includes:
+- The state of entities near the agent's characters
+- Events that the agent's character has observed since the last time the sync endpoint was called
+- Results of previous character actions requested by the agent
+
+### The sync response can include:
+- A list of actions to perform OR a small JavaScript program to execute character actions using provided TypeScript declarations
+- Debugging information regarding prompts, errors, API costs, etc.
+
+So far, the best documentation available for the specific request and response formats is the Kotlin classes that define them. Additionally, you can view the Python/Pydantic definitions in the example minimal Python agent server project.
+
+Probably the weakest and least self-documenting portion of the Agent API is the overly flexible `ActivityStreamEntry` class.  
+This class is used to communicate events to agents, as well as to help the browser client populate the `Activity Panel`.  
+The `ActivityStreamEntry` has a large number of semi-generic fields, of which different subsets are used to encode different types of in-game events. Until further documentation is provided, you can look at the [example request](docs/example-requests/agent-sync-request-1.json), and otherwise search through the simulation server Kotlin codebase for calls to the `addActivityStreamEntry` function.
+
+### Kotlin Definitions:
+- [AgentSyncRequest.kt](shared/kotlin/botfarmshared/game/apidata/AgentSyncRequest.kt)  
+- [AgentSyncResponse.kt](shared/kotlin/botfarmshared/game/apidata/AgentSyncResponse.kt)  
+- And a few additional classes from [engine/apidata](shared/kotlin/botfarmshared/engine/apidata)
+- Vector2 is serialized as JSON object with x and y number fields `{"x": 3, "y": 4}`
+- Kotlin value classes (e.g. `SimulationId`, `AgentId`, `EntityId`) are directly serialized as their underlying string values (e.g. `"abc123"`)
+- Kotlin enums are serialized as strings, e.g. `AgentStatus.Running` is serialized as `"Running"`
+
+### Python Definitions:
+- [request.py](agent-servers/agent-server-python/api_data/request.py)  
+- [response.py](agent-servers/agent-server-python/api_data/response.py)  
+
+### Example Request
+- [docs/example-requests/agent-sync-request-1.json](docs/example-requests/agent-sync-request-1.json)
 
 ## Deployment
 See [Deployment](docs/deployment.md)
 
-
-## Attribution
-- Liberated Pixel Cup (LPC)
-    - The characters animations in this project are from the Liberated Pixel Cup (LPC) project, which is licensed under CC BY-SA 3.0 and GPLv3.
-https://lpc.opengameart.org/
-    - The full list of attributions for these art assets is located at client/public/assets/liberated-pixel-cup-characters/CREDITS.TXT
-    - This project also uses JSON data derived from the "sheet_definitions" of the Universal LPC Spritesheet Character Generator project (also GPLv3): https://github.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator
-- Most other art in this project was derived from images generated by Midjourney/DALL·E/stability.ai
-
-## Relevant Research/Projects
-
-- [Voyager: An Open-Ended Embodied Agent with Large Language Models](https://github.com/MineDojo/Voyager)  
-- [Generative Agents: Interactive Simulacra of Human Behavior](https://github.com/joonspk-research/generative_agents#generative-agents-interactive-simulacra-of-human-behavior)
-- [AI Town: a virtual town where AI characters live, chat and socialize](https://github.com/a16z-infra/ai-town#stack)
-- [AgentSims: An Open-Source Sandbox for Large Language Model Evaluation](https://github.com/py499372727/AgentSims/)
-
-
 ## Areas to Develop
 Along with continuing broad development on the existing functionality, the following are some areas the project could develop in.
 
-- Developing example agents using other technology stacks, especially those that are popular in the AI/ML community, would be a huge help for the project. Both as a way to make it easier for other people to get started building an agent with other technology stacks, but also as a way to evaluate and iterate on the simulation/agent integration APIs.
+- Developing example agents using other technology stacks, especially those that are popular in the AI/ML community (e.g. Python), would be a huge help for the project. Both as a way to make it easier for other people to get started building an agent with other technology stacks, but also as a way to evaluate and iterate on the simulation/agent integration APIs.
 
 - Building additional simulation features that could be useful for exploring emergent social behavior of generative agents.
     - Basic combat mechanics (so we can evaluate which situations agents would choose to engage in violence)
@@ -181,10 +214,26 @@ Along with continuing broad development on the existing functionality, the follo
 
 - Robust player authentication system. Currently this project using a simplistic admin secret system, and all non-admin connections are essentially anonymous and unauthenticated.
 
-- It it would be nice if people could experience generative agents in game worlds before they become mainstream in commercial products without having to manually run these systems locally. Conceivably, these systems could just be deployed on a public server, but currently running high quality agents is very expensive. Therefore, such as a service would need to support allowing users to pay for the cost of running generative agents. It would be against OpenAI’s terms of service for users to share their own API keys with the service.
+- It would be nice if people could experience generative agents in game worlds before they become mainstream in commercial products without having to manually run these systems locally. Conceivably, these systems could just be deployed on a public server, but currently running high quality agents is very expensive. Therefore, such as a service would need to support allowing users to pay for the cost of running generative agents. It would be against OpenAI’s terms of service for users to share their own API keys with the service.
 
 - General game sound effects
 
 - Integrate text-to-speech
 
 - Integrate voice-to-text
+
+## Attribution
+- Liberated Pixel Cup (LPC)
+    - The characters animations in this project are from the Liberated Pixel Cup (LPC) project, which is licensed under CC BY-SA 3.0 and GPLv3.
+https://lpc.opengameart.org/
+    - The full list of attributions for these art assets is located at client/public/assets/liberated-pixel-cup-characters/CREDITS.TXT
+    - This project also uses JSON data derived from the "sheet_definitions" of the Universal LPC Spritesheet Character Generator project (also GPLv3): https://github.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator
+- Most other art in this project was derived from images generated by Midjourney/DALL·E/stability.ai
+
+## Relevant Research/Projects
+
+- [Voyager: An Open-Ended Embodied Agent with Large Language Models](https://github.com/MineDojo/Voyager)  
+- [Generative Agents: Interactive Simulacra of Human Behavior](https://github.com/joonspk-research/generative_agents#generative-agents-interactive-simulacra-of-human-behavior)
+- [AI Town: a virtual town where AI characters live, chat and socialize](https://github.com/a16z-infra/ai-town#stack)
+- [AgentSims: An Open-Source Sandbox for Large Language Model Evaluation](https://github.com/py499372727/AgentSims/)
+

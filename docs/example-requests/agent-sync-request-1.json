@@ -1,0 +1,1088 @@
+{
+    "input": {
+        "agentType": "script",
+        "syncId": "54EEE014",
+        "agentId": "3B83286E",
+        "simulationId": "20083642",
+        "simulationTime": 26.957100017166137,
+        "selfInfo": {
+            "entityInfoWrapper": {
+                "entityInfo": {
+                    "observedAtSimulationTime": 26.957100017166137,
+                    "entityId": "48935AFF",
+                    "location": {
+                        "x": 2512.0,
+                        "y": 2704.0
+                    },
+                    "itemInfo": null,
+                    "damageableInfo": null,
+                    "characterInfo": {
+                        "name": "Joe",
+                        "gender": "male",
+                        "skinColor": "light",
+                        "age": 25,
+                        "description": "A human",
+                        "equippedItemInfo": null,
+                        "hairColor": "black",
+                        "hairStyle": "hair_swoop"
+                    },
+                    "growerInfo": null
+                },
+                "serializedAsJavaScript": "{\n  character: {\n    age: 25,\n    description: \"A human\",\n    equippedItemInfo: null,\n    gender: \"male\",\n    hairColor: \"black\",\n    hairStyle: \"hair_swoop\",\n    name: \"Joe\",\n    skinColor: \"light\"\n  },\n  damageable: null,\n  entityId: \"48935AFF\",\n  grower: null,\n  itemOnGround: null,\n  location: {\n    x: 2512.0,\n    y: 2704.0\n  }\n}",
+                "javaScriptVariableName": "self"
+            },
+            "corePersonality": "Friendly and talkative. Enjoys conversation. Happy to take suggestions.",
+            "initialMemories": [
+                "I want to build a new house.",
+                "I should be nice to new people in case we can become friends, but if they mistreat me I should stop doing what they tell me to do."
+            ],
+            "observationRadius": 750.0,
+            "inventoryInfo": {
+                "itemStacks": [
+                    {
+                        "itemStackInfo": {
+                            "amount": 1,
+                            "itemConfigKey": "axe",
+                            "itemName": "Axe",
+                            "itemDescription": "An axe for cutting down trees",
+                            "canBeEquipped": true,
+                            "canBeDropped": true,
+                            "isEquipped": false,
+                            "spawnItemOnUseConfigKey": null
+                        },
+                        "serializedAsJavaScript": "{\n  amount: 1,\n  canBeEquipped: true,\n  canBeUsedWhenEquipped: false,\n  description: \"An axe for cutting down trees\",\n  isEquipped: false,\n  itemTypeId: \"axe\",\n  name: \"Axe\",\n  spawnItemOnUseItemTypeId: null,\n  stackIndex: 0\n}",
+                        "javaScriptVariableName": "inventory_item_0"
+                    }
+                ]
+            },
+            "equippedItemConfigKey": null
+        },
+        "newObservations": {
+            "scriptExecutionErrors": [
+            ],
+            "entitiesById": {
+                "EA43228C": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "EA43228C",
+                        "location": {
+                            "x": 2448.0,
+                            "y": 2636.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"EA43228C\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2448.0,\n    y: 2636.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_EA43228C"
+                },
+                "A2406CC4": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "A2406CC4",
+                        "location": {
+                            "x": 2992.0,
+                            "y": 2508.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"A2406CC4\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2992.0,\n    y: 2508.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_A2406CC4"
+                },
+                "77C22DDE": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "77C22DDE",
+                        "location": {
+                            "x": 1776.0,
+                            "y": 2732.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"77C22DDE\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 1776.0,\n    y: 2732.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_77C22DDE"
+                },
+                "CE713D77": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "CE713D77",
+                        "location": {
+                            "x": 2576.0,
+                            "y": 2668.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"CE713D77\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2576.0,\n    y: 2668.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_CE713D77"
+                },
+                "DE1FCE6A": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "DE1FCE6A",
+                        "location": {
+                            "x": 2288.0,
+                            "y": 2988.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"DE1FCE6A\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2288.0,\n    y: 2988.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_DE1FCE6A"
+                },
+                "E65966E0": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "E65966E0",
+                        "location": {
+                            "x": 1808.0,
+                            "y": 2828.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"E65966E0\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 1808.0,\n    y: 2828.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_E65966E0"
+                },
+                "1D7448A7": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "1D7448A7",
+                        "location": {
+                            "x": 2160.0,
+                            "y": 2956.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"1D7448A7\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2160.0,\n    y: 2956.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_1D7448A7"
+                },
+                "1DED3A3C": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "1DED3A3C",
+                        "location": {
+                            "x": 2064.0,
+                            "y": 2828.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"1DED3A3C\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2064.0,\n    y: 2828.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_1DED3A3C"
+                },
+                "532CF0FB": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "532CF0FB",
+                        "location": {
+                            "x": 2224.0,
+                            "y": 3148.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"532CF0FB\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2224.0,\n    y: 3148.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_532CF0FB"
+                },
+                "9ED31A33": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "9ED31A33",
+                        "location": {
+                            "x": 2352.0,
+                            "y": 2508.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"9ED31A33\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2352.0,\n    y: 2508.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_9ED31A33"
+                },
+                "35A2A50C": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "35A2A50C",
+                        "location": {
+                            "x": 3184.0,
+                            "y": 2476.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"35A2A50C\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 3184.0,\n    y: 2476.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_35A2A50C"
+                },
+                "F91E907A": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "F91E907A",
+                        "location": {
+                            "x": 2800.0,
+                            "y": 2124.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"F91E907A\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2800.0,\n    y: 2124.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_F91E907A"
+                },
+                "28C2814E": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "28C2814E",
+                        "location": {
+                            "x": 2064.0,
+                            "y": 2924.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"28C2814E\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2064.0,\n    y: 2924.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_28C2814E"
+                },
+                "D0054368": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "D0054368",
+                        "location": {
+                            "x": 2384.0,
+                            "y": 3276.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"D0054368\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2384.0,\n    y: 3276.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_D0054368"
+                },
+                "0216843D": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "0216843D",
+                        "location": {
+                            "x": 1904.0,
+                            "y": 2860.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"0216843D\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 1904.0,\n    y: 2860.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_0216843D"
+                },
+                "79FF781C": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "79FF781C",
+                        "location": {
+                            "x": 2384.0,
+                            "y": 2124.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"79FF781C\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2384.0,\n    y: 2124.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_79FF781C"
+                },
+                "7F55F2F9": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "7F55F2F9",
+                        "location": {
+                            "x": 2672.0,
+                            "y": 3404.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"7F55F2F9\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2672.0,\n    y: 3404.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_7F55F2F9"
+                },
+                "F71FFB5C": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "F71FFB5C",
+                        "location": {
+                            "x": 2128.0,
+                            "y": 3116.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"F71FFB5C\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2128.0,\n    y: 3116.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_F71FFB5C"
+                },
+                "B24720AF": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "B24720AF",
+                        "location": {
+                            "x": 2864.0,
+                            "y": 2732.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"B24720AF\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2864.0,\n    y: 2732.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_B24720AF"
+                },
+                "AF9C9C81": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "AF9C9C81",
+                        "location": {
+                            "x": 2192.0,
+                            "y": 2796.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"AF9C9C81\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2192.0,\n    y: 2796.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_AF9C9C81"
+                },
+                "D25030AA": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "D25030AA",
+                        "location": {
+                            "x": 2288.0,
+                            "y": 2092.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"D25030AA\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2288.0,\n    y: 2092.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_D25030AA"
+                },
+                "A01B6EDA": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "A01B6EDA",
+                        "location": {
+                            "x": 2608.0,
+                            "y": 2060.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"A01B6EDA\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2608.0,\n    y: 2060.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_A01B6EDA"
+                },
+                "5C42FE3E": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "5C42FE3E",
+                        "location": {
+                            "x": 2960.0,
+                            "y": 3052.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"5C42FE3E\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2960.0,\n    y: 3052.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_5C42FE3E"
+                },
+                "108F0DD6": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "108F0DD6",
+                        "location": {
+                            "x": 2960.0,
+                            "y": 2732.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"108F0DD6\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2960.0,\n    y: 2732.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_108F0DD6"
+                },
+                "84BF0E31": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "84BF0E31",
+                        "location": {
+                            "x": 2288.0,
+                            "y": 3340.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"84BF0E31\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2288.0,\n    y: 3340.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_84BF0E31"
+                },
+                "78F9884C": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 25.997099979019165,
+                        "entityId": "78F9884C",
+                        "location": {
+                            "x": 2320.0,
+                            "y": 3436.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tree",
+                            "itemName": "Tree",
+                            "description": "A tree",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "axe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"axe\",\n    hp: 100\n  },\n  entityId: \"78F9884C\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A tree\",\n    itemTypeId: \"tree\",\n    name: \"Tree\"\n  },\n  location: {\n    x: 2320.0,\n    y: 3436.0\n  }\n}",
+                    "javaScriptVariableName": "tree_entity_78F9884C"
+                },
+                "783F1099": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "783F1099",
+                        "location": {
+                            "x": 2912.0,
+                            "y": 2848.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "boulder",
+                            "itemName": "Boulder",
+                            "description": "A boulder",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "pickaxe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"pickaxe\",\n    hp: 100\n  },\n  entityId: \"783F1099\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A boulder\",\n    itemTypeId: \"boulder\",\n    name: \"Boulder\"\n  },\n  location: {\n    x: 2912.0,\n    y: 2848.0\n  }\n}",
+                    "javaScriptVariableName": "boulder_entity_783F1099"
+                },
+                "BDFA2183": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "BDFA2183",
+                        "location": {
+                            "x": 2528.0,
+                            "y": 2048.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "boulder",
+                            "itemName": "Boulder",
+                            "description": "A boulder",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "pickaxe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"pickaxe\",\n    hp: 100\n  },\n  entityId: \"BDFA2183\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A boulder\",\n    itemTypeId: \"boulder\",\n    name: \"Boulder\"\n  },\n  location: {\n    x: 2528.0,\n    y: 2048.0\n  }\n}",
+                    "javaScriptVariableName": "boulder_entity_BDFA2183"
+                },
+                "0915C1A4": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "0915C1A4",
+                        "location": {
+                            "x": 2368.0,
+                            "y": 2976.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "boulder",
+                            "itemName": "Boulder",
+                            "description": "A boulder",
+                            "canBePickedUp": false,
+                            "amount": 1
+                        },
+                        "damageableInfo": {
+                            "damageableByEquippedToolItemConfigKey": "pickaxe",
+                            "hp": 100
+                        },
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: {\n    canBeDamagedByEquippedItemTypeId: \"pickaxe\",\n    hp: 100\n  },\n  entityId: \"0915C1A4\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: false,\n    description: \"A boulder\",\n    itemTypeId: \"boulder\",\n    name: \"Boulder\"\n  },\n  location: {\n    x: 2368.0,\n    y: 2976.0\n  }\n}",
+                    "javaScriptVariableName": "boulder_entity_0915C1A4"
+                },
+                "FA66FDB1": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "FA66FDB1",
+                        "location": {
+                            "x": 2192.0,
+                            "y": 2288.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "tomato-seeds",
+                            "itemName": "Tomato Seeds",
+                            "description": "Tomato seeds",
+                            "canBePickedUp": true,
+                            "amount": 1
+                        },
+                        "damageableInfo": null,
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: null,\n  entityId: \"FA66FDB1\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: true,\n    description: \"Tomato seeds\",\n    itemTypeId: \"tomato-seeds\",\n    name: \"Tomato Seeds\"\n  },\n  location: {\n    x: 2192.0,\n    y: 2288.0\n  }\n}",
+                    "javaScriptVariableName": "tomato_seeds_entity_FA66FDB1"
+                },
+                "C0C76B18": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.522099835968017,
+                        "entityId": "C0C76B18",
+                        "location": {
+                            "x": 2512.0,
+                            "y": 2704.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "axe",
+                            "itemName": "Axe",
+                            "description": "An axe for cutting down trees",
+                            "canBePickedUp": true,
+                            "amount": 1
+                        },
+                        "damageableInfo": null,
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: null,\n  entityId: \"C0C76B18\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: true,\n    description: \"An axe for cutting down trees\",\n    itemTypeId: \"axe\",\n    name: \"Axe\"\n  },\n  location: {\n    x: 2512.0,\n    y: 2704.0\n  }\n}",
+                    "javaScriptVariableName": "axe_entity_C0C76B18"
+                },
+                "D7435FCA": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "D7435FCA",
+                        "location": {
+                            "x": 2576.0,
+                            "y": 2832.0
+                        },
+                        "itemInfo": null,
+                        "damageableInfo": null,
+                        "characterInfo": {
+                            "name": "Player",
+                            "gender": "female",
+                            "skinColor": "brown",
+                            "age": 30,
+                            "description": "A human",
+                            "equippedItemInfo": null,
+                            "hairColor": "black",
+                            "hairStyle": "hair_swoop"
+                        },
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: {\n    age: 30,\n    description: \"A human\",\n    equippedItemInfo: null,\n    gender: \"female\",\n    hairColor: \"black\",\n    hairStyle: \"hair_swoop\",\n    name: \"Player\",\n    skinColor: \"brown\"\n  },\n  damageable: null,\n  entityId: \"D7435FCA\",\n  grower: null,\n  itemOnGround: null,\n  location: {\n    x: 2576.0,\n    y: 2832.0\n  }\n}",
+                    "javaScriptVariableName": "character_entity_D7435FCA"
+                },
+                "C570EDC2": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "C570EDC2",
+                        "location": {
+                            "x": 2704.0,
+                            "y": 2864.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "wood",
+                            "itemName": "Wood",
+                            "description": "Useful resource for crafting",
+                            "canBePickedUp": true,
+                            "amount": 20
+                        },
+                        "damageableInfo": null,
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: null,\n  entityId: \"C570EDC2\",\n  grower: null,\n  itemOnGround: {\n    amount: 20,\n    canBePickedUp: true,\n    description: \"Useful resource for crafting\",\n    itemTypeId: \"wood\",\n    name: \"Wood\"\n  },\n  location: {\n    x: 2704.0,\n    y: 2864.0\n  }\n}",
+                    "javaScriptVariableName": "wood_entity_C570EDC2"
+                },
+                "567154DE": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "567154DE",
+                        "location": {
+                            "x": 2672.0,
+                            "y": 2992.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "wood",
+                            "itemName": "Wood",
+                            "description": "Useful resource for crafting",
+                            "canBePickedUp": true,
+                            "amount": 28
+                        },
+                        "damageableInfo": null,
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: null,\n  entityId: \"567154DE\",\n  grower: null,\n  itemOnGround: {\n    amount: 28,\n    canBePickedUp: true,\n    description: \"Useful resource for crafting\",\n    itemTypeId: \"wood\",\n    name: \"Wood\"\n  },\n  location: {\n    x: 2672.0,\n    y: 2992.0\n  }\n}",
+                    "javaScriptVariableName": "wood_entity_567154DE"
+                },
+                "7A6730D7": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "7A6730D7",
+                        "location": {
+                            "x": 2640.0,
+                            "y": 3056.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "wood",
+                            "itemName": "Wood",
+                            "description": "Useful resource for crafting",
+                            "canBePickedUp": true,
+                            "amount": 11
+                        },
+                        "damageableInfo": null,
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: null,\n  entityId: \"7A6730D7\",\n  grower: null,\n  itemOnGround: {\n    amount: 11,\n    canBePickedUp: true,\n    description: \"Useful resource for crafting\",\n    itemTypeId: \"wood\",\n    name: \"Wood\"\n  },\n  location: {\n    x: 2640.0,\n    y: 3056.0\n  }\n}",
+                    "javaScriptVariableName": "wood_entity_7A6730D7"
+                },
+                "223032B2": {
+                    "entityInfo": {
+                        "observedAtSimulationTime": 26.957100017166137,
+                        "entityId": "223032B2",
+                        "location": {
+                            "x": 1968.0,
+                            "y": 2192.0
+                        },
+                        "itemInfo": {
+                            "itemConfigKey": "axe",
+                            "itemName": "Axe",
+                            "description": "An axe for cutting down trees",
+                            "canBePickedUp": true,
+                            "amount": 1
+                        },
+                        "damageableInfo": null,
+                        "characterInfo": null,
+                        "growerInfo": null
+                    },
+                    "serializedAsJavaScript": "{\n  character: null,\n  damageable: null,\n  entityId: \"223032B2\",\n  grower: null,\n  itemOnGround: {\n    amount: 1,\n    canBePickedUp: true,\n    description: \"An axe for cutting down trees\",\n    itemTypeId: \"axe\",\n    name: \"Axe\"\n  },\n  location: {\n    x: 1968.0,\n    y: 2192.0\n  }\n}",
+                    "javaScriptVariableName": "axe_entity_223032B2"
+                }
+            },
+            "movementRecords": [
+            ],
+            "activityStreamEntries": [
+                {
+                    "time": 26.6251,
+                    "title": "Joe picked up a Axe",
+                    "message": null,
+                    "longMessage": null,
+                    "actionType": "PickupItem",
+                    "actionResultType": "Success",
+                    "actionIconPath": null,
+                    "actionItemName": null,
+                    "actionItemConfigKey": null,
+                    "shouldReportToAi": true,
+                    "sourceLocation": {
+                        "x": 2512.0,
+                        "y": 2704.0
+                    },
+                    "sourceName": "Joe",
+                    "sourceIconPath": null,
+                    "sourceEntityId": "48935AFF",
+                    "targetIconPath": "/assets/items/axe/axe.png",
+                    "targetEntityId": "C0C76B18",
+                    "targetName": "Axe",
+                    "targetConfigKey": null,
+                    "resultName": null,
+                    "resultIconPath": null,
+                    "resultEntityId": null,
+                    "agentReason": null,
+                    "onlyShowForPerspectiveEntity": false,
+                    "observedByEntityIds": null,
+                    "spawnedItems": null
+                }
+            ],
+            "actionResults": [
+                {
+                    "actionUniqueId": "E7125801"
+                },
+                {
+                    "actionUniqueId": "C9E94BFD"
+                }
+            ],
+            "startedActionUniqueIds": [
+                "C9E94BFD"
+            ]
+        },
+        "gameConstants": {
+            "distanceUnit": "centimeters",
+            "peopleSize": 40.0
+        },
+        "gameSimulationInfo": {
+            "worldBounds": {
+                "x": 4096.0,
+                "y": 4096.0
+            },
+            "craftingRecipeInfoWrappers": [
+                {
+                    "craftingRecipeInfo": {
+                        "itemConfigKey": "axe",
+                        "itemName": "Axe",
+                        "description": "An axe for cutting down trees",
+                        "cost": {
+                            "entries": [
+                                {
+                                    "itemConfigKey": "wood",
+                                    "amount": 25
+                                }
+                            ]
+                        },
+                        "amount": 1,
+                        "canCurrentlyAfford": false
+                    },
+                    "serializedAsJavaScript": "{\n  canCurrentlyAfford: false,\n  costEntries: [\n    {\n      amount: 25,\n      itemTypeId: \"wood\"\n    }\n  ],\n  description: \"An axe for cutting down trees\",\n  itemTypeId: \"axe\"\n}",
+                    "javaScriptVariableName": "crafting_recipe_axe"
+                },
+                {
+                    "craftingRecipeInfo": {
+                        "itemConfigKey": "hoe",
+                        "itemName": "Hoe",
+                        "description": "A hoe for preparing farm plots",
+                        "cost": {
+                            "entries": [
+                                {
+                                    "itemConfigKey": "wood",
+                                    "amount": 25
+                                }
+                            ]
+                        },
+                        "amount": 1,
+                        "canCurrentlyAfford": false
+                    },
+                    "serializedAsJavaScript": "{\n  canCurrentlyAfford: false,\n  costEntries: [\n    {\n      amount: 25,\n      itemTypeId: \"wood\"\n    }\n  ],\n  description: \"A hoe for preparing farm plots\",\n  itemTypeId: \"hoe\"\n}",
+                    "javaScriptVariableName": "crafting_recipe_hoe"
+                },
+                {
+                    "craftingRecipeInfo": {
+                        "itemConfigKey": "pickaxe",
+                        "itemName": "Pickaxe",
+                        "description": "A pickaxe for breaking apart boulders",
+                        "cost": {
+                            "entries": [
+                                {
+                                    "itemConfigKey": "wood",
+                                    "amount": 75
+                                }
+                            ]
+                        },
+                        "amount": 1,
+                        "canCurrentlyAfford": false
+                    },
+                    "serializedAsJavaScript": "{\n  canCurrentlyAfford: false,\n  costEntries: [\n    {\n      amount: 75,\n      itemTypeId: \"wood\"\n    }\n  ],\n  description: \"A pickaxe for breaking apart boulders\",\n  itemTypeId: \"pickaxe\"\n}",
+                    "javaScriptVariableName": "crafting_recipe_pickaxe"
+                },
+                {
+                    "craftingRecipeInfo": {
+                        "itemConfigKey": "house",
+                        "itemName": "House",
+                        "description": "A house",
+                        "cost": {
+                            "entries": [
+                                {
+                                    "itemConfigKey": "wood",
+                                    "amount": 150
+                                },
+                                {
+                                    "itemConfigKey": "stone",
+                                    "amount": 50
+                                }
+                            ]
+                        },
+                        "amount": 1,
+                        "canCurrentlyAfford": false
+                    },
+                    "serializedAsJavaScript": "{\n  canCurrentlyAfford: false,\n  costEntries: [\n    {\n      amount: 150,\n      itemTypeId: \"wood\"\n    },\n    {\n      amount: 50,\n      itemTypeId: \"stone\"\n    }\n  ],\n  description: \"A house\",\n  itemTypeId: \"house\"\n}",
+                    "javaScriptVariableName": "crafting_recipe_house"
+                }
+            ]
+        },
+        "agentTypeScriptInterfaceString": "\ninterface Vector2 {\n  readonly x: number\n  readonly y: number\n  getMagnitude(): number\n  distanceTo(other: Vector2): number\n  minus(other: Vector2): number\n  plus(other: Vector2): number\n}\n\ndeclare function vector2(x: number, y: number): Vector2;\n\ninterface Entity {\n  readonly entityId: string\n  readonly location: Vector2\n\n  readonly character: CharacterComponent | null\n  readonly damageable: DamageableComponent | null\n  readonly itemOnGround: ItemOnGroundComponent | null\n  readonly grower: GrowerComponent | null\n}\n\ninterface ActiveGrowth {\n  growingItemTypeId: string\n  growingIntoItemTypeId: string\n  duration: number\n  startTime: number\n}\n\ninterface GrowerComponent {\n  readonly activeGrowth: ActiveGrowth | null\n  startGrowingEquippedItem(reason?: string | null)\n}\n\ninterface ItemOnGroundComponent {\n  description: string\n  name: string\n  itemTypeId: string\n  canBePickedUp: boolean\n  amount: number\n  pickUp(reason?: string | null)\n}\n\ninterface DamageableComponent {\n  hp: number\n  canBeDamagedByEquippedItemTypeId: string | null\n  attackWithEquippedItem(reason?: string | null)\n}\n\ninterface CharacterComponent {\n  name: string\n}\n\ninterface InventoryItemStack {\n  readonly name: string\n  readonly description: string\n  readonly itemTypeId: string\n  readonly isEquipped: boolean\n  readonly canBeEquipped: boolean\n  readonly amount: number\n  readonly stackIndex: number\n  readonly spawnItemOnUseItemTypeId: string | null\n  readonly canBeUsedWhenEquipped: boolean\n\n  dropAll(reason?: string | null)\n  dropAmount(amount: number, reason?: string | null)\n  equip(reason?: string | null)\n  use(reason?: string | null) // NOTE: Must be equipped before using, and requires canBeUsedWhenEquipped\n}\n\ninterface ItemCostEntry {\n  itemTypeId: string\n  amount: number\n}\n\ninterface CraftingRecipe {\n  canCurrentlyAfford: boolean\n  itemTypeId: string\n  description: string\n  costEntries: ItemCostEntry[]\n\n  craft(reason?: string | null) // Can only craft if you can afford it using items in your inventory\n}\n\n// Functions to query current world state\ndeclare function getCurrentInventoryItemStacks(): InventoryItemStack[];\ndeclare function getCurrentNearbyEntities(): Entity[];\ndeclare function getSelfEntity(): Entity;\ndeclare function getAllCraftingRecipes(): CraftingRecipe[];\ndeclare function getTotalInventoryAmountForItemTypeId(itemTypeId: string): number\n\n// General actions you can take\ndeclare function walkTo(location: Vector2, reason?: string | null);\ndeclare function speak(wordsToSay: string);\ndeclare function recordThought(thought: string);\ndeclare function setFacialExpressionEmoji(singleEmoji: string);\n\n",
+        "mostRecentCompletedScriptId": null
+    }
+}

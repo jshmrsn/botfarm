@@ -34,10 +34,6 @@ class AgentSyncOutput(
 )
 
 
-@Serializable
-class AgentSyncRequest(
-   val input: AgentSyncInput
-)
 
 @Serializable
 class RunningPromptInfo(
@@ -87,11 +83,6 @@ class ScriptExecutionError(
 )
 
 @Serializable
-class ActionResult(
-   val actionUniqueId: String
-)
-
-@Serializable
 class WalkAction(
    val location: Vector2
 )
@@ -116,4 +107,5 @@ class ActionOnInventoryItem(
 class CraftItemAction(
    val itemConfigKey: String
 )
+
 

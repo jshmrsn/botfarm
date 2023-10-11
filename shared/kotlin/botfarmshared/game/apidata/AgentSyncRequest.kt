@@ -2,11 +2,29 @@ package botfarmshared.game.apidata
 
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
-import botfarmshared.game.GameConstants
-import botfarmshared.game.GameSimulationInfo
 import botfarmshared.misc.Vector2
 import kotlinx.serialization.Serializable
 
+
+@Serializable
+class AgentSyncRequest(
+   val input: AgentSyncInput
+)
+
+@Serializable
+class AgentSyncInput(
+   val agentType: String,
+   val syncId: String,
+   val agentId: AgentId,
+   val simulationId: SimulationId,
+   val simulationTime: Double,
+   val selfInfo: SelfInfo,
+   val newObservations: Observations,
+   val gameConstants: GameConstants,
+   val gameSimulationInfo: GameSimulationInfo,
+   val agentTypeScriptInterfaceString: String,
+   val mostRecentCompletedScriptId: String?
+)
 
 @Serializable
 class ItemCollectionEntry(
@@ -186,6 +204,11 @@ class EntityInfoWrapper(
 )
 
 @Serializable
+class ActionResult(
+   val actionUniqueId: String
+)
+
+@Serializable
 class Observations(
    val scriptExecutionErrors: List<ScriptExecutionError>,
    val entitiesById: Map<EntityId, EntityInfoWrapper>,
@@ -252,16 +275,17 @@ class CraftingRecipeInfoWrapper(
 )
 
 @Serializable
-class AgentSyncInput(
-   val agentType: String,
-   val syncId: String,
-   val agentId: AgentId,
-   val simulationId: SimulationId,
-   val simulationTime: Double,
-   val selfInfo: SelfInfo,
-   val newObservations: Observations,
-   val gameConstants: GameConstants,
-   val gameSimulationInfo: GameSimulationInfo,
-   val agentTypeScriptInterfaceString: String,
-   val mostRecentCompletedScriptId: String?
+class GameConstants(
+   val distanceUnit: String = "centimeters",
+   val peopleSize: Double = 40.0
+) {
+   companion object {
+      val default = GameConstants()
+   }
+}
+
+@Serializable
+class GameSimulationInfo(
+   val worldBounds: Vector2,
+   val craftingRecipeInfoWrappers: List<CraftingRecipeInfoWrapper>
 )

@@ -12,6 +12,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.encodeToString
@@ -58,21 +59,40 @@ class AgentService(
       } else {
          val agentServerEndpoint = this.agentServerEndpoint
 
+
+         val shouldLogRequests = false
+
+         if (shouldLogRequests) {
+            val jsonFormat = Json {
+               encodeDefaults = true
+               prettyPrint = true
+            }
+            val demoBodyString = jsonFormat.encodeToString(request)
+            println("Agent sync: " + demoBodyString)
+         }
+
          val httpResponse = this.httpClient.post("$agentServerEndpoint/api/sync") {
             contentType(ContentType.Application.Json)
-            val bodyString = Json.encodeToString(request)
+            val jsonFormat = Json {
+               encodeDefaults = true
+            }
+            val bodyString = jsonFormat.encodeToString(request)
             setBody(bodyString)
          }
 
          val responseBodyText = httpResponse.bodyAsText()
 
-         val response = try {
-            Json.decodeFromString<AgentSyncResponse>(responseBodyText)
-         } catch (exception: Exception) {
-            throw Exception("Exception getting parsed HTTP body: $responseBodyText\n", exception)
-         }
+         if (httpResponse.status == HttpStatusCode.OK) {
+            val response = try {
+               Json.decodeFromString<AgentSyncResponse>(responseBodyText)
+            } catch (exception: Exception) {
+               throw Exception("Exception getting parsed HTTP body: $responseBodyText\n", exception)
+            }
 
-         return response.outputs
+            return response.outputs
+         } else {
+            throw Exception("Got non-OK http status from sync response: ${httpResponse.status}, response body: " + responseBodyText)
+         }
       }
    }
 }

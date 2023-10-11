@@ -16,8 +16,6 @@ import botfarm.game.scripting.JavaScriptCodeSerialization
 import botfarm.game.scripting.UnwindScriptThreadThrowable
 import botfarm.game.scripting.jsdata.*
 import botfarmshared.engine.apidata.EntityId
-import botfarmshared.game.GameConstants
-import botfarmshared.game.GameSimulationInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.buildShortRandomIdentifier
 import botfarmshared.misc.getCurrentUnixTimeSeconds
@@ -250,7 +248,7 @@ class AgentIntegration(
                craftingRecipeInfoWrappers = craftingRecipeInfoWrappers,
                worldBounds = simulation.worldBounds
             ),
-            gameConstants = GameConstants,
+            gameConstants = GameConstants.default,
             selfInfo = selfInfo,
             newObservations = newObservationsForInput,
             agentTypeScriptInterfaceString = this.agentTypeScriptInterfaceString,
@@ -367,7 +365,6 @@ class AgentIntegration(
          val currentLocation = positionComponent.data.positionAnimation.resolve(simulationTimeForStep)
 
          simulation.entities.forEach { otherEntity ->
-            val otherCharacterComponentData = otherEntity.getComponentOrNull<CharacterComponentData>()?.data
             val otherPositionComponent = otherEntity.getComponentOrNull<PositionComponentData>()
 
             if (otherEntity != entity && otherPositionComponent != null) {
