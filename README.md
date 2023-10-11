@@ -31,10 +31,17 @@ You can also [watch a replay in the browser](https://botfarm.app/simulation/744F
 ## Current Features
 - A playable browser-based 2D game with a basic implementation of harvesting, crafting, and farming mechanics.
 - Characters in the game can be controlled either by human players or generative agents.
-- TypeScript/JavaScript based character scripting system, which allows agents to express desired behavior in terms of logical multi-step conditional scripts.
+- Two systems for agents to communicate actions to take in the simulations:
+    - Simple: JSON list of actions.
+    - Advanced: JavaScript behavior script that calls into provided TypeScript delcarations, which allows agents to express desired behavior with conditional multi-step logic.
 - Server-authorative real-time multiplayer.
+- Switch between viewing the simulation from the perspective of a selected agent, or from spectator's perspective.
+- Many quality-of-life features for investigating agent behavior, such as a detailed in-game timeline of an agent's observations, prompts, and prompt response, errors, etc..
+- Suport for automatically pausing agents once a configurable total simulation cost is reached.
+- Repeatable scenario system (using Kotlin code as configuration).
 - Replay system with timeline scrubbing support.
-- Playable on mobile browsers.
+- Playable on both desktop and mobile browsers.
+- Example agents written in Kotlin based on GPT-4, one based on using GPT-4 function calling to generate lists of actions, and another using GPT-4 to generate JavaScript behavior scripts.
 
 ## Project Architecture
 
@@ -153,35 +160,28 @@ https://lpc.opengameart.org/
 
 
 ## Areas to Develop
-Along with continuing broad development on the existing functionality, the following are some discrete areas the project could grow in.
+Along with continuing broad development on the existing functionality, the following are some areas the project could develop in.
 
 - Developing example agents using other technology stacks, especially those that are popular in the AI/ML community, would be a huge help for the project. Both as a way to make it easier for other people to get started building an agent with other technology stacks, but also as a way to evaluate and iterate on the simulation/agent integration APIs.
 
 - Building additional simulation features that could be useful for exploring emergent social behavior of generative agents.
-
+    - Basic combat mechanics (so we can evaluate which situations agents would choose to engage in violence)
+    - Basic hunger/shelter/survival mechanics to drive problem-solving of food productions
+    - Clothing items, and integration into entity description provided to agents
+    
 - Database backup of active game simulations, so they can be resumed if a server is restarted. Useful for local development iteration on simulation logic, handling spot instance interruptions, or long living simulations that live through multiple deployments.
 
 - Add support for signed requests from simulation server to the agent servers, using a secret key known to both servers.
 
-- Decouple the simulation server from the main application servers, and ultimately support an autoscaling fleet of simulation servers.
+- Add an index server in front of the simulation servers, and ultimately support an autoscaling fleet of simulation servers.
 
 - Deployment streamlining. Currently, the project has been deployed via AWS Elastic Beanstalk. Initial setup for this deployment currently requires manual work on the AWS console across Elastic Beanstalk, EC2, CloudFront, S3, Certificate Manager, etc..
 
 - Windows/Linux development environment testing. Theoretically should just work, but has not been tested.
 
-- Player authentication system. Currently, if someone is able to connect to a simulation server, they have unlimited ability to create and play simulations. In other words, it would be bad to deploy this system to the internet with access to a funded OpenAI API key.
+- Robust player authentication system. Currently this project using a simplistic admin secret system, and all non-admin connections are essentially anonymous and unauthenticated.
 
 - It it would be nice if people could experience generative agents in game worlds before they become mainstream in commercial products without having to manually run these systems locally. Conceivably, these systems could just be deployed on a public server, but currently running high quality agents is very expensive. Therefore, such as a service would need to support allowing users to pay for the cost of running generative agents. It would be against OpenAI’s terms of service for users to share their own API keys with the service.
-
-- Suport for automatically pausing agent integration once a configurable total simulation cost is reached.
-
-- Basic combat mechanics (so we can evaluate which situations agents would choose to engage in violence)
-
-- Basic hunger/shelter/survival mechanics to drive problem-solving of food productions
-
-- Clothing items, and integration into entity description provided to agents
-
-- Dynamic pathfinding grid (update path finding grid when placing blocking entities like houses/trees)
 
 - General game sound effects
 
