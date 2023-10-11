@@ -5,19 +5,15 @@ export interface AgentControlledComponentData extends EntityComponentData {
   corePersonality: string
   observationDistance: number
 
-  wasRateLimited: Boolean,
   agentId: string
   agentStatus: string | null
-  statusDuration: number | null
-  statusStartUnixTime: number | null
+  lastAgentResponseUnixTime: number | null
   agentIntegrationStatus: string | null
   agentRemoteDebugInfo: string
-  agentError: string | null
   currentActionTimeline: string | null
 
   executingScript: string | null
   executingScriptId: string | null
-  scriptExecutionError: string | null
 
 
   totalInputTokens: number

@@ -88,7 +88,7 @@ class AgentRunner(
 
                      agent.addPendingOutput(
                         AgentSyncOutput(
-                           error = "Error on agent server: $errorId"
+                           error = "Error on agent server: $errorId\n${exception.stackTraceToString()}"
                         )
                      )
                   }

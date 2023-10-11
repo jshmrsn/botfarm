@@ -13,15 +13,15 @@ object ModelResponseSchema {
 
    val reasonKey = "reason"
 
-   val locationToWalkToKey = "locationToWalkTo"
+   val walkTo = "walkTo"
 
    val functionName = "response"
-   val iWantToSayKey = "iWantToSay"
+   val speak = "speak"
    val facialExpressionEmojiKey = "facialExpressionEmoji"
 
    val useEquippedToolItemKey = "useEquippedToolItem"
 
-   val newThoughtsKey = "newThoughts"
+   val recordThoughtKey = "recordThought"
 
    val actionOnInventoryItemKey = "actionOnInventoryItem"
    val itemConfigKeyKey = "itemConfigKey"
@@ -44,20 +44,19 @@ object ModelResponseSchema {
       val actionId: String,
       val itemConfigKey: String,
       val stackIndex: Int? = null,
-      val amount: Int? = null,
-      val reason: String? = null
+      val amount: Int? = null
    )
 
    @Serializable
    class AgentResponseAction(
       val reason: String? = null,
-      val locationToWalkTo: List<Double>? = null,
+      val walkTo: List<Double>? = null,
       val actionOnEntity: GenericActionOnEntity? = null,
       val actionOnInventoryItem: GenericActionOnInventoryItem? = null,
       val craftItem: CraftItemAction? = null,
-      val iWantToSay: String? = null,
+      val speak: String? = null,
       val facialExpressionEmoji: String? = null,
-      val newThoughts: List<String>? = null,
+      val recordThought: List<String>? = null,
       val useEquippedToolItem: UseEquippedToolItem? = null
    )
 
@@ -70,7 +69,7 @@ object ModelResponseSchema {
       description = "A single action to perform. You can provide a reason along with exactly one other top-level to perform different types of actions.",
       properties = mapOf(
          reasonKey to JsonStringSchema("Reason why you are taking this action"),
-         locationToWalkToKey to JsonArraySchema(
+         walkTo to JsonArraySchema(
             description = "Represented as an array of two numbers for x and y coordinates.",
             items = JsonNumberSchema()
          ),
@@ -97,9 +96,9 @@ object ModelResponseSchema {
          craftItemKey to JsonStringSchema(
             description = "The itemConfigKey of the item you would like take an action on"
          ),
-         iWantToSayKey to JsonStringSchema("Use this input when you would like to talk out loud to interact with other people"),
+         speak to JsonStringSchema("Use this input when you would like to talk out loud to interact with other people"),
          facialExpressionEmojiKey to JsonStringSchema("Provide a single emoji to represent your current mood as a facial expression"),
-         newThoughtsKey to JsonArraySchema(
+         recordThoughtKey to JsonArraySchema(
             description = "Thoughts, memories, or reflections that you would like to store for the long term, so you can remember them in future prompts from the intelligence system.",
             items = JsonStringSchema()
          )

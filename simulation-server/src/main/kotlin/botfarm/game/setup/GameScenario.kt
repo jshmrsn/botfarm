@@ -1,5 +1,6 @@
 package botfarm.game.setup
 
+import botfarm.engine.ktorplugins.ServerEnvironmentGlobals
 import botfarm.engine.simulation.*
 import botfarm.game.GameSimulation
 import botfarm.game.agentintegration.AgentService
@@ -47,7 +48,7 @@ open class GameScenario(
       )
 
       val agentServerIntegration = AgentService(
-         agentServerEndpoint = System.getenv()["BOTFARM_AGENT_SERVER_ENDPOINT"] ?: "http://localhost:5002",
+         agentServerEndpoint = ServerEnvironmentGlobals.agentServerEndpoint,
          buildMockAgent = this.buildMockAgent
       )
 

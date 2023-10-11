@@ -10,12 +10,8 @@ import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
 import {EntityId} from "../simulation/EntityData";
 import {Simulation} from "../simulation/Simulation";
 import {GameSimulationScene} from "../game/GameSimulationScene";
+import {LongMessage} from "./GameSimulationComponent";
 
-interface Props {
-  activityStream: ActivityStreamEntry[]
-  dynamicState: DynamicState
-  perspectiveEntity: Entity | null
-}
 
 const ListItem = styled.div`
   display: flex;
@@ -95,7 +91,12 @@ export function buildCharacterProfileIconButton(
 }
 
 
-export function ActivityStreamList(props: Props): ReactElement | null {
+export function ActivityStreamList(props: {
+  activityStream: ActivityStreamEntry[]
+  dynamicState: DynamicState
+  setViewingLongMessage: (longMessage: LongMessage) => void
+  perspectiveEntity: Entity | null
+}): ReactElement | null {
   const activityStream = props.activityStream
   const dynamicState = props.dynamicState
   const simulation = dynamicState.simulation!
@@ -133,6 +134,7 @@ export function ActivityStreamList(props: Props): ReactElement | null {
   }
 
   const content = filteredActivityStream.map((entry, activityStreamIndex) => {
+    const longMessage = entry.longMessage
     const sourceLocation = entry.sourceLocation;
 
     const sourceProfileIconDiv = buildCharacterProfileIconButton(
@@ -208,9 +210,12 @@ export function ActivityStreamList(props: Props): ReactElement | null {
             gap: 5
           }}
         >
-          {entry.longMessage != null ? <Button
+          {longMessage != null ? <Button
             onClick={() => {
-              alert(entry.longMessage)
+              props.setViewingLongMessage({
+                title: entry.title,
+                message: longMessage
+              })
             }}
           >
             View

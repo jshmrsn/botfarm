@@ -6,18 +6,21 @@ import React from "react";
 import {Entity} from "../simulation/Entity";
 import {DynamicState} from "./DynamicState";
 import {PanelCloseButton} from "./PanelCloseButton";
+import {LongMessage} from "./GameSimulationComponent";
 
-interface ActivityPanelProps {
-  windowHeight: number
-  windowWidth: number
-  dynamicState: DynamicState
-  useMobileLayout: boolean
-  perspectiveEntity: Entity | null
-  userControlledEntity: Entity | null
-  close: () => void
-}
 
-export function ActivityPanel(props: ActivityPanelProps) {
+export function ActivityPanel(
+  props: {
+    windowHeight: number
+    windowWidth: number
+    dynamicState: DynamicState
+    useMobileLayout: boolean
+    perspectiveEntity: Entity | null
+    userControlledEntity: Entity | null
+    setViewingLongMessage: (longMessage: LongMessage) => void
+    close: () => void
+  }
+) {
   const windowWidth = props.windowWidth
   const dynamicState = props.dynamicState
   const sideBarWidth = props.useMobileLayout
@@ -68,6 +71,7 @@ export function ActivityPanel(props: ActivityPanelProps) {
     <ActivityStreamList
       activityStream={activityStream}
       dynamicState={dynamicState}
+      setViewingLongMessage={props.setViewingLongMessage}
       perspectiveEntity={props.perspectiveEntity}
     />
   </div>

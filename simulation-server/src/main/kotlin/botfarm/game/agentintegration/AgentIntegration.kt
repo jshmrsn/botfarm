@@ -3,6 +3,7 @@ package botfarm.game.agentintegration
 import botfarm.common.PositionComponentData
 import botfarm.common.isMoving
 import botfarm.common.resolvePosition
+import botfarm.engine.ktorplugins.ServerEnvironmentGlobals
 import botfarm.engine.simulation.AlertMode
 import botfarm.engine.simulation.CoroutineSystemContext
 import botfarm.engine.simulation.Entity
@@ -53,7 +54,6 @@ class AgentIntegration(
 
    class RunningScript(
       val thread: Thread,
-      val agentJavaScriptApi: AgentJavaScriptApi,
       val scriptToRun: ScriptToRun
    )
 
@@ -168,8 +168,7 @@ class AgentIntegration(
          agentControlledComponent.modifyData {
             it.copy(
                agentIntegrationStatus = "paused",
-               agentStatus = null,
-               wasRateLimited = false
+               agentStatus = null
             )
          }
 
@@ -290,13 +289,12 @@ class AgentIntegration(
             val errorId = buildShortRandomIdentifier()
             println("Exception while handling agent step result (errorId = $errorId, agentId = $agentId, stepId = $syncId): ${exception.stackTraceToString()}")
 
-            synchronized(simulation) {
-               agentControlledComponent.modifyData {
-                  it.copy(
-                     agentError = "Exception while handling agent step result (errorId = $errorId)"
-                  )
-               }
-            }
+            simulation.addActivityStreamEntry(
+               title = "Agent integration error handling sync output ($errorId)",
+               sourceEntityId = entity.entityId,
+               onlyShowForPerspectiveEntity = true,
+               shouldReportToAi = false
+            )
          }
       }
    }
@@ -356,7 +354,6 @@ class AgentIntegration(
    fun recordObservationsForAgent() {
       val entity = this.entity
       val simulation = this.simulation
-      val agentControlledComponent = this.agentControlledComponent
       val characterComponent = this.characterComponent
 
       val positionComponent = entity.getComponent<PositionComponentData>()
@@ -430,13 +427,39 @@ class AgentIntegration(
 
       val agentId = this.agentId
 
+      if (agentSyncOutput.error != null) {
+         val errorId = buildShortRandomIdentifier()
+         val errorToSendToClient = if (ServerEnvironmentGlobals.hideErrorDetailsFromClients) {
+            "(Error ID $errorId)"
+         } else {
+            "${agentSyncOutput.error} (Error ID $errorId)"
+         }
+
+         simulation.broadcastAlertMessage(
+            AlertMode.ConsoleError,
+            "Agent error: $errorToSendToClient"
+         )
+
+         simulation.addActivityStreamEntry(
+            title = "Agent error",
+            longMessage = errorToSendToClient,
+            sourceEntityId = entity.entityId,
+            onlyShowForPerspectiveEntity = true,
+            shouldReportToAi = false
+         )
+      }
+
       if (agentSyncOutput.startedRunningPrompt != null) {
          simulation.addActivityStreamEntry(
             title = "Running prompt: ${agentSyncOutput.startedRunningPrompt.description} (${agentSyncOutput.startedRunningPrompt.promptId})",
             sourceEntityId = entity.entityId,
             onlyShowForPerspectiveEntity = true,
             shouldReportToAi = false,
-            longMessage = agentSyncOutput.startedRunningPrompt.prompt,
+            longMessage = if (ServerEnvironmentGlobals.hidePromptDetailsFromClients) {
+               null
+            } else {
+               agentSyncOutput.startedRunningPrompt.prompt
+            },
             message = "Input Tokens: ${agentSyncOutput.startedRunningPrompt.inputTokens}"
          )
       }
@@ -447,7 +470,11 @@ class AgentIntegration(
             sourceEntityId = entity.entityId,
             onlyShowForPerspectiveEntity = true,
             shouldReportToAi = false,
-            longMessage = agentSyncOutput.promptResult.response,
+            longMessage = if (ServerEnvironmentGlobals.hidePromptDetailsFromClients) {
+               null
+            } else {
+               agentSyncOutput.promptResult.response
+            },
             message = "Output Tokens: ${agentSyncOutput.promptResult.completionTokens}"
          )
       }
@@ -467,29 +494,12 @@ class AgentIntegration(
                   listOf("", "# ====== ${it.key} ======") + it.value.lines()
                }.joinToString("  \n"), // two spaces from https://github.com/remarkjs/react-markdown/issues/273,
             agentStatus = agentSyncOutput.agentStatus ?: it.agentStatus,
-            wasRateLimited = agentSyncOutput.wasRateLimited,
-            statusDuration = agentSyncOutput.statusDuration,
-            statusStartUnixTime = agentSyncOutput.statusStartUnixTime
+            lastAgentResponseUnixTime = getCurrentUnixTimeSeconds()
          )
       }
 
       agentSyncOutput.promptUsages.forEach {
          updateComponentModelUsage(it, agentControlledComponent)
-      }
-
-      if (agentSyncOutput.error != null) {
-         simulation.broadcastAlertMessage(
-            AlertMode.ConsoleError,
-            "Error from remote agent: " + agentSyncOutput.error
-         )
-
-         agentControlledComponent.modifyData {
-            it.copy(
-               agentError = agentSyncOutput.error
-            )
-         }
-
-         return
       }
 
       if (scriptToRun != null) {
@@ -531,15 +541,53 @@ class AgentIntegration(
             it.copy(
                executingScriptId = scriptId,
                executingScript = script,
-               scriptExecutionError = null,
-               currentActionTimeline = null,
-               agentError = null // joshr: Clear out existing errors once we get a successful response
+               currentActionTimeline = null
             )
          }
 
          val craftingRecipeInfos = simulation.getCraftingRecipeInfos(
             crafterEntity = entity
          )
+
+
+         fun addScriptExecutionErrorFromBackgroundThread(
+            description: String,
+            exception: Exception
+         ) {
+            simulation.addRequestFromBackgroundThread(
+               task = {
+                  this.pendingObservations.scriptExecutionErrors.add(
+                     ScriptExecutionError(
+                        scriptId = scriptId,
+                        error = exception.stackTraceToString()
+                     )
+                  )
+
+                  val errorId = buildShortRandomIdentifier()
+
+                  println("$description (scriptId = $scriptId, errorId = $errorId): ${exception.stackTraceToString()}")
+
+                  simulation.addActivityStreamEntry(
+                     title = "Agent script execution error",
+                     message = "Script ID: $scriptId\nError ID: $errorId",
+                     sourceEntityId = entity.entityId,
+                     onlyShowForPerspectiveEntity = true,
+                     shouldReportToAi = false,
+                     longMessage = if (ServerEnvironmentGlobals.hideErrorDetailsFromClients) {
+                        null
+                     } else {
+                        exception.stackTraceToString()
+                     }
+                  )
+
+                  simulation.broadcastAlertMessage(
+                     AlertMode.ConsoleError,
+                     "Agent script execution error (Script ID $scriptId, Error ID $errorId)"
+                  )
+               },
+               handleException = {}
+            )
+         }
 
          synchronized(threadStateLock) {
             val agentJavaScriptApi = this.agentJavaScriptApi
@@ -632,62 +680,35 @@ class AgentIntegration(
                         if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
                            this.runningScript = null
                            this.mostRecentCompletedScriptId = scriptId
+
+                           simulation.addRequestFromBackgroundThread {
+                              simulation.addActivityStreamEntry(
+                                 title = "Script execution unwound",
+                                 message = scriptId,
+                                 sourceEntityId = entity.entityId,
+                                 onlyShowForPerspectiveEntity = true,
+                                 shouldReportToAi = false
+                              )
+                           }
                         }
                      }
                   } else {
-                     println("Polyglot exception evaluating agent JavaScript ($scriptId): " + polyglotException.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
-
                      synchronized(threadStateLock) {
-                        println("Synchronized for Polyglot exception $scriptId")
                         if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
                            this.runningScript = null
                            this.mostRecentCompletedScriptId = scriptId
 
-                           simulation.addRequestFromBackgroundThread(
-                              task = {
-                                 agentControlledComponent.modifyData {
-                                    it.copy(
-                                       scriptExecutionError = polyglotException.stackTraceToString()
-                                    )
-                                 }
-
-                                 this.pendingObservations.scriptExecutionErrors.add(
-                                    ScriptExecutionError(
-                                       scriptId = scriptId,
-                                       error = polyglotException.stackTraceToString()
-                                    )
-                                 )
-                              },
-                              handleException = {}
-                           )
+                           addScriptExecutionErrorFromBackgroundThread("Polyglot exception evaluating agent JavaScript", polyglotException)
                         }
                      }
                   }
                } catch (exception: Exception) {
-                  println("Exception evaluating agent JavaScript ($scriptId): " + exception.stackTraceToString() + "\nAgent script was: $wrappedResponseScript")
-
                   synchronized(threadStateLock) {
                      if (this.runningScript?.scriptToRun?.scriptId == scriptId) {
                         this.runningScript = null
                         this.mostRecentCompletedScriptId = scriptId
 
-                        simulation.addRequestFromBackgroundThread(
-                           task = {
-                              this.pendingObservations.scriptExecutionErrors.add(
-                                 ScriptExecutionError(
-                                    scriptId = scriptId,
-                                    error = exception.stackTraceToString()
-                                 )
-                              )
-
-                              agentControlledComponent.modifyData {
-                                 it.copy(
-                                    scriptExecutionError = exception.stackTraceToString()
-                                 )
-                              }
-                           },
-                           handleException = {}
-                        )
+                        addScriptExecutionErrorFromBackgroundThread("Exception evaluating agent JavaScript", exception)
                      }
                   }
                }
@@ -704,16 +725,21 @@ class AgentIntegration(
 
             this.runningScript = RunningScript(
                thread = newThread,
-               scriptToRun = scriptToRun,
-               agentJavaScriptApi = agentJavaScriptApi
+               scriptToRun = scriptToRun
             )
          }
       } else if (actions != null) {
+         val prettyPrintJson = Json {
+            prettyPrint = true
+         }
+
          simulation.addActivityStreamEntry(
             title = "Started actions...",
+            longMessage = prettyPrintJson.encodeToString(actions),
             sourceEntityId = entity.entityId,
             onlySourceEntityCanObserve = true,
-            shouldReportToAi = false
+            shouldReportToAi = false,
+            onlyShowForPerspectiveEntity = true
          )
 
          if (entity.isMoving) {
@@ -725,8 +751,7 @@ class AgentIntegration(
 
          agentControlledComponent.modifyData {
             it.copy(
-               currentActionTimeline = null,
-               agentError = null // joshr: Clear out existing errors once we get a successful response
+               currentActionTimeline = null
             )
          }
 
@@ -862,6 +887,7 @@ class AgentIntegration(
             val spawnItemConfig = spawnItemOnUseConfig?.let { simulation.getConfig<ItemConfig>(it.spawnItemConfigKey) }
 
             simulation.addActivityStreamEntry(
+               title = "Failed to use equipped item, got result ${result::class.simpleName}",
                actionType = ActionType.UseEquippedTool,
                actionResultType = when (result) {
                   GameSimulation.UseEquippedItemResult.UnexpectedEquippedItem -> ActionResultType.UnexpectedEquippedItem

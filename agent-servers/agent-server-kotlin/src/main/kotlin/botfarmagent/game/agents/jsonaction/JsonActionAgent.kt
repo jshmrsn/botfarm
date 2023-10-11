@@ -202,27 +202,33 @@ class JsonActionAgent(
          it.addLine("")
       }
 
-
-      builder.addSection("outputSchema") {
-         it.addLine(
-            """
-            ## OUTPUT_SCHEMA
-            Respond with a JSON object with the following top-level keys.
-            Use the optional ${constants.locationToWalkToKey} top-level key to walk to different locations (expects a JSON array of two numbers to represent location)
-            Use the optional ${constants.newThoughtsKey} top-level key to store important thoughts so you can remember them later (expects a JSON array of strings)
-            Use the optional ${constants.iWantToSayKey} top-level key if you want to say something (expects a string value)
-            Use the optional ${constants.actionOnEntityKey} top-level key when you want to use an action listed in availableActionIds of an OBSERVED_ENTITY (expects a JSON object with the keys targetEntityId, actionId)
-            Use the optional ${constants.actionOnInventoryItemKey} top-level key when you use an action listed in availableActionIds of an item in YOUR_ITEM_INVENTORY (expects a JSON object with the keys actionId, itemConfigKey)
-            Use the optional ${constants.craftItemKey} top-level key when you want to craft a new item (only if you have the needed cost items in your inventory) (expects a string for a itemConfigKey)
-            Use the optional ${constants.useEquippedToolItemKey} top-level key if you want to use your currently equipped tool item (expects an empty JSON object. This JSON object doesn't need an actionId or anything because it just assumes your equipped item)
-            Use the required ${constants.facialExpressionEmojiKey} top-level key to show your current emotions (expects a string containing a single emoji)
-            Use the optional ${constants.reasonKey} top-level key to provide a reason for taking your requested action.
-
-            You can use multiple top-level key keys at once, for example if you want to talk and also move somewhere at the same time.
+      if (this.useFunctionCalling) {
+         builder.addSection("outputSchema") {
+            it.addLine(
+               """
+            ## RESPONSE INSTRUCTIONS
+            You will interact with the world by calling the ${constants.functionName} function and providing a list of actions to take.
+            With each action, you can optionally provide a reason for taking that action.
+            You will not automatically remember your thoughts between prompts, so it's important to use the recordThought action when you have something you'd like to remember.
             Do not try to make up or guess an actionId, itemConfigKey, or targetEntityId. Only use the values that you see in this prompt. This is very important.
-         """.trimIndent()
-         )
-         it.addLine("")
+            """.trimIndent()
+            )
+            it.addLine("")
+         }
+      } else {
+//         builder.addSection("nonFunctionResponse") {
+//            it.addLine("""
+//               Use the optional ${constants.locationToWalkToKey} top-level key to walk to different locations (expects a JSON array of two numbers to represent location)
+//               Use the optional ${constants.recordThoughtKey} top-level key to store important thoughts so you can remember them later (expects a JSON array of strings)
+//               Use the optional ${constants.speak} top-level key if you want to say something (expects a string value)
+//               Use the optional ${constants.actionOnEntityKey} top-level key when you want to use an action listed in availableActionIds of an OBSERVED_ENTITY (expects a JSON object with the keys targetEntityId, actionId)
+//               Use the optional ${constants.actionOnInventoryItemKey} top-level key when you use an action listed in availableActionIds of an item in YOUR_ITEM_INVENTORY (expects a JSON object with the keys actionId, itemConfigKey)
+//               Use the optional ${constants.craftItemKey} top-level key when you want to craft a new item (only if you have the needed cost items in your inventory) (expects a string for a itemConfigKey)
+//               Use the optional ${constants.useEquippedToolItemKey} top-level key if you want to use your currently equipped tool item (expects an empty JSON object. This JSON object doesn't need an actionId or anything because it just assumes your equipped item)
+//               Use the required ${constants.facialExpressionEmojiKey} top-level key to show your current emotions (expects a string containing a single emoji)
+//               Use the optional ${constants.reasonKey} top-level key to provide a reason for taking your requested action.
+//            """.trimIndent())
+//         }
       }
 
       builder.addSection("corePersonality") {
@@ -342,7 +348,7 @@ class JsonActionAgent(
 
          it.addLine(
             """
-            First think through what you think about the activity you observed above and write down your thoughts and goals in plain English (not as part of the JSON). If these thoughts are important, you should include them in the ${constants.newThoughtsKey} top-level key.
+            First think through what you think about the activity you observed above and write down your thoughts and goals in plain English (not as part of the JSON). If these thoughts are important, you should include them in the ${constants.recordThoughtKey} top-level key.
             Think about what you could say with iWantToSay, what availableActionIds you could use on OBSERVED_ENTITIES, and what availableActionIds you could take on items in YOUR_ITEM_INVENTORY, etc. so you could do to make progress towards your goals.
             After that, you must write exactly one JSON object conforming to the OUTPUT_SCHEMA to express those goal-serving actions.
          """.trimIndent()
@@ -402,15 +408,13 @@ class JsonActionAgent(
 
       this.addPendingOutput(
          AgentSyncOutput(
-            agentStatus = "running-prompt",
+            agentStatus = AgentStatus.Running,
             startedRunningPrompt = RunningPromptInfo(
                prompt = prompt,
                promptId = promptId,
                description = "Logic",
                inputTokens = builder.totalTokens
-            ),
-            statusStartUnixTime = getCurrentUnixTimeSeconds(),
-            statusDuration = null
+            )
          )
       )
 
@@ -439,7 +443,7 @@ class JsonActionAgent(
             return this.addPendingOutput(
                AgentSyncOutput(
                   error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true
+                  agentStatus = AgentStatus.RateLimited
                )
             )
          }
@@ -506,13 +510,13 @@ class JsonActionAgent(
       val responseActions = response.actions ?: listOf()
 
       val actions = responseActions.map { responseAction ->
-         val iWantToSay = responseAction.iWantToSay
+         val iWantToSay = responseAction.speak
 
          val reason = responseAction.reason
 
          val facialExpressionEmoji = responseAction.facialExpressionEmoji
 
-         val locationToWalkTo = responseAction.locationToWalkTo
+         val locationToWalkTo = responseAction.walkTo
 
          val genericActionOnEntity = responseAction.actionOnEntity
 
@@ -520,7 +524,7 @@ class JsonActionAgent(
          val craftItemAction = responseAction.craftItem
          val useEquippedToolItem = responseAction.useEquippedToolItem
 
-         val newThoughts = responseAction.newThoughts ?: listOf()
+         val newThoughts = responseAction.recordThought ?: listOf()
 
          val newLongTermMemories = newThoughts.map { newLongTermMemory ->
             LongTermMemory(
@@ -608,33 +612,19 @@ class JsonActionAgent(
          )
       }
 
-      val newDebugInfoLines = mutableListOf<String>()
-      newDebugInfoLines.add("### Sync ID: $syncId")
-      newDebugInfoLines.add("")
-
-      newDebugInfoLines.add("### Short-Term Memory")
-      newDebugInfoLines.add("")
-
-      newDebugInfoLines.add(this.memoryState.shortTermMemory)
-
-      newDebugInfoLines.add("")
-
-      newDebugInfoLines.add("### Previous Activity")
-      previousActivity.forEach {
-         newDebugInfoLines.add(it.summary)
-      }
-
-      newDebugInfoLines.add("### New Activity")
-      newActivity.forEach {
-         newDebugInfoLines.add(it.summary)
-      }
-
       this.addPendingOutput(
          AgentSyncOutput(
             actions = actions,
-            debugInfoByKey = mapOf("Prompt Run Info" to newDebugInfoLines.joinToString("\n")),
-            statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
-            agentStatus = "prompt-finished",
+            debugInfoByKey = mapOf(
+               "Short-Term Memory" to this.memoryState.shortTermMemory,
+               "Previous Activity" to previousActivity.joinToString("\n") { it.summary },
+               "New Activity" to newActivity.joinToString("\n") { it.summary },
+            ),
+            agentStatus = if (wasRateLimited) {
+               AgentStatus.RateLimited
+            } else {
+               AgentStatus.Idle
+            },
             promptResult = PromptResultInfo(
                promptId = promptId,
                response = promptResult.responseText,
@@ -642,7 +632,6 @@ class JsonActionAgent(
                completionTokens = promptResult.usage.completionTokens
             ),
             promptUsages = promptUsages,
-            wasRateLimited = wasRateLimited,
             error = if (errors.isNotEmpty()) {
                errors.joinToString("\n")
             } else {

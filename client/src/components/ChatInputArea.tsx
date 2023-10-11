@@ -5,15 +5,15 @@ import {PanelType} from "./GameSimulationComponent";
 import {DynamicState} from "./DynamicState";
 
 
-interface ChatInputAreaProps {
-  windowWidth: number
-  dynamicState: DynamicState
-  showingPanels: PanelType[]
-  setShowingPanels: (panels: PanelType[]) => void
-  notifyChatInputIsFocused: (focused: boolean) => void
-}
-
-export function ChatInputArea(props: ChatInputAreaProps): ReactElement {
+export function ChatInputArea(
+  props: {
+    windowWidth: number
+    dynamicState: DynamicState
+    showingPanels: PanelType[]
+    setShowingPanels: (panels: PanelType[]) => void
+    notifyChatInputIsFocused: (focused: boolean) => void
+  }
+): ReactElement {
   const windowWidth = props.windowWidth
   const dynamicState = props.dynamicState
 
@@ -32,8 +32,6 @@ export function ChatInputArea(props: ChatInputAreaProps): ReactElement {
     }
   }
 
-  const chatAreaWidth = Math.min(windowWidth - 20, 500)
-  const remainingWindowWidth = windowWidth - chatAreaWidth
 
   let sendButton: HTMLButtonElement | null = null
 
@@ -45,8 +43,7 @@ export function ChatInputArea(props: ChatInputAreaProps): ReactElement {
       backdropFilter: "blur(5px)",
       WebkitBackdropFilter: "blur(5px)",
       borderRadius: 6,
-      left: remainingWindowWidth / 2,
-      width: chatAreaWidth,
+      width: "100%",
       pointerEvents: "auto"
     }}
   >

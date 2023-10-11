@@ -1,5 +1,6 @@
 package botfarm.engine
 
+import botfarm.engine.ktorplugins.ServerEnvironmentGlobals
 import io.ktor.server.application.Application
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -9,7 +10,7 @@ fun startSimulationServer(
 ) {
    embeddedServer(
       Netty,
-      port = System.getenv()["BOTFARM_SIMULATION_SERVER_PORT"]?.toInt() ?: 5001,
+      port = ServerEnvironmentGlobals.port,
       host = "0.0.0.0",
       module = {
          configureModule(this)

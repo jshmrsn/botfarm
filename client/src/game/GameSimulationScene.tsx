@@ -1737,46 +1737,26 @@ export class GameSimulationScene extends Phaser.Scene {
     if (agentControlledComponentData != null) {
       if (agentControlledComponentData.agentIntegrationStatus != null) {
         if (agentControlledComponentData.agentIntegrationStatus.includes("waiting_for_agent")) {
-          // statusSuffix += "🕒"
         } else if (agentControlledComponentData.agentIntegrationStatus === "paused") {
           statusSuffix += "⏸️"
-        } else if (agentControlledComponentData.agentIntegrationStatus === "error_from_remote_agent") {
-          statusSuffix += "⚠️"
+        } else if (agentControlledComponentData.agentIntegrationStatus === "agent-connection-error") {
+          statusSuffix += "️⚠️Connection"
         } else if (agentControlledComponentData.agentIntegrationStatus === "exception") {
-          statusSuffix += "🚫"
+          statusSuffix += "🚫Error"
         }
       }
 
       if (agentControlledComponentData.agentStatus != null) {
-        if (agentControlledComponentData.agentStatus.includes("running-prompt")) {
+        if (agentControlledComponentData.agentStatus === "Running") {
           statusSuffix += "💭"
-        } else if (agentControlledComponentData.agentStatus === "prompt-finished") {
-          // statusSuffix += "✅"
-        } else if (agentControlledComponentData.agentStatus === "running-script") {
-          statusSuffix += "📜"
-        } else if (agentControlledComponentData.agentStatus === "script-done") {
-          statusSuffix += "📜✅"
-        } else if (agentControlledComponentData.agentStatus === "waiting-for-action") {
-          statusSuffix += "📜🕒"
-        } else if (agentControlledComponentData.agentStatus === "action-done") {
-          statusSuffix += "📜✔️"
-        } else if (agentControlledComponentData.agentStatus === "exception") {
-          statusSuffix += "🚫🤖"
-        } else if (agentControlledComponentData.agentStatus === "script-exception") {
-          statusSuffix += "🚫📜"
-        } else if (agentControlledComponentData.agentStatus.includes("updating-memory")) {
-          statusSuffix += "📝️"
-        } else if (agentControlledComponentData.agentStatus === "update-memory-success") {
-          // statusSuffix += "🟢"
+        } else if (agentControlledComponentData.agentStatus === "UpdatingMemory") {
+          statusSuffix += "📝"
+        } else if (agentControlledComponentData.agentStatus === "RateLimited") {
+          statusSuffix += "📈"
+        } else if (agentControlledComponentData.agentStatus === "Error") {
+          statusSuffix += "❌"
+        } else if (agentControlledComponentData.agentStatus === "Idle") {
         }
-      }
-
-      if (agentControlledComponentData.agentError != null) {
-        statusSuffix += "❌"
-      }
-
-      if (agentControlledComponentData.wasRateLimited) {
-        statusSuffix += "📉" // ⏳
       }
     }
 

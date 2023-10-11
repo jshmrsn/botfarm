@@ -41,38 +41,10 @@ export function renderSelectedEntityInspection(
       <Text>Agent Type: {agentControlledComponentData.agentType}</Text>
       <Text>Cost: ${agentControlledComponentData.costDollars.toFixed(2)}</Text>
       <Text>Agent Status: <b>{agentControlledComponentData.agentStatus}</b></Text>
-      {agentControlledComponentData.statusStartUnixTime != null ? <Text>Status Start
-        Age: <b>{(getUnixTimeSeconds() - agentControlledComponentData.statusStartUnixTime).toFixed(1)}</b></Text> : null}
-      {agentControlledComponentData.statusDuration != null ?
-        <Text>Status Duration: <b>{agentControlledComponentData.statusDuration.toFixed(1)}</b></Text> : null}
+      {agentControlledComponentData.lastAgentResponseUnixTime != null ? <Text>Status Start
+        Age: <b>{(getUnixTimeSeconds() - agentControlledComponentData.lastAgentResponseUnixTime).toFixed(1)}</b></Text> : null}
+
       <Text>Agent Integration Status: <b>{agentControlledComponentData.agentIntegrationStatus}</b></Text>
-
-      {agentControlledComponentData.agentError != null ? <div
-        style={{
-          backgroundColor: "rgba(255, 0, 0, 0.2)",
-          display: "flex",
-          flexDirection: "row"
-        }}
-      >
-        <Text><b>Agent Error:</b></Text>
-
-        {agentControlledComponentData.agentError.split("\n").map((line, index) => {
-          return <Text key={"error-line-" + index}>{line}</Text>
-        })}
-      </div> : null}
-
-      {agentControlledComponentData.scriptExecutionError != null ? <div
-        style={{
-          backgroundColor: "rgba(255, 0, 0, 0.2)",
-          display: "flex",
-          flexDirection: "row"
-        }}
-      >
-        <Text><b>Agent Script Error:</b></Text>
-        {agentControlledComponentData.scriptExecutionError.split("\n").map((line, index) => {
-          return <Text key={"error-line-" + index}>{line}</Text>
-        })}
-      </div> : null}
 
       {agentControlledComponentData.executingScriptId != null ? <Fragment>
         <Text><b>Agent Script: ({agentControlledComponentData.executingScriptId})</b></Text>

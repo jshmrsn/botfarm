@@ -229,9 +229,7 @@ suspend fun updateMemory(
 
    provideResult(
       AgentSyncOutput(
-         agentStatus = "updating-memory",
-         statusStartUnixTime = getCurrentUnixTimeSeconds(),
-         statusDuration = null,
+         agentStatus = AgentStatus.UpdatingMemory,
          debugInfoByKey = mapOf("Memory Update: Previous Memory" to memoryState.shortTermMemory),
          startedRunningPrompt = RunningPromptInfo(
             prompt = prompt,
@@ -288,8 +286,7 @@ suspend fun updateMemory(
          println("updateMemory: updatedShortTermMemory:\n$updatedShortTermMemory")
          provideResult(
             AgentSyncOutput(
-               agentStatus = "update-memory-success",
-               statusDuration = getCurrentUnixTimeSeconds() - startTime,
+               agentStatus = AgentStatus.Idle,
                debugInfoByKey = mapOf("Memory Update: New Memory" to updatedShortTermMemory),
                promptResult = PromptResultInfo(
                   promptId = promptId,

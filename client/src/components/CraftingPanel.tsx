@@ -8,17 +8,17 @@ import {DynamicState} from "./DynamicState";
 import {PanelCloseButton} from "./PanelCloseButton";
 
 
-interface CraftingPanelProps {
-  windowHeight: number
-  windowWidth: number
-  dynamicState: DynamicState
-  userControlledEntity: Entity | null
-  perspectiveEntity: Entity | null
-  useMobileLayout: boolean
-  close: () => void
-}
-
-export function CraftingPanel(props: CraftingPanelProps): ReactElement | null {
+export function CraftingPanel(
+  props: {
+    windowHeight: number
+    windowWidth: number
+    dynamicState: DynamicState
+    userControlledEntity: Entity | null
+    perspectiveEntity: Entity | null
+    useMobileLayout: boolean
+    close: () => void
+  }
+): ReactElement | null {
   const sideBarWidth = 250
   const simulation = props.dynamicState.simulation
 
@@ -138,13 +138,14 @@ export function CraftingPanel(props: CraftingPanelProps): ReactElement | null {
                 }}
               />
               {craftableConfig.craftingAmount > 1 ? <Text><b>x{craftableConfig.craftingAmount}</b></Text> : null}
-              {(canAfford && perspectiveEntity != null && perspectiveEntity === userControlledEntity) ? <ActionIcon size={35} variant={"filled"} onClick={() => {
-                simulation.sendMessage("CraftItemRequest", {
-                  itemConfigKey: itemConfigKey
-                })
-              }}>
-                <IconHammer size={18}/>
-              </ActionIcon> : null}
+              {(canAfford && perspectiveEntity != null && perspectiveEntity === userControlledEntity) ?
+                <ActionIcon size={35} variant={"filled"} onClick={() => {
+                  simulation.sendMessage("CraftItemRequest", {
+                    itemConfigKey: itemConfigKey
+                  })
+                }}>
+                  <IconHammer size={18}/>
+                </ActionIcon> : null}
             </div>
 
             <div
@@ -183,8 +184,8 @@ export function CraftingPanel(props: CraftingPanelProps): ReactElement | null {
                     color={perspectiveEntity == null
                       ? "black"
                       : hasAmount >= costEntry.amount
-                      ? "green"
-                      : "red"}
+                        ? "green"
+                        : "red"}
                   ><b>{hasAmount}/{costEntry.amount}</b></Text>
                 </div>
               })}
@@ -195,3 +196,5 @@ export function CraftingPanel(props: CraftingPanelProps): ReactElement | null {
     </div>
   </div>
 }
+
+

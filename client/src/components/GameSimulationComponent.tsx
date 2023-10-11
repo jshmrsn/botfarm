@@ -28,6 +28,7 @@ import {Options} from "react-use-websocket/src/lib/types";
 import {AdminRequest} from "./AdminRequest";
 import {QuickInventory} from "./QuickInventory";
 import {TopHeader} from "./TopHeader";
+import {LongMessagePanel} from "./LongMessagePanel";
 
 
 export enum PanelType {
@@ -53,6 +54,11 @@ export interface GetSimulationInfoResponse {
 }
 
 
+export interface LongMessage {
+  title: string
+  message: string
+}
+
 export const GameSimulationComponent = (props: SimulationProps) => {
   const {simulationId} = useParams<SimulationComponentParams>()
 
@@ -76,6 +82,7 @@ export const GameSimulationComponent = (props: SimulationProps) => {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
   const [wasDisconnected, setWasDisconnected] = useState(false)
 
+  const [viewingLongMessage, setViewingLongMessage] = useState<LongMessage | null>(null)
 
   const [replayData, setReplayData] = useState<ReplayData | null>(null)
   const [getSimulationInfoResponse, setGetSimulationInfoResponse] = useState<GetSimulationInfoResponse | null>(null)
@@ -399,8 +406,22 @@ export const GameSimulationComponent = (props: SimulationProps) => {
         useMobileLayout={useMobileLayout}
         perspectiveEntity={perspectiveEntity}
         userControlledEntity={userControlledEntity}
+        setViewingLongMessage={setViewingLongMessage}
         close={() => {
           closePanel(PanelType.Activity)
+        }}
+      /> : null
+  }
+
+  function renderLongMessagePanel() {
+    return viewingLongMessage != null
+      ? <LongMessagePanel
+        windowHeight={windowHeight}
+        windowWidth={windowWidth}
+        useMobileLayout={useMobileLayout}
+        viewingLongMessage={viewingLongMessage}
+        close={() => {
+          setViewingLongMessage(null)
         }}
       /> : null
   }
@@ -456,7 +477,10 @@ export const GameSimulationComponent = (props: SimulationProps) => {
     return renderPanelButton(panelType, icon, showingPanels, setShowingPanels)
   }
 
-  const chatAreaWidth = Math.min(windowWidth - 20, 500)
+  const chatAreaWidth = useMobileLayout
+    ? windowWidth - 20
+    : Math.min(windowWidth - 600, 500)
+
   const remainingWindowWidth = windowWidth - chatAreaWidth
 
   const autoInteraction = dynamicState.scene?.calculatedAutoInteraction
@@ -604,12 +628,16 @@ export const GameSimulationComponent = (props: SimulationProps) => {
           gap: 5,
           paddingBottom: 5,
           pointerEvents: "none",
-          alignItems: "center"
+          alignItems: "center",
+          // backgroundColor: "rgba(255, 0, 0, 0.5)",
+          height: windowHeight - 100,
+          justifyContent: "end"
         }}
       >
         {useMobileLayout ? renderInventoryPanel() : null}
         {useMobileLayout ? renderActivityPanel() : null}
         {useMobileLayout ? renderCraftingPanel() : null}
+        {renderLongMessagePanel()}
         {renderInspectionPanel()}
 
         {replayControlsDiv}

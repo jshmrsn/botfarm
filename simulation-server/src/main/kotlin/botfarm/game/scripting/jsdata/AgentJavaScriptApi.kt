@@ -24,7 +24,6 @@ class AgentJavaScriptApi(
    val entity = this.agentIntegration.entity
    val inventoryComponent = this.entity.getComponent<InventoryComponentData>()
    val characterComponent = this.entity.getComponent<CharacterComponentData>()
-   val agentControlledComponent = this.entity.getComponent<AgentControlledComponentData>()
 
    var shouldEndScript = false
 

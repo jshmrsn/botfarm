@@ -263,7 +263,8 @@ class ScriptExecutionAgent(
       val newActivitySection = builder.addSection("newActivity")
 
       builder.addSection("codeBlockStartSection").also {
-         it.addLine("The following TypeScript defines the interfaces/API you can use to interact with the world.")
+         it.addLine("## API", optional = true).didFit
+         it.addLine("The following TypeScript defines the API you can use to interact with the world.")
          it.addLine("```ts")
       }
 
@@ -592,15 +593,13 @@ class ScriptExecutionAgent(
 
       this.addPendingOutput(
          AgentSyncOutput(
-            agentStatus = "running-prompt",
+            agentStatus = AgentStatus.Running,
             startedRunningPrompt = RunningPromptInfo(
                prompt = prompt,
                promptId = promptId,
                description = "Logic",
                inputTokens = builder.totalTokens
-            ),
-            statusStartUnixTime = getCurrentUnixTimeSeconds(),
-            statusDuration = null
+            )
          )
       )
 
@@ -652,7 +651,7 @@ class ScriptExecutionAgent(
             return this.addPendingOutput(
                AgentSyncOutput(
                   error = "Rate limit error running agent prompt (errorId = ${promptResult.errorId})",
-                  wasRateLimited = true,
+                  agentStatus = AgentStatus.RateLimited,
                   promptUsages = promptUsages
                )
             )
@@ -720,11 +719,6 @@ class ScriptExecutionAgent(
       val scriptId = buildShortRandomIdentifier()
       this.mostRecentSentScriptId = scriptId
 
-      val newDebugInfoLines = mutableListOf<String>()
-
-      newDebugInfoLines.add("### Before-Script Text")
-      newDebugInfoLines.add(beforeScriptText)
-
       println("===== RESPONSE SCRIPT ($promptId) ====== \n$responseScript\n===============")
 
       this.addPendingOutput(
@@ -740,12 +734,13 @@ class ScriptExecutionAgent(
                completionTokens = promptResult.usage.completionTokens
             ),
             debugInfoByKey = mapOf(
-               "Prompt Result Info" to newDebugInfoLines.joinToString("\n")
+               "Before-Script Text" to beforeScriptText,
+               "Short-Term Memory" to this.memoryState.shortTermMemory,
+               "Previous Activity" to previousActivity.joinToString("\n") { it.summary },
+               "New Activity" to newActivity.joinToString("\n") { it.summary },
             ),
-            statusDuration = getCurrentUnixTimeSeconds() - promptSendTime,
-            agentStatus = "prompt-finished",
+            agentStatus = AgentStatus.Idle,
             promptUsages = promptUsages,
-            wasRateLimited = wasRateLimited,
             error = if (errors.isNotEmpty()) {
                errors.joinToString("\n")
             } else {

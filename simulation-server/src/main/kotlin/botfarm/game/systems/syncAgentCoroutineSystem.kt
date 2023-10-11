@@ -53,8 +53,7 @@ suspend fun syncAgentCoroutineSystem(
       } catch (connectException: ConnectException) {
          agentControlledComponent.modifyData {
             it.copy(
-               agentIntegrationStatus = "exception",
-               agentError = "Agent connection refused (syncId = $syncId)"
+               agentIntegrationStatus = "agent-connection-error"
             )
          }
 
@@ -66,8 +65,7 @@ suspend fun syncAgentCoroutineSystem(
 
          agentControlledComponent.modifyData {
             it.copy(
-               agentIntegrationStatus = "exception",
-               agentError = "Exception in character agent logic (errorId = $errorId, syncId = $syncId)"
+               agentIntegrationStatus = "exception"
             )
          }
 

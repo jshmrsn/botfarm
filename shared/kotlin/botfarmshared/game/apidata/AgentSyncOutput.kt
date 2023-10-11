@@ -6,10 +6,33 @@ import botfarmshared.misc.Vector2
 import botfarmshared.misc.buildShortRandomIdentifier
 import kotlinx.serialization.Serializable
 
+
 @Serializable
 class AgentSyncResponse(
    val outputs: List<AgentSyncOutput>
 )
+
+@Serializable
+enum class AgentStatus {
+   Idle,
+   UpdatingMemory,
+   Running,
+   Error,
+   RateLimited
+}
+
+@Serializable
+class AgentSyncOutput(
+   val agentStatus: AgentStatus? = null,
+   val debugInfoByKey: Map<String, String>? = null,
+   val startedRunningPrompt: RunningPromptInfo? = null,
+   val promptResult: PromptResultInfo? = null,
+   val actions: List<Action>? = null,
+   val scriptToRun: ScriptToRun? = null,
+   val error: String? = null,
+   val promptUsages: List<PromptUsageInfo> = listOf()
+)
+
 
 @Serializable
 class AgentSyncRequest(
@@ -32,20 +55,6 @@ class PromptResultInfo(
    val completionTokens: Int
 )
 
-@Serializable
-class AgentSyncOutput(
-   val statusStartUnixTime: Double? = null,
-   val statusDuration: Double? = null,
-   val agentStatus: String? = null,
-   val debugInfoByKey: Map<String, String>? = null,
-   val startedRunningPrompt: RunningPromptInfo? = null,
-   val promptResult: PromptResultInfo? = null,
-   val actions: List<Action>? = null,
-   val scriptToRun: ScriptToRun? = null,
-   val error: String? = null,
-   val wasRateLimited: Boolean = false,
-   val promptUsages: List<PromptUsageInfo> = listOf()
-)
 
 
 @Serializable
