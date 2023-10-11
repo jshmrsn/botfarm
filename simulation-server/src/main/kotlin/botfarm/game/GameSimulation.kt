@@ -1687,6 +1687,16 @@ class GameSimulation(
       location: Vector2,
       additionalComponents: List<EntityComponentData> = listOf()
    ): Entity {
+      val desiredCell = this.collisionMap.pointToIndexPair(location)
+
+      val openCell = this.collisionMap.findOpenTopLeftCellForShapeOrFallback(
+         startIndexPair = desiredCell,
+         fitShapeWidth = 1,
+         fitShapeHeight = 1
+      )
+
+      val resolvedLocation = this.collisionMap.indexPairToCellCenter(openCell)
+
       return this.createEntity(
          additionalComponents + listOf(
             CharacterComponentData(
@@ -1700,7 +1710,7 @@ class GameSimulation(
             ),
             InventoryComponentData(),
             PositionComponentData(
-               positionAnimation = Vector2Animation.static(location)
+               positionAnimation = Vector2Animation.static(resolvedLocation)
             )
          )
       )
