@@ -242,7 +242,7 @@ export class GameInput {
       didHold = false
 
       setTimeout(() => {
-        if (isDown && downCounter === downCounterSnapshot) {
+        if (isDown && downCounter === downCounterSnapshot && clickValid) {
           didHold = true
           handleSelectionClick(pointer)
         }
