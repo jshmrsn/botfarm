@@ -22,7 +22,7 @@ export function renderDebugInfo(
 
   const cameraCenter = Vector2.plus(cameraScroll, Vector2.timesScalar(canvasSize, 0.5))
 
-  const clampedCanvasSize = new Vector2(Math.min(canvasSize.x / zoom, 1000), Math.min(canvasSize.y/ zoom , 1000))
+  const clampedCanvasSize = new Vector2(Math.min(canvasSize.x / zoom, 1000), Math.min(canvasSize.y / zoom, 1000))
 
   const cameraMin = Vector2.minus(cameraCenter, new Vector2(clampedCanvasSize.x * 0.5, clampedCanvasSize.y * 0.5))
   const cameraMax = Vector2.plus(cameraCenter, new Vector2(clampedCanvasSize.x * 0.5, clampedCanvasSize.y * 0.5))
@@ -41,7 +41,11 @@ export function renderDebugInfo(
         textureName: "circle",
         position: cell.center,
         scale: spriteScale,
-        alpha: cell.occupied ? 0.75 : 0.3,
+        alpha: cell.occupiedFlags.length > 0
+          ? !cell.occupiedFlags.includes("Walking")
+            ? 0.5
+            : 0.9
+          : 0.25,
         depth: 0
       })
     }

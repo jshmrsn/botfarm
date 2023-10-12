@@ -81,7 +81,7 @@ class GameSimulation(
       val activityStreamEntityId = EntityId("activity-stream")
    }
 
-   val collisionMap: CollisionMap
+   val collisionMap: CollisionMap<CollisionFlag>
 
    val gameSimulationConfig: GameSimulationConfig
 
@@ -303,14 +303,16 @@ class GameSimulation(
       if (this.enableDetailedInfo) {
          for (row in (0..<this.collisionMap.rowCount)) {
             for (col in (0..<this.collisionMap.columnCount)) {
-               val isOpen = this.collisionMap.isCellOpen(row = row, col = col)
+               val occupiedFlags = CollisionFlag.entries.filter {
+                  !this.collisionMap.isCellOpen(row = row, col = col, flag = it)
+               }
 
                val cellCenter = this.collisionMap.indexPairToCellCenter(IndexPair(row = row, col = col))
 
                cells.add(
                   CollisionMapCellDebugInfo(
                      center = cellCenter,
-                     occupied = !isOpen,
+                     occupiedFlags = occupiedFlags,
                      row = row,
                      col = col
                   )
@@ -372,7 +374,8 @@ class GameSimulation(
                topLeftCol = topLeftCol,
                topLeftRow = topLeftRow,
                width = collisionConfig.width,
-               height = collisionConfig.height
+               height = collisionConfig.height,
+               flags = collisionConfig.flags
             )
 
             this.collisionMapDebugInfoIsOutOfDate = true
@@ -601,7 +604,13 @@ class GameSimulation(
                   aiPaused = true
                )
             }
-            broadcastAlertAsGameMessage("AI auto-paused for spend: Spend since last pause = $${"%.2f".format(dollarsSpentSinceLastAutoPauseAi)}, total = $${"%.2f".format(dollarsSpentSinceLastAutoPauseAi)}")
+            broadcastAlertAsGameMessage(
+               "AI auto-paused for spend: Spend since last pause = $${
+                  "%.2f".format(
+                     dollarsSpentSinceLastAutoPauseAi
+                  )
+               }, total = $${"%.2f".format(dollarsSpentSinceLastAutoPauseAi)}"
+            )
          }
       }
    }
@@ -942,20 +951,6 @@ class GameSimulation(
       if (spawnItemOnUseConfig != null) {
          val entityLocation = interactingEntity.resolvePosition()
 
-         fun getPlacementBlockingEntities() = this.getNearestEntities(
-            searchLocation = entityLocation,
-            maxDistance = 100.0,
-            filter = {
-               val itemConfigKey = it.getComponentOrNull<ItemComponentData>()?.data?.itemConfigKey
-
-               if (itemConfigKey != null) {
-                  val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
-                  itemConfig.blocksPlacement
-               } else {
-                  false
-               }
-            }
-         )
 
          val characterIndexPair = this.collisionMap.pointToIndexPair(entityLocation)
          val topLeftCorner = characterIndexPair.copy(
@@ -963,13 +958,14 @@ class GameSimulation(
             characterIndexPair.col - 1
          )
 
-         val isAreaOpen = this.collisionMap.isAreaOpen(
+         fun isAreaOpen() = this.collisionMap.isAreaOpen(
             topLeftCorner = topLeftCorner,
             width = 3,
-            height = 3
+            height = 3,
+            flag = CollisionFlag.Placement
          )
 
-         if (getPlacementBlockingEntities().isNotEmpty() || !isAreaOpen) {
+         if (!isAreaOpen()) {
             return UseEquippedItemResult.Obstructed
          } else {
             this.applyPerformedAction(
@@ -980,7 +976,9 @@ class GameSimulation(
 
             this.queueCallbackAfterSimulationTimeDelay(
                simulationTimeDelay = 0.45,
-               isValid = { !interactingEntity.isDead && getPlacementBlockingEntities().isEmpty() }
+               isValid = {
+                  !interactingEntity.isDead && isAreaOpen()
+               }
             ) {
                val spawnItemConfig = this.getConfig<ItemConfig>(spawnItemOnUseConfig.spawnItemConfigKey)
 
@@ -1429,7 +1427,10 @@ class GameSimulation(
          percent = retryCount / maxRetryCount.toDouble()
       )
 
-      val pathIndexPairs = this.findPath(startPoint = startPoint, endPoint = adjustedEndPoint)
+      val pathIndexPairs = this.findPath(
+         startPoint = startPoint,
+         endPoint = adjustedEndPoint
+      )
 
       if (pathIndexPairs.isEmpty()) {
          if (retryCount >= maxRetryCount) {
@@ -1581,7 +1582,8 @@ class GameSimulation(
          val openTopLeftCell = this.collisionMap.findOpenTopLeftCellForShapeOrFallback(
             startIndexPair = desiredTopLeftCell,
             fitShapeWidth = collisionConfig.width,
-            fitShapeHeight = collisionConfig.height
+            fitShapeHeight = collisionConfig.height,
+            flag = CollisionFlag.Placement
          )
 
          val openBottomRightCell = openTopLeftCell.let {
@@ -1605,7 +1607,8 @@ class GameSimulation(
          val openCell = this.collisionMap.findOpenTopLeftCellForShapeOrFallback(
             startIndexPair = desiredCell,
             fitShapeWidth = 1,
-            fitShapeHeight = 1
+            fitShapeHeight = 1,
+            flag = CollisionFlag.Placement
          )
          // jshmrsn: Consider maintaining within-cell offset
          this.collisionMap.indexPairToCellCenter(openCell)
@@ -1706,7 +1709,8 @@ class GameSimulation(
       val openCell = this.collisionMap.findOpenTopLeftCellForShapeOrFallback(
          startIndexPair = desiredCell,
          fitShapeWidth = 1,
-         fitShapeHeight = 1
+         fitShapeHeight = 1,
+         flag = CollisionFlag.Walking
       )
 
       val resolvedLocation = this.collisionMap.indexPairToCellCenter(openCell)
@@ -2098,19 +2102,34 @@ class GameSimulation(
       }
    }
 
-   fun findPath(startPoint: Vector2, endPoint: Vector2): List<IndexPair> {
+   fun findPath(
+      startPoint: Vector2,
+      endPoint: Vector2
+   ): List<IndexPair> {
       return this.collisionMap.findPath(
          startPoint = startPoint,
-         endPoint = endPoint
+         endPoint = endPoint,
+         flag = CollisionFlag.Walking
       )
    }
 
    override fun broadcastAlertAsGameMessage(message: String) {
-      this.addActivityStreamEntry(
-         title = "System Alert",
-         message = message,
-         shouldReportToAi = false
-      )
+      val lines = message.lines()
+
+      if (lines.size > 1) {
+         this.addActivityStreamEntry(
+            title = "System Alert",
+            message = lines.first(),
+            longMessage = message,
+            shouldReportToAi = false
+         )
+      } else {
+         this.addActivityStreamEntry(
+            title = "System Alert",
+            message = message,
+            shouldReportToAi = false
+         )
+      }
    }
 
    fun spawnPlayerCharacterForUserIfNeeded(userId: UserId) {

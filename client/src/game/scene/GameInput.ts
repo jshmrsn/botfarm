@@ -168,7 +168,6 @@ export class GameInput {
     const handleSelectionClick = (pointer: { x: number, y: number }) => {
       this.scene.autoInteraction.clearPendingInteractionTargetRequest()
 
-
       const worldPoint = scene.getWorldPointUnderCanvasPoint(new Vector2(pointer.x, pointer.y))
 
       const simulationTime = this.simulation.getCurrentSimulationTime()
@@ -330,7 +329,6 @@ export class GameInput {
       this.scene.clampCamera()
     })
   }
-
 
   private clearPendingInteractionTargetRequest() {
     if (this.scene.isReplay) {

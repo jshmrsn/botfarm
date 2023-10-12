@@ -1,6 +1,7 @@
 package botfarm.game.components
 
 import botfarm.engine.simulation.EntityComponentData
+import botfarm.game.config.CollisionFlag
 import botfarmshared.game.apidata.ActivityStreamEntry
 import botfarmshared.misc.Vector2
 
@@ -10,7 +11,7 @@ data class ActivityStreamComponentData(
 
 class CollisionMapCellDebugInfo(
    val center: Vector2,
-   val occupied: Boolean,
+   val occupiedFlags: List<CollisionFlag>,
    val row: Int,
    val col: Int
 )

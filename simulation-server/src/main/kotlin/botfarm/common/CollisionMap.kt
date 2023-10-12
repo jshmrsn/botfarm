@@ -4,8 +4,7 @@ import botfarmshared.engine.apidata.EntityId
 import botfarmshared.misc.Vector2
 import kotlin.math.roundToInt
 
-
-class CollisionMap(
+class CollisionMap<COLLISION_FLAG : Any>(
    val rowCount: Int,
    val columnCount: Int,
    val cellWidth: Double,
@@ -19,20 +18,28 @@ class CollisionMap(
       val occupyingCellsIndices: List<IndexPair>
    )
 
-   class Cell {
-      private val occupyingEntityIds = mutableSetOf<EntityId>()
+   class Cell<COLLISION_FLAG : Any> {
+      private val entityIdsByFlags = mutableMapOf<COLLISION_FLAG, MutableSet<EntityId>>()
 
-      var isOpen: Boolean = true
-         private set
+      fun isOpen(flag: COLLISION_FLAG): Boolean {
+         val entityIds = this.entityIdsByFlags[flag]
+         return entityIds == null || entityIds.isEmpty()
+      }
 
-      fun addOccupyingEntityId(entityId: EntityId) {
-         this.occupyingEntityIds.add(entityId)
-         this.isOpen = false
+      fun addOccupyingEntityId(entityId: EntityId, flags: List<COLLISION_FLAG>) {
+         flags.forEach { flag ->
+            val entityIds = this.entityIdsByFlags.getOrPut(flag) {
+               mutableSetOf()
+            }
+
+            entityIds.add(entityId)
+         }
       }
 
       fun clearOccupyingEntityId(entityId: EntityId) {
-         this.occupyingEntityIds.remove(entityId)
-         this.isOpen = this.occupyingEntityIds.isEmpty()
+         this.entityIdsByFlags.forEach {
+            it.value.remove(entityId)
+         }
       }
    }
 
@@ -41,14 +48,14 @@ class CollisionMap(
       y = this.rowCount.toDouble() * this.cellHeight
    )
 
-   private val collisionMapColumnsByRow: List<List<Cell>>
+   private val collisionMapColumnsByRow: List<List<Cell<COLLISION_FLAG>>>
    private val entityCollisionStatesByEntityId = mutableMapOf<EntityId, OccupyingEntity>()
 
    init {
-      val collisionMap = mutableListOf<List<Cell>>()
+      val collisionMap = mutableListOf<List<Cell<COLLISION_FLAG>>>()
 
       for (rowIndex in 0..(this.rowCount - 1)) {
-         val row = (0..(this.columnCount - 1)).map { Cell() }
+         val row = (0..(this.columnCount - 1)).map { Cell<COLLISION_FLAG>() }
          collisionMap.add(row)
       }
 
@@ -123,12 +130,12 @@ class CollisionMap(
       }
    }
 
-   private fun getCell(row: Int, col: Int): Cell {
+   private fun getCell(row: Int, col: Int): Cell<COLLISION_FLAG> {
       val columnsInRow = this.collisionMapColumnsByRow[row]
       return columnsInRow[col]
    }
 
-   private fun getCellOrNull(row: Int, col: Int): Cell? {
+   private fun getCellOrNull(row: Int, col: Int): Cell<COLLISION_FLAG>? {
       if (row < 0 || col < 0) {
          return null
       } else if (row >= this.rowCount) {
@@ -141,12 +148,17 @@ class CollisionMap(
       return cellsInColumn[col]
    }
 
-   fun isCellOpen(row: Int, col: Int): Boolean {
-      return this.getCellOrNull(row = row, col = col)?.isOpen ?: false
+   fun isCellOpen(
+      row: Int,
+      col: Int,
+      flag: COLLISION_FLAG
+   ): Boolean {
+      val cell = this.getCellOrNull(row = row, col = col) ?: return false
+      return cell.isOpen(flag)
    }
 
-   fun isCellOpen(indexPair: IndexPair): Boolean {
-      return this.isCellOpen(row = indexPair.row, col = indexPair.col)
+   fun isCellOpen(indexPair: IndexPair, flag: COLLISION_FLAG): Boolean {
+      return this.isCellOpen(row = indexPair.row, col = indexPair.col, flag = flag)
    }
 
    fun addEntity(
@@ -154,7 +166,8 @@ class CollisionMap(
       topLeftRow: Int,
       topLeftCol: Int,
       width: Int,
-      height: Int
+      height: Int,
+      flags: List<COLLISION_FLAG>
    ) {
       this.clearEntity(entityId)
 
@@ -163,7 +176,7 @@ class CollisionMap(
       for (row in (topLeftRow..<topLeftRow + height)) {
          for (col in (topLeftCol..<topLeftCol + width)) {
             val cell = this.getCellOrNull(row = row, col = col)
-            cell?.addOccupyingEntityId(entityId)
+            cell?.addOccupyingEntityId(entityId = entityId, flags = flags)
 
             if (cell != null) {
                occupyingCellsIndices.add(IndexPair(row = row, col = col))
@@ -191,7 +204,7 @@ class CollisionMap(
       )
    }
 
-   fun findOpenCellBetween(startPoint: Vector2, endPoint: Vector2): IndexPair? {
+   fun findOpenCellBetween(startPoint: Vector2, endPoint: Vector2, flag: COLLISION_FLAG): IndexPair? {
       val attempts = Math.ceil(startPoint.distance(endPoint) / Math.min(this.cellWidth, this.cellHeight)).toInt() + 1
 
       for (attempt in (0..attempts)) {
@@ -200,7 +213,7 @@ class CollisionMap(
 
          val indexPair = this.clampIndexPair(this.pointToIndexPair(point))
 
-         if (this.isCellOpen(indexPair)) {
+         if (this.isCellOpen(indexPair, flag = flag)) {
             return indexPair
          }
       }
@@ -211,13 +224,15 @@ class CollisionMap(
    fun isAreaOpen(
       topLeftCorner: IndexPair,
       width: Int,
-      height: Int
+      height: Int,
+      flag: COLLISION_FLAG
    ): Boolean {
       for (checkOffsetRow in 0..<height) {
          for (checkOffsetCol in 0..<width) {
             if (!this.isCellOpen(
                   row = topLeftCorner.row + checkOffsetRow,
-                  col = topLeftCorner.col + checkOffsetCol
+                  col = topLeftCorner.col + checkOffsetCol,
+                  flag = flag
                )
             ) {
                return false
@@ -232,7 +247,8 @@ class CollisionMap(
       startIndexPair: IndexPair,
       maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
       fitShapeWidth: Int = 1,
-      fitShapeHeight: Int = 1
+      fitShapeHeight: Int = 1,
+      flag: COLLISION_FLAG
    ): IndexPair? {
       if (maxSearchOffset < 0) {
          throw Exception("maxSearchOffset must not be negative (was $maxSearchOffset)")
@@ -243,7 +259,8 @@ class CollisionMap(
       fun areCellsUnderShapeOpen(indexPair: IndexPair): Boolean = this.isAreaOpen(
          topLeftCorner = indexPair,
          width = fitShapeWidth,
-         height = fitShapeHeight
+         height = fitShapeHeight,
+         flag = flag
       )
 
       if (areCellsUnderShapeOpen(clampedStartIndexPair)) {
@@ -287,13 +304,15 @@ class CollisionMap(
       startIndexPair: IndexPair,
       maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
       fitShapeWidth: Int = 1,
-      fitShapeHeight: Int = 1
+      fitShapeHeight: Int = 1,
+      flag: COLLISION_FLAG
    ): IndexPair {
       return this.findOpenTopLeftCellForShape(
          startIndexPair = startIndexPair,
          maxSearchOffset = maxSearchOffset,
          fitShapeWidth = fitShapeWidth,
-         fitShapeHeight = fitShapeHeight
+         fitShapeHeight = fitShapeHeight,
+         flag = flag
       ) ?: this.clampIndexPair(startIndexPair)
    }
 
@@ -301,14 +320,16 @@ class CollisionMap(
       startPoint: Vector2,
       searchRadius: Int = 6,
       fitShapeWidth: Int = 1,
-      fitShapeHeight: Int = 1
+      fitShapeHeight: Int = 1,
+      flag: COLLISION_FLAG
    ): Vector2? {
       val startIndexPair = this.pointToIndexPair(startPoint)
       val indexPairResult = this.findOpenTopLeftCellForShape(
          startIndexPair = startIndexPair,
          maxSearchOffset = searchRadius,
          fitShapeWidth = fitShapeWidth,
-         fitShapeHeight = fitShapeHeight
+         fitShapeHeight = fitShapeHeight,
+         flag = flag
       ) ?: return null
 
       return this.indexPairToCellCenter(indexPairResult)
@@ -318,22 +339,28 @@ class CollisionMap(
       startPoint: Vector2,
       maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
       fitShapeWidth: Int = 1,
-      fitShapeHeight: Int = 1
+      fitShapeHeight: Int = 1,
+      flag: COLLISION_FLAG
    ): Vector2 {
       val startIndexPair = this.pointToIndexPair(startPoint)
       val indexPairResult = this.findOpenTopLeftCellForShapeOrFallback(
          startIndexPair = startIndexPair,
          maxSearchOffset = maxSearchOffset,
          fitShapeWidth = fitShapeWidth,
-         fitShapeHeight = fitShapeHeight
+         fitShapeHeight = fitShapeHeight,
+         flag = flag
       )
 
       return this.indexPairToCellCenter(indexPairResult)
    }
 
-   fun findPath(startPoint: Vector2, endPoint: Vector2): List<IndexPair> {
-      val startIndexPair = this.findOpenCellBetween(startPoint, endPoint)
-      val endIndexPair = this.findOpenCellBetween(endPoint, startPoint)
+   fun findPath(
+      startPoint: Vector2,
+      endPoint: Vector2,
+      flag: COLLISION_FLAG
+   ): List<IndexPair> {
+      val startIndexPair = this.findOpenCellBetween(startPoint, endPoint, flag = flag)
+      val endIndexPair = this.findOpenCellBetween(endPoint, startPoint, flag = flag)
 
       if (startIndexPair == null ||
          endIndexPair == null
@@ -350,7 +377,8 @@ class CollisionMap(
       return aStarPathfinding(
          collisionMap = this.collisionMapColumnsByRow,
          start = startIndexPair,
-         end = endIndexPair
+         end = endIndexPair,
+         flag = flag
       )
    }
 }

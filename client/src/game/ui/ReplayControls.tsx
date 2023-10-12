@@ -35,7 +35,8 @@ export function ReplayControls(props: ReplayControlsProps): ReactElement {
       flexDirection: "row",
       backgroundColor: "rgba(0, 0, 0, 0.4)",
       gap: 8,
-      alignItems: "center"
+      alignItems: "center",
+      pointerEvents: "auto"
     }}
   >
 

@@ -169,6 +169,7 @@ export function InspectionPanel(props: InspectionPanelProps) {
             dynamicState.setPerspectiveEntityIdOverride(null)
           } else {
             dynamicState.setPerspectiveEntityIdOverride(entity.entityId)
+            dynamicState.context.setIsInForceSpectateMode(false)
             scene.centerCameraOnEntityId(entity.entityId)
           }
         }}

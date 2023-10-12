@@ -13,10 +13,11 @@ data class Node(
    val f: Double = 0.0
 )
 
-fun aStarPathfinding(
-   collisionMap: List<List<CollisionMap.Cell>>,
+fun <COLLISION_FLAG : Any> aStarPathfinding(
+   collisionMap: List<List<CollisionMap.Cell<COLLISION_FLAG>>>,
    start: IndexPair,
-   end: IndexPair
+   end: IndexPair,
+   flag: COLLISION_FLAG
 ): List<IndexPair> {
 
    val openList = mutableListOf<Node>()
@@ -39,7 +40,7 @@ fun aStarPathfinding(
          return false
       }
 
-      return rowArray[col].isOpen
+      return rowArray[col].isOpen(flag)
    }
 
    while (openList.isNotEmpty()) {

@@ -57,10 +57,16 @@ class EquippableConfig(
    val equippedCompositeAnimation: CompositeAnimationSelection? = null
 )
 
+enum class CollisionFlag {
+   Placement,
+   Walking
+}
+
 class CollisionConfig(
    val width: Int,
    val height: Int,
-   val collisionOffset: Vector2 = Vector2.zero
+   val collisionOffset: Vector2 = Vector2.zero,
+   val flags: List<CollisionFlag> = CollisionFlag.entries
 )
 
 class ItemConfig(
@@ -78,7 +84,6 @@ class ItemConfig(
    val spawnItemOnKillConfig: SpawnItemOnKillConfig? = null, // tree spawns wood when cut down
    val growerConfig: GrowerConfig? = null, // farm plots receive and grow carrot seeds
    val growableConfig: GrowableConfig? = null, // carrot seeds grow into carrots
-   val spawnItemOnUseConfig: SpawnItemOnUseConfig? = null, // hoe spawns farm plots
-   val blocksPlacement: Boolean
+   val spawnItemOnUseConfig: SpawnItemOnUseConfig? = null // hoe spawns farm plots
 ) : Config()
 

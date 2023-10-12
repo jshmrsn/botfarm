@@ -4,7 +4,7 @@ import {Vector2} from "../../misc/Vector2";
 
 interface CollisionMapCellDebugInfo {
   center: Vector2
-  occupied: boolean
+  occupiedFlags: string[]
   row: number
   col: number
 }

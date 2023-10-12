@@ -337,7 +337,7 @@ export function renderCharacter(
     }
 
     const calculatedAutoInteraction = scene.autoInteraction.calculatedAutoInteraction;
-    
+
     if (equippedToolItemConfig != null &&
       equippedToolItemConfig.spawnItemOnUseConfig &&
       userControlledComponent &&
@@ -348,22 +348,22 @@ export function renderCharacter(
 
       const spawnItemSpriteConfig = scene.getConfig<SpriteConfig>(spawnItemConfig.spriteConfigKey, "SpriteConfig")
 
-      const nearestEntities = getNearestEntitiesFromList(
-        scene.fogOfWarVisibleEntities,
-        position,
-        100.0, // TODO: has to match value in useEquippedToolItem in simulation server Kotlin
-        entityToCheck => {
-          const entityToCheckItemConfigKey = ItemComponent.getDataOrNull(entityToCheck)?.itemConfigKey
-          if (entityToCheckItemConfigKey == null) {
-            return false
-          }
-          const itemConfigToCheck = scene.getConfig<ItemConfig>(entityToCheckItemConfigKey, "ItemConfig")
+      // const nearestEntities = getNearestEntitiesFromList(
+      //   scene.fogOfWarVisibleEntities,
+      //   position,
+      //   100.0, // TODO: has to match value in useEquippedToolItem in simulation server Kotlin
+      //   entityToCheck => {
+      //     const entityToCheckItemConfigKey = ItemComponent.getDataOrNull(entityToCheck)?.itemConfigKey
+      //     if (entityToCheckItemConfigKey == null) {
+      //       return false
+      //     }
+      //     const itemConfigToCheck = scene.getConfig<ItemConfig>(entityToCheckItemConfigKey, "ItemConfig")
+      //
+      //     return itemConfigToCheck.blocksPlacement
+      //   }
+      // )
 
-          return itemConfigToCheck.blocksPlacement
-        }
-      )
-
-      const isValid = nearestEntities.length === 0
+      const isValid = true //nearestEntities.length === 0
 
       renderContext.renderSprite("spawn_item_on_use_preview_" + entity.entityId + "_" + spawnItemSpriteConfig.key, {
         layer: scene.mainLayer,

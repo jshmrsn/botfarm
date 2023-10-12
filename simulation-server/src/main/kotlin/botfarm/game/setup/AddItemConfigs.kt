@@ -35,8 +35,7 @@ fun addItemConfigs(configs: MutableList<Config>) {
          )
       } else {
          null
-      },
-      blocksPlacement: Boolean = false
+      }
    ): ItemConfig {
       val spriteConfigKey = key + "_sprite"
 
@@ -65,8 +64,7 @@ fun addItemConfigs(configs: MutableList<Config>) {
          growerConfig = growerConfig,
          spawnItemOnUseConfig = spawnItemOnUseConfig,
          collisionConfig = collisionConfig,
-         useCustomAnimationBaseName = useCustomAnimationBaseName,
-         blocksPlacement = blocksPlacement
+         useCustomAnimationBaseName = useCustomAnimationBaseName
       )
 
       configs.add(itemConfig)
@@ -177,15 +175,18 @@ fun addItemConfigs(configs: MutableList<Config>) {
       description = "A small farm plot",
       textureUrl = "/assets/items/farm-plot/farm-plot.png",
       iconUrl = "/assets/items/farm-plot/farm-plot.png",
-      spriteBaseScale = Vector2.uniform(1.0),
+      spriteBaseScale = Vector2.uniform(0.85) * Vector2(1.0, 0.9),
       spriteBaseOffset = Vector2(0.0, 0.0),
       growerConfig = GrowerConfig(
          canReceiveGrowableItemConfigKeys = listOf(
             "tomato-seeds"
          )
       ),
-      collisionConfig = null,
-      blocksPlacement = true
+      collisionConfig = CollisionConfig(
+         width = 3,
+         height = 3,
+         flags = listOf(CollisionFlag.Placement)
+      )
    )
 
    addItemConfig(

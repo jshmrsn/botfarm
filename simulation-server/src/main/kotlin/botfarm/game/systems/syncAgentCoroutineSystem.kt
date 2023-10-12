@@ -1,5 +1,6 @@
 package botfarm.game.systems
 
+import botfarm.engine.ktorplugins.ServerEnvironmentGlobals
 import botfarm.engine.simulation.CoroutineSystemContext
 import botfarm.engine.simulation.EntityComponent
 import botfarm.game.GameSimulation
@@ -60,7 +61,12 @@ suspend fun syncAgentCoroutineSystem(
          context.delay(3000)
       } catch (exception: Exception) {
          val errorId = buildShortRandomIdentifier()
-         simulation.broadcastAlertAsGameMessage("Exception in agent sync (errorId = $errorId, syncId = $syncId)")
+         simulation.broadcastAlertAsGameMessage("Exception in agent sync (errorId = $errorId, syncId = $syncId)" + if (ServerEnvironmentGlobals.hideErrorDetailsFromClients) {
+            ""
+         } else {
+            "\n" + exception.stackTraceToString()
+         })
+
          println("Exception in character agent logic (errorId = $errorId, syncId = $syncId):\n${exception.stackTraceToString()}")
 
          agentControlledComponent.modifyData {
