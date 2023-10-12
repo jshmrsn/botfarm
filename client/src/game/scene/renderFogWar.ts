@@ -1,4 +1,4 @@
-import {RenderContext} from "../../common/RenderContext";
+import {RenderContext} from "../../engine/RenderContext";
 import {Vector2} from "../../misc/Vector2";
 import {GameSimulationScene} from "./GameSimulationScene";
 

@@ -1,8 +1,8 @@
-import {EntityComponentData} from "../simulation/EntityData";
+import {EntityComponentData} from "../engine/simulation/EntityData";
 import {Vector2Animation} from "../misc/Vector2Animation";
-import {Entity} from "../simulation/Entity";
-import {EntityComponent} from "../simulation/EntityComponent";
-import {EntityComponentGetter} from "../simulation/EntityComponentGetter";
+import {Entity} from "../engine/simulation/Entity";
+import {EntityComponent} from "../engine/simulation/EntityComponent";
+import {EntityComponentGetter} from "../engine/simulation/EntityComponentGetter";
 
 export interface PositionComponentData extends EntityComponentData {
   positionAnimation: Vector2Animation

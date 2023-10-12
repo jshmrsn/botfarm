@@ -1,14 +1,14 @@
 import Phaser from "phaser"
-import {Config, EntityId} from "../../simulation/EntityData"
-import {SimulationId, UserId} from "../../simulation/Simulation"
+import {Config, EntityId} from "../../engine/simulation/EntityData"
+import {SimulationId, UserId} from "../../engine/simulation/Simulation"
 import {Vector2} from "../../misc/Vector2"
-import {RenderContext} from "../../common/RenderContext"
-import {CharacterComponent, UseEquippedToolItemRequest} from "../CharacterComponentData"
-import {ItemConfig} from "../ItemComponentData"
-import {Entity} from "../../simulation/Entity"
+import {RenderContext} from "../../engine/RenderContext"
+import {CharacterComponent, UseEquippedToolItemRequest} from "../simulation/CharacterComponentData"
+import {ItemConfig} from "../simulation/ItemComponentData"
+import {Entity} from "../../engine/simulation/Entity"
 import {resolveEntityPositionForCurrentTime} from "../../common/PositionComponentData"
-import {GameSimulation} from "../GameSimulation"
-import {DynamicState} from "../../components/DynamicState"
+import {GameSimulation} from "../simulation/GameSimulation"
+import {DynamicState} from "../ui/DynamicState"
 import {renderEntities} from "./renderEntities";
 import {FogOfWarInfo, renderFogOfWar} from "./renderFogWar";
 import {AutoInteraction} from "./AutoInteraction";

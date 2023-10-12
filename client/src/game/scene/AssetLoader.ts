@@ -1,6 +1,6 @@
 import {GameSimulationScene} from "./GameSimulationScene";
-import {DynamicState} from "../../components/DynamicState";
-import {GameSimulation} from "../GameSimulation";
+import {DynamicState} from "../ui/DynamicState";
+import {GameSimulation} from "../simulation/GameSimulation";
 import {
   CharacterBodySelectionsConfig,
   CompositeAnimationRegistryConfig,
@@ -19,8 +19,8 @@ import {
 import Phaser from "phaser";
 import {throwError} from "../../misc/utils";
 import {Vector2} from "../../misc/Vector2";
-import {ItemConfig} from "../ItemComponentData";
-import {CharacterBodySelections} from "../CharacterComponentData";
+import {ItemConfig} from "../simulation/ItemComponentData";
+import {CharacterBodySelections} from "../simulation/CharacterComponentData";
 import LoaderPlugin = Phaser.Loader.LoaderPlugin;
 
 

@@ -1,6 +1,4 @@
-import {ClientSimulationData, Config, EntityComponentData, EntityData, EntityId} from "../simulation/EntityData";
-import {ActivityStreamEntry} from "../game/ActivityStreamEntry";
-import {SerializationDiff} from "../misc/serializationDiff";
+import {Config} from "../engine/simulation/EntityData";
 import {Vector2} from "../misc/Vector2";
 
 export interface TilemapConfig extends Config {
@@ -48,36 +46,5 @@ export interface SpriteAnimation {
   framesStart: number
   framesEnd: number
   framesZeroPad: number
-}
-
-
-export interface SimulationSnapshotWebSocketMessage {
-  simulationData: ClientSimulationData
-}
-
-export interface EntityComponentWebSocketMessage {
-  entityId: EntityId
-  componentTypeName: string
-  diff: SerializationDiff
-  simulationTime: number
-}
-
-export interface AlertWebSocketMessage {
-  message: string
-  mode: string
-}
-
-export interface NewActivityStreamEntryWebSocketMessage {
-  activityStreamEntry: ActivityStreamEntry
-}
-
-export interface EntityCreatedWebSocketMessage {
-  entityData: EntityData
-  simulationTime: number
-}
-
-export interface EntityDestroyedWebSocketMessage {
-  entityId: EntityId
-  simulationTime: number
 }
 

@@ -1,10 +1,10 @@
 import {GameSimulationScene} from "./GameSimulationScene";
-import {DynamicState} from "../../components/DynamicState";
-import {GameSimulation} from "../GameSimulation";
+import {DynamicState} from "../ui/DynamicState";
+import {GameSimulation} from "../simulation/GameSimulation";
 import {Pinch} from "phaser3-rex-plugins/plugins/gestures";
 import {lerp, Vector2} from "../../misc/Vector2";
 import {PositionComponent, resolvePositionForTime} from "../../common/PositionComponentData";
-import {CharacterComponent} from "../CharacterComponentData";
+import {CharacterComponent} from "../simulation/CharacterComponentData";
 import {getUnixTimeSeconds} from "../../misc/utils";
 import Phaser from "phaser";
 import InputPlugin = Phaser.Input.InputPlugin;

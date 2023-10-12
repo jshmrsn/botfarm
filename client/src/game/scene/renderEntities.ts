@@ -1,9 +1,9 @@
-import {Entity} from "../../simulation/Entity";
-import {CharacterComponentData} from "../CharacterComponentData";
+import {Entity} from "../../engine/simulation/Entity";
+import {CharacterComponentData} from "../simulation/CharacterComponentData";
 import {PositionComponentData, resolvePositionForTime} from "../../common/PositionComponentData";
-import {ItemComponentData} from "../ItemComponentData";
+import {ItemComponentData} from "../simulation/ItemComponentData";
 import {lerp, Vector2} from "../../misc/Vector2";
-import {AgentControlledComponent} from "../AgentControlledComponentData";
+import {AgentControlledComponent} from "../simulation/AgentControlledComponentData";
 import {renderCharacter} from "./renderCharacter";
 import {renderItem} from "./renderItem";
 import {GameSimulationScene} from "./GameSimulationScene";

@@ -6,11 +6,11 @@ import {
 } from "../../common/PositionComponentData";
 import {Vector2} from "../../misc/Vector2";
 import {AutoInteractAction, AutoInteractActionType, GameSimulationScene} from "./GameSimulationScene";
-import {DynamicState} from "../../components/DynamicState";
-import {InventoryComponentData} from "../CharacterComponentData";
-import {EquipmentSlots, GrowerComponent, ItemComponentData, ItemConfig, KillableComponent} from "../ItemComponentData";
-import {UserControlledComponent} from "../userControlledComponentData";
-import {GameSimulation} from "../GameSimulation";
+import {DynamicState} from "../ui/DynamicState";
+import {InventoryComponentData} from "../simulation/CharacterComponentData";
+import {EquipmentSlots, GrowerComponent, ItemComponentData, ItemConfig, KillableComponent} from "../simulation/ItemComponentData";
+import {UserControlledComponent} from "../simulation/userControlledComponentData";
+import {GameSimulation} from "../simulation/GameSimulation";
 
 
 export class AutoInteraction {

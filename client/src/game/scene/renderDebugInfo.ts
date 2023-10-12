@@ -1,4 +1,4 @@
-import {DebugInfoComponentData} from "../DebugInfoComponentData";
+import {DebugInfoComponentData} from "../simulation/DebugInfoComponentData";
 import {Vector2} from "../../misc/Vector2";
 import {GameSimulationScene} from "./GameSimulationScene";
 

@@ -1,6 +1,6 @@
-import {Entity} from "../../simulation/Entity";
-import {RenderContext} from "../../common/RenderContext";
-import {GrowerComponent, ItemComponentData, ItemConfig, KillableComponent} from "../ItemComponentData";
+import {Entity} from "../../engine/simulation/Entity";
+import {RenderContext} from "../../engine/RenderContext";
+import {GrowerComponent, ItemComponentData, ItemConfig, KillableComponent} from "../simulation/ItemComponentData";
 import {clampZeroOne, lerp, Vector2} from "../../misc/Vector2";
 import {SpriteConfig} from "../../common/common";
 import {GameSimulationScene} from "./GameSimulationScene";
