@@ -165,18 +165,98 @@ export class GameInput {
       })
     }
 
+    const handleSelectionClick = (pointer: {x: number, y: number}) => {
+      const forPerspectiveOverride = this.cursorKeys?.shift?.isDown || false
+
+      const worldPoint = scene.getWorldPointUnderCanvasPoint(new Vector2(pointer.x, pointer.y))
+
+      const simulationTime = this.simulation.getCurrentSimulationTime()
+
+      const entitiesNearCenter = this.scene.fogOfWarVisibleEntities
+        .filter(entity => PositionComponent.getOrNull(entity) != null && (!forPerspectiveOverride || CharacterComponent.getOrNull(entity) != null))
+        .map(entity => {
+          const positionComponent = PositionComponent.get(entity)
+
+          const position = resolvePositionForTime(positionComponent, simulationTime)
+          const distance = Vector2.distance(worldPoint, position)
+
+          return {
+            entity: entity,
+            distance: distance
+          }
+        })
+        .filter(it => it.distance < 60.0)
+
+      entitiesNearCenter.sort((a, b) => {
+        if (a.distance < b.distance) {
+          return -1
+        } else if (a.distance > b.distance) {
+          return 1
+        } else {
+          if (a.entity.entityId < b.entity.entityId) {
+            return -1
+          } else {
+            return 1
+          }
+        }
+      })
+
+      if (entitiesNearCenter.length !== 0) {
+        const selectedEntityId = forPerspectiveOverride ? this.dynamicState.perspectiveEntity?.entityId : this.dynamicState.selectedEntityId
+
+        const selectedIndex = entitiesNearCenter
+          .findIndex(it => it.entity.entityId === selectedEntityId)
+
+        const nextIndex = (selectedIndex === -1 || selectedIndex === (entitiesNearCenter.length - 1))
+          ? 0
+          : selectedIndex + 1
+
+        if (forPerspectiveOverride) {
+          sceneContext.setPerspectiveEntityIdOverride(entitiesNearCenter[nextIndex].entity.entityId)
+        } else {
+          sceneContext.setSelectedEntityId(entitiesNearCenter[nextIndex].entity.entityId)
+        }
+      } else {
+        if (forPerspectiveOverride) {
+          sceneContext.setPerspectiveEntityIdOverride(null)
+        } else {
+          sceneContext.setSelectedEntityId(null)
+          this.clearPendingInteractionTargetRequest()
+        }
+      }
+    }
+
     let pointerDownLocation = Vector2.zero
     let clickValid = false
     const clickThreshold = 3.0
     let isDown = false
+    let downTime = getUnixTimeSeconds()
+    let downCounter = 0
+    let didHold = false
 
     this.input.on('pointerdown', (pointer: any) => {
       isDown = true
       clickValid = true
       pointerDownLocation = new Vector2(pointer.x, pointer.y)
+      downTime = getUnixTimeSeconds()
+
+      ++downCounter
+      const downCounterSnapshot = downCounter
+      didHold = false
+
+      setTimeout(() => {
+        if (isDown && downCounter === downCounterSnapshot) {
+          didHold = true
+          handleSelectionClick(pointer)
+        }
+      }, 400)
     }, this)
 
     this.input.on('pointerup', (pointer: any) => {
+      if (didHold) {
+        return
+      }
+
       isDown = false
       const currentPointerLocation = new Vector2(pointer.x, pointer.y)
 
@@ -188,68 +268,12 @@ export class GameInput {
       if (clickValid) {
         this.scene.blurChatTextArea()
 
-        const forPerspectiveOverride = this.cursorKeys?.shift?.isDown || false
-
         const worldPoint = scene.getWorldPointUnderCanvasPoint(new Vector2(pointer.x, pointer.y))
-
-        const simulationTime = this.simulation.getCurrentSimulationTime()
-
-        const entitiesNearCenter = this.scene.fogOfWarVisibleEntities
-          .filter(entity => PositionComponent.getOrNull(entity) != null && (!forPerspectiveOverride || CharacterComponent.getOrNull(entity) != null))
-          .map(entity => {
-            const positionComponent = PositionComponent.get(entity)
-
-            const position = resolvePositionForTime(positionComponent, simulationTime)
-            const distance = Vector2.distance(worldPoint, position)
-
-            return {
-              entity: entity,
-              distance: distance
-            }
-          })
-          .filter(it => it.distance < 60.0)
-
-        entitiesNearCenter.sort((a, b) => {
-          if (a.distance < b.distance) {
-            return -1
-          } else if (a.distance > b.distance) {
-            return 1
-          } else {
-            if (a.entity.entityId < b.entity.entityId) {
-              return -1
-            } else {
-              return 1
-            }
-          }
-        })
 
 
         if (pointer.rightButtonReleased()) {
           this.lastClickTime = getUnixTimeSeconds()
-
-          if (entitiesNearCenter.length !== 0) {
-            const selectedEntityId = forPerspectiveOverride ? this.dynamicState.perspectiveEntity?.entityId : this.dynamicState.selectedEntityId
-
-            const selectedIndex = entitiesNearCenter
-              .findIndex(it => it.entity.entityId === selectedEntityId)
-
-            const nextIndex = (selectedIndex === -1 || selectedIndex === (entitiesNearCenter.length - 1))
-              ? 0
-              : selectedIndex + 1
-
-            if (forPerspectiveOverride) {
-              sceneContext.setPerspectiveEntityIdOverride(entitiesNearCenter[nextIndex].entity.entityId)
-            } else {
-              sceneContext.setSelectedEntityId(entitiesNearCenter[nextIndex].entity.entityId)
-            }
-          } else {
-            if (forPerspectiveOverride) {
-              sceneContext.setPerspectiveEntityIdOverride(null)
-            } else {
-              sceneContext.setSelectedEntityId(null)
-              this.clearPendingInteractionTargetRequest()
-            }
-          }
+          handleSelectionClick(pointer)
         } else {
           this.lastClickTime = -1
           this.clearPendingInteractionTargetRequest()
