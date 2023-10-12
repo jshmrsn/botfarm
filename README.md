@@ -214,6 +214,8 @@ Along with continuing broad development on the existing functionality, the follo
 
 - Robust player authentication system. Currently this project using a simplistic admin secret system, and all non-admin connections are essentially anonymous and unauthenticated.
 
+- Support for multiple regions within a simulation, which could be used to implement isolated building interiors and caves
+
 - It would be nice if people could experience generative agents in game worlds before they become mainstream in commercial products without having to manually run these systems locally. Conceivably, these systems could just be deployed on a public server, but currently running high quality agents is very expensive. Therefore, such as a service would need to support allowing users to pay for the cost of running generative agents. It would be against OpenAI’s terms of service for users to share their own API keys with the service.
 
 - General game sound effects
