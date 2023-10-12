@@ -7,10 +7,17 @@ import {
 import {Vector2} from "../../misc/Vector2";
 import {AutoInteractAction, AutoInteractActionType, GameSimulationScene} from "./GameSimulationScene";
 import {DynamicState} from "../ui/DynamicState";
-import {InventoryComponentData} from "../simulation/CharacterComponentData";
-import {EquipmentSlots, GrowerComponent, ItemComponentData, ItemConfig, KillableComponent} from "../simulation/ItemComponentData";
+import {CharacterComponent, CharacterComponentData, InventoryComponentData} from "../simulation/CharacterComponentData";
+import {
+  EquipmentSlots,
+  GrowerComponent,
+  ItemComponentData,
+  ItemConfig,
+  KillableComponent
+} from "../simulation/ItemComponentData";
 import {UserControlledComponent} from "../simulation/userControlledComponentData";
 import {GameSimulation} from "../simulation/GameSimulation";
+import {Entity} from "../../engine/simulation/Entity";
 
 
 export class AutoInteraction {
@@ -32,7 +39,7 @@ export class AutoInteraction {
   }
 
 
-  private clearPendingInteractionTargetRequest() {
+  clearPendingInteractionTargetRequest() {
     if (this.scene.isReplay) {
       return
     }
@@ -151,7 +158,20 @@ export class AutoInteraction {
     const isPlayerMoving = playerPositionAnimation.keyFrames.length !== 0 &&
       simulationTime <= playerPositionAnimation.keyFrames[playerPositionAnimation.keyFrames.length - 1].time
 
-    if (equippedToolItemConfig != null && equippedToolItemConfig.spawnItemOnUseConfig != null) {
+
+    const selectedEntityId = this.dynamicState.selectedEntityId;
+    const selectedEntity = selectedEntityId != null
+      ? this.scene.fogOfWarVisibleEntitiesById[selectedEntityId]
+      : null
+
+    const pendingInteractionTargetEntityId = CharacterComponent.getData(userControlledEntity).pendingInteractionTargetEntityId
+    const pendingInteractionTargetEntity = pendingInteractionTargetEntityId
+      ? this.scene.fogOfWarVisibleEntitiesById[pendingInteractionTargetEntityId]
+      : null
+
+    if (equippedToolItemConfig != null &&
+      equippedToolItemConfig.spawnItemOnUseConfig != null &&
+      selectedEntity == null) {
       if (isPlayerMoving) {
         return {
           type: AutoInteractActionType.StopMoving,
@@ -173,7 +193,14 @@ export class AutoInteraction {
 
     const maxDistance = 300
 
-    for (const targetEntity of this.scene.fogOfWarVisibleEntities) {
+
+    const candidateEntities: Entity[] = pendingInteractionTargetEntity
+      ? [pendingInteractionTargetEntity]
+      : selectedEntity
+        ? [selectedEntity]
+        : this.scene.fogOfWarVisibleEntities
+
+    for (const targetEntity of candidateEntities) {
       const positionComponent = PositionComponent.getOrNull(targetEntity)
       const userControlledComponent = UserControlledComponent.getOrNull(targetEntity)
       const killableComponent = KillableComponent.getOrNull(targetEntity)
@@ -184,7 +211,7 @@ export class AutoInteraction {
         const position = resolvePositionForTime(positionComponent, simulationTime)
         const distance = Vector2.distance(playerPosition, position)
 
-        if (distance <= maxDistance) {
+        if (distance <= maxDistance || targetEntity === selectedEntity) {
           const targetItemComponentData = targetEntity.getComponentDataOrNull<ItemComponentData>("ItemComponentData")
 
           const targetItemConfig = targetItemComponentData ? this.simulation.getConfig<ItemConfig>(targetItemComponentData.itemConfigKey, "ItemConfig") : null
@@ -231,7 +258,7 @@ export class AutoInteraction {
       }
     }
 
-    if (nearestInteraction != null && nearestDistance < 300) {
+    if (nearestInteraction != null) {
       return nearestInteraction
     } else {
       return null

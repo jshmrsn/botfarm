@@ -35,7 +35,8 @@ fun addItemConfigs(configs: MutableList<Config>) {
          )
       } else {
          null
-      }
+      },
+      blocksPlacement: Boolean = false
    ): ItemConfig {
       val spriteConfigKey = key + "_sprite"
 
@@ -64,7 +65,8 @@ fun addItemConfigs(configs: MutableList<Config>) {
          growerConfig = growerConfig,
          spawnItemOnUseConfig = spawnItemOnUseConfig,
          collisionConfig = collisionConfig,
-         useCustomAnimationBaseName = useCustomAnimationBaseName
+         useCustomAnimationBaseName = useCustomAnimationBaseName,
+         blocksPlacement = blocksPlacement
       )
 
       configs.add(itemConfig)
@@ -182,7 +184,8 @@ fun addItemConfigs(configs: MutableList<Config>) {
             "tomato-seeds"
          )
       ),
-      collisionConfig = null
+      collisionConfig = null,
+      blocksPlacement = true
    )
 
    addItemConfig(

@@ -11,8 +11,8 @@ import {SpriteConfig} from "../../common/common";
 import {getNearestEntitiesFromList} from "../../common/utils";
 import {CompositeAnimationSelection} from "../simulation/CompositeAnimationSelection";
 import Phaser from "phaser";
+import {AutoInteractActionType, GameSimulationScene} from "./GameSimulationScene";
 import Camera = Phaser.Cameras.Scene2D.Camera;
-import {GameSimulationScene} from "./GameSimulationScene";
 import FilterMode = Phaser.Textures.FilterMode;
 
 export function getAnimationDirectionForRelativeLocation(delta: Vector2): string | null {
@@ -336,10 +336,13 @@ export function renderCharacter(
       }
     }
 
+    const calculatedAutoInteraction = scene.autoInteraction.calculatedAutoInteraction;
+    
     if (equippedToolItemConfig != null &&
       equippedToolItemConfig.spawnItemOnUseConfig &&
       userControlledComponent &&
-      userControlledComponent.userId === scene.dynamicState.userId) {
+      userControlledComponent.userId === scene.dynamicState.userId &&
+      calculatedAutoInteraction?.type === AutoInteractActionType.UseEquippedTool) {
       const spawnItemConfigKey = equippedToolItemConfig.spawnItemOnUseConfig.spawnItemConfigKey
       const spawnItemConfig = scene.getConfig<ItemConfig>(spawnItemConfigKey, "ItemConfig")
 

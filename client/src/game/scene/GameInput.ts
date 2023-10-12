@@ -165,15 +165,16 @@ export class GameInput {
       })
     }
 
-    const handleSelectionClick = (pointer: {x: number, y: number}) => {
-      const forPerspectiveOverride = this.cursorKeys?.shift?.isDown || false
+    const handleSelectionClick = (pointer: { x: number, y: number }) => {
+      this.scene.autoInteraction.clearPendingInteractionTargetRequest()
+
 
       const worldPoint = scene.getWorldPointUnderCanvasPoint(new Vector2(pointer.x, pointer.y))
 
       const simulationTime = this.simulation.getCurrentSimulationTime()
 
       const entitiesNearCenter = this.scene.fogOfWarVisibleEntities
-        .filter(entity => PositionComponent.getOrNull(entity) != null && (!forPerspectiveOverride || CharacterComponent.getOrNull(entity) != null))
+        .filter(entity => PositionComponent.getOrNull(entity) != null)
         .map(entity => {
           const positionComponent = PositionComponent.get(entity)
 
@@ -202,27 +203,26 @@ export class GameInput {
       })
 
       if (entitiesNearCenter.length !== 0) {
-        const selectedEntityId = forPerspectiveOverride ? this.dynamicState.perspectiveEntity?.entityId : this.dynamicState.selectedEntityId
+        const selectedEntityId = this.dynamicState.selectedEntityId
 
         const selectedIndex = entitiesNearCenter
           .findIndex(it => it.entity.entityId === selectedEntityId)
 
-        const nextIndex = (selectedIndex === -1 || selectedIndex === (entitiesNearCenter.length - 1))
+        const nextIndex = selectedIndex === -1
           ? 0
-          : selectedIndex + 1
+          : selectedIndex === (entitiesNearCenter.length - 1)
+            ? null
+            : selectedIndex + 1
 
-        if (forPerspectiveOverride) {
-          sceneContext.setPerspectiveEntityIdOverride(entitiesNearCenter[nextIndex].entity.entityId)
-        } else {
+        if (nextIndex != null) {
           sceneContext.setSelectedEntityId(entitiesNearCenter[nextIndex].entity.entityId)
-        }
-      } else {
-        if (forPerspectiveOverride) {
-          sceneContext.setPerspectiveEntityIdOverride(null)
         } else {
           sceneContext.setSelectedEntityId(null)
           this.clearPendingInteractionTargetRequest()
         }
+      } else {
+        sceneContext.setSelectedEntityId(null)
+        this.clearPendingInteractionTargetRequest()
       }
     }
 
@@ -230,7 +230,6 @@ export class GameInput {
     let clickValid = false
     const clickThreshold = 3.0
     let isDown = false
-    let downTime = getUnixTimeSeconds()
     let downCounter = 0
     let didHold = false
 
@@ -238,7 +237,6 @@ export class GameInput {
       isDown = true
       clickValid = true
       pointerDownLocation = new Vector2(pointer.x, pointer.y)
-      downTime = getUnixTimeSeconds()
 
       ++downCounter
       const downCounterSnapshot = downCounter
@@ -269,7 +267,6 @@ export class GameInput {
         this.scene.blurChatTextArea()
 
         const worldPoint = scene.getWorldPointUnderCanvasPoint(new Vector2(pointer.x, pointer.y))
-
 
         if (pointer.rightButtonReleased()) {
           this.lastClickTime = getUnixTimeSeconds()

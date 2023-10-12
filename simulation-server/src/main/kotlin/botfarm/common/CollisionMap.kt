@@ -208,6 +208,26 @@ class CollisionMap(
       return null
    }
 
+   fun isAreaOpen(
+      topLeftCorner: IndexPair,
+      width: Int,
+      height: Int
+   ): Boolean {
+      for (checkOffsetRow in 0..<height) {
+         for (checkOffsetCol in 0..<width) {
+            if (!this.isCellOpen(
+                  row = topLeftCorner.row + checkOffsetRow,
+                  col = topLeftCorner.col + checkOffsetCol
+               )
+            ) {
+               return false
+            }
+         }
+      }
+
+      return true
+   }
+
    fun findOpenTopLeftCellForShape(
       startIndexPair: IndexPair,
       maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
@@ -220,20 +240,11 @@ class CollisionMap(
 
       val clampedStartIndexPair = this.clampIndexPair(startIndexPair)
 
-      fun areCellsUnderShapeOpen(indexPair: IndexPair): Boolean {
-         for (checkOffsetRow in 0..<fitShapeHeight) {
-            for (checkOffsetCol in 0..<fitShapeWidth) {
-               if (!this.isCellOpen(
-                     row = indexPair.row + checkOffsetRow,
-                     col = indexPair.col + checkOffsetCol
-                  )) {
-                  return false
-               }
-            }
-         }
-
-         return true
-      }
+      fun areCellsUnderShapeOpen(indexPair: IndexPair): Boolean = this.isAreaOpen(
+         topLeftCorner = indexPair,
+         width = fitShapeWidth,
+         height = fitShapeHeight
+      )
 
       if (areCellsUnderShapeOpen(clampedStartIndexPair)) {
          return clampedStartIndexPair

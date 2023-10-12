@@ -940,8 +940,10 @@ class GameSimulation(
 
       val spawnItemOnUseConfig = equippedToolItemConfig.spawnItemOnUseConfig
       if (spawnItemOnUseConfig != null) {
-         fun getBlockingEntities() = this.getNearestEntities(
-            searchLocation = interactingEntity.resolvePosition(),
+         val entityLocation = interactingEntity.resolvePosition()
+
+         fun getPlacementBlockingEntities() = this.getNearestEntities(
+            searchLocation = entityLocation,
             maxDistance = 100.0,
             filter = {
                val itemConfigKey = it.getComponentOrNull<ItemComponentData>()?.data?.itemConfigKey
@@ -955,7 +957,19 @@ class GameSimulation(
             }
          )
 
-         if (getBlockingEntities().isNotEmpty()) {
+         val characterIndexPair = this.collisionMap.pointToIndexPair(entityLocation)
+         val topLeftCorner = characterIndexPair.copy(
+            characterIndexPair.row - 1,
+            characterIndexPair.col - 1
+         )
+
+         val isAreaOpen = this.collisionMap.isAreaOpen(
+            topLeftCorner = topLeftCorner,
+            width = 3,
+            height = 3
+         )
+
+         if (getPlacementBlockingEntities().isNotEmpty() || !isAreaOpen) {
             return UseEquippedItemResult.Obstructed
          } else {
             this.applyPerformedAction(
@@ -966,14 +980,14 @@ class GameSimulation(
 
             this.queueCallbackAfterSimulationTimeDelay(
                simulationTimeDelay = 0.45,
-               isValid = { !interactingEntity.isDead && getBlockingEntities().isEmpty() }
+               isValid = { !interactingEntity.isDead && getPlacementBlockingEntities().isEmpty() }
             ) {
                val spawnItemConfig = this.getConfig<ItemConfig>(spawnItemOnUseConfig.spawnItemConfigKey)
 
                val spawnedItems = this.spawnItems(
                   itemConfigKey = spawnItemOnUseConfig.spawnItemConfigKey,
                   quantity = spawnItemOnUseConfig.quantity,
-                  baseLocation = interactingEntity.resolvePosition(),
+                  baseLocation = entityLocation,
                   randomLocationScale = spawnItemOnUseConfig.randomDistanceScale
                )
 
@@ -985,7 +999,7 @@ class GameSimulation(
                   actionType = ActionType.UseEquippedTool,
 
                   sourceName = interactingEntityName,
-                  sourceLocation = interactingEntity.resolvePosition(),
+                  sourceLocation = entityLocation,
                   sourceEntityId = interactingEntity.entityId,
 
                   targetName = equippedToolItemConfig.name,

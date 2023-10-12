@@ -78,8 +78,7 @@ class ItemConfig(
    val spawnItemOnKillConfig: SpawnItemOnKillConfig? = null, // tree spawns wood when cut down
    val growerConfig: GrowerConfig? = null, // farm plots receive and grow carrot seeds
    val growableConfig: GrowableConfig? = null, // carrot seeds grow into carrots
-   val spawnItemOnUseConfig: SpawnItemOnUseConfig? = null // hoe spawns farm plots
-) : Config() {
-   val blocksPlacement = this.collisionConfig != null
-}
+   val spawnItemOnUseConfig: SpawnItemOnUseConfig? = null, // hoe spawns farm plots
+   val blocksPlacement: Boolean
+) : Config()
 
