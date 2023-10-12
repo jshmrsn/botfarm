@@ -117,10 +117,10 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                         }
                      }
                   } catch (exception: Exception) {
-                     throw Exception("Exception while handling websocket frame text ($text): $exception", exception)
+                     throw Exception("Exception while handling websocket frame text ($text)", exception)
                   }
                } catch (exception: Exception) {
-                  println("Exception while handling websocket frame: $exception, ${exception.stackTrace}")
+                  println("Exception while handling websocket frame: $exception, ${exception.stackTraceToString()}")
                   session.close(
                      CloseReason(
                         CloseReason.Codes.INTERNAL_ERROR,

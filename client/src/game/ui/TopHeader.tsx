@@ -90,12 +90,12 @@ export function TopHeader(props: TopHeaderProps): ReactElement | null {
         color={dynamicState.perspectiveEntity == null ? "blue" : "gray"}
         onClick={() => {
           if (dynamicState.perspectiveEntity == null) {
-            dynamicState.context.setIsInForceSpectateMode(false)
+            simulation.setShouldSpectateByDefault(false)
           } else {
-            dynamicState.context.setIsInForceSpectateMode(true)
+            simulation.setShouldSpectateByDefault(true)
           }
 
-          dynamicState.setPerspectiveEntityIdOverride(null)
+          simulation.setPerspectiveEntityIdOverride(null)
         }}
       >
         <IconEye size={25} color={dynamicState.perspectiveEntity !== null ? "rgba(0, 0, 0, 0.5)" : undefined}/>

@@ -13,6 +13,14 @@ export type UserSecret = string
 export type ClientId = string
 export type SimulationId = string
 
+export interface SimulationContext {
+  clientId: ClientId
+  userId: UserId
+  onSimulationDataChanged: () => void
+  sendMessageImplementation: (type: string, data: any) => void
+  initialSimulationData: ClientSimulationData
+}
+
 export class Simulation {
   private readonly replayData: ReplayData | null
   private receivedSimulationTime: number
@@ -24,30 +32,34 @@ export class Simulation {
   readonly configsByKeyByTypeName: Record<string, Record<string, Config>> = {}
   readonly entities: Entity[]
   readonly entitiesById: Record<string, Entity> = {}
-  onSimulationDataChanged: () => void
+  readonly onSimulationDataChanged: () => void
   private sendMessageImplementation: (type: string, data: any) => void
   readonly isReplay: boolean
   isReplayPaused = false
+
+  readonly clientId: ClientId
+
+  readonly context: SimulationContext
 
   getCurrentSimulationTime(): number {
     return this.smoothedSimulationTime
   }
 
   constructor(
-    initialSimulationData: ClientSimulationData,
-    onSimulationDataChanged: () => void,
-    sendMessageImplementation: (type: string, data: any) => void
+    context: SimulationContext,
   ) {
-    this.sendMessageImplementation = sendMessageImplementation
-    this.onSimulationDataChanged = onSimulationDataChanged
+    this.context = context
+    this.clientId = context.clientId
+    this.sendMessageImplementation = context.sendMessageImplementation
+    this.onSimulationDataChanged = context.onSimulationDataChanged
 
-    this.isReplay = initialSimulationData.replayData != null
-    this.replayData = initialSimulationData.replayData
+    this.isReplay = context.initialSimulationData.replayData != null
+    this.replayData = context.initialSimulationData.replayData
 
-    this.receivedSimulationTime = initialSimulationData.simulationTime
-    this.smoothedSimulationTime = initialSimulationData.simulationTime
-    this.simulationId = initialSimulationData.simulationId
-    this.configs = initialSimulationData.configs
+    this.receivedSimulationTime = context.initialSimulationData.simulationTime
+    this.smoothedSimulationTime = context.initialSimulationData.simulationTime
+    this.simulationId = context.initialSimulationData.simulationId
+    this.configs = context.initialSimulationData.configs
 
     for (let config of this.configs) {
       let configsByKey = this.configsByKeyByTypeName[config.type]
@@ -60,7 +72,7 @@ export class Simulation {
       configsByKey[config.key] = config
     }
 
-    this.entities = initialSimulationData.entities.map(entityData => new Entity(this, entityData))
+    this.entities = context.initialSimulationData.entities.map(entityData => new Entity(this, entityData))
     for (const entity of this.entities) {
       this.entitiesById[entity.entityId] = entity
     }

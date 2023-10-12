@@ -166,10 +166,10 @@ export function InspectionPanel(props: InspectionPanelProps) {
         variant={"filled"}
         onClick={() => {
           if (entity.entityId === dynamicState.perspectiveEntity?.entityId) {
-            dynamicState.setPerspectiveEntityIdOverride(null)
+            simulation.setPerspectiveEntityIdOverride(null)
           } else {
-            dynamicState.setPerspectiveEntityIdOverride(entity.entityId)
-            dynamicState.context.setIsInForceSpectateMode(false)
+            simulation.setPerspectiveEntityIdOverride(entity.entityId)
+            simulation.setShouldSpectateByDefault(false)
             scene.centerCameraOnEntityId(entity.entityId)
           }
         }}

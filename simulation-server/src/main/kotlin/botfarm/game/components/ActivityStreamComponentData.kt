@@ -28,3 +28,5 @@ data class DebugInfoComponentData(
    val aiPaused: Boolean = false,
    val collisionMapDebugInfo: CollisionMapDebugInfo
 ) : EntityComponentData()
+
+

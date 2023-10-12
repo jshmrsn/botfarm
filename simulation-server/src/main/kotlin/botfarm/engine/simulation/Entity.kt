@@ -5,7 +5,8 @@ import kotlin.reflect.full.isSubclassOf
 
 class Entity(
    data: EntityData,
-   val simulation: Simulation
+   val simulation: Simulation,
+   val sendWebSocketMessage: ((WebSocketMessage) -> Unit)?
 ) {
    val entityId = data.entityId
 
@@ -22,24 +23,12 @@ class Entity(
       EntityComponent<EntityComponentData>(
          data = it,
          entity = this,
-         componentDataClass = it.javaClass.kotlin
+         componentDataClass = it.javaClass.kotlin,
+         sendWebSocketMessage = this.sendWebSocketMessage
       )
    }.toMutableList()
 
    val components: List<EntityComponent<*>> = this.mutableComponents
-
-   fun start(
-      startContext: StartContext,
-      simulation: Simulation
-   ) {
-      this.mutableComponents.forEach {
-         it.start(
-            startContext = startContext,
-            simulation = simulation,
-            entity = this
-         )
-      }
-   }
 
    fun <T : EntityComponentData> getComponentOrNull(componentType: KClass<T>): EntityComponent<T>? {
       val untypedResult = this.mutableComponents.find {
@@ -60,7 +49,7 @@ class Entity(
 
    fun <T : EntityComponentData> getComponent(componentType: KClass<T>): EntityComponent<T> {
       return this.getComponentOrNull(componentType)
-         ?: throw Exception("Entity does not have component for type: $componentType")
+         ?: throw Exception("Entity does not have component for type: $componentType (${this.entityId})")
    }
 
    inline fun <reified T : EntityComponentData> getComponent(): EntityComponent<T> {
@@ -83,11 +72,5 @@ class Entity(
             it.data
          }
       )
-   }
-
-   fun stop() {
-      this.mutableComponents.forEach {
-         it.stop()
-      }
    }
 }

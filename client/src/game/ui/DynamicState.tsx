@@ -10,9 +10,7 @@ import {Entity} from "../../engine/simulation/Entity";
 
 export interface DynamicStateContext {
   selectEntity: (entityId: EntityId | null) => void
-  setPerspectiveEntityIdOverride: (entityId: EntityId | null) => void
   setForceUpdateCounter: (counter: number) => void
-  setIsInForceSpectateMode: (value: boolean) => void
 }
 
 export class DynamicState {
@@ -27,7 +25,6 @@ export class DynamicState {
   userControlledEntity: Entity | null = null
   rawUserControlledEntity: Entity | null = null
   selectEntity: (entityId: EntityId | null) => void
-  setPerspectiveEntityIdOverride: (entityId: EntityId | null) => void
   context: DynamicStateContext
 
   setForceUpdateCounter: (counter: number) => void
@@ -47,7 +44,6 @@ export class DynamicState {
     this.userId = userId
     this.setForceUpdateCounter = context.setForceUpdateCounter
     this.selectEntity = context.selectEntity
-    this.setPerspectiveEntityIdOverride = context.setPerspectiveEntityIdOverride
   }
 
   sendWebSocketMessage(type: string, data: object) {

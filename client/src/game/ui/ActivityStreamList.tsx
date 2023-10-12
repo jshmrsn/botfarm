@@ -334,6 +334,11 @@ export function ActivityStreamList(props: {
       }
     }
 
+    const timeDiv = <Text style={{
+      fontSize: 11,
+      color: "rgba(0, 0, 0, 0.5)",
+    }}>{formatSeconds(entry.time)}</Text>
+
     return <ListItem
       key={"activity-stream-entry-" + activityStreamIndex}
       ref={activityStreamIndex === (filteredActivityStream.length - 1)
@@ -382,11 +387,8 @@ export function ActivityStreamList(props: {
           >
             <IconMapPin color={"rgba(0, 0, 0, 0.25)"} size={17}/>
 
-            <Text style={{
-              fontSize: 11,
-              color: "rgba(0, 0, 0, 0.5)",
-            }}>{formatSeconds(entry.time)}</Text>
-          </ObservedCharacterButton> : null}
+            {timeDiv}
+          </ObservedCharacterButton> : timeDiv}
       </div>
 
       <div

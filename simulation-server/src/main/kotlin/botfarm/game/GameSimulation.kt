@@ -1,9 +1,6 @@
 package botfarm.game
 
-import botfarm.common.CollisionMap
-import botfarm.common.IndexPair
-import botfarm.common.PositionComponentData
-import botfarm.common.resolvePosition
+import botfarm.common.*
 import botfarm.engine.ktorplugins.AdminRequest
 import botfarm.engine.simulation.*
 import botfarm.game.agentintegration.AgentService
@@ -22,6 +19,16 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import kotlin.math.sign
+
+@Serializable
+class SetShouldSpectateByDefaultRequest(
+   val shouldSpectateByDefault: Boolean = false
+)
+
+@Serializable
+class SetPerspectiveEntityIdOverrideRequest(
+   val perspectiveEntityIdOverride: EntityId? = null
+)
 
 @Serializable
 class MoveToPointRequest(
@@ -93,6 +100,9 @@ class GameSimulation(
 
    private var lastAutoPauseAiSpentDollars = 0.0
 
+   private val perspectiveEntityContainersByCharacterEntityId = mutableMapOf<EntityId, EntityContainer>()
+   val pendingAutoInteractCallbackByEntityId = mutableMapOf<EntityId, (ActionResultType) -> Unit>()
+
    init {
       this.gameSimulationConfig = this.getConfig<GameSimulationConfig>(GameSimulationConfig.defaultKey)
       this.worldBounds = this.gameSimulationConfig.worldBounds
@@ -138,6 +148,59 @@ class GameSimulation(
 
          this.broadcastAlertAsGameMessage("Pausing AI because this simulation was not created by an admin")
       }
+   }
+
+   override fun syncClientEntityContainer(
+      client: Client,
+      skipSendForSnapshot: Boolean
+   ) {
+      val userControlledEntities = this.getUserControlledEntities(
+         userId = client.userId
+      )
+
+      val gameClientState = this.getGameClientStateComponent(client).data
+
+      val perspectiveEntity = if (gameClientState.perspectiveEntityIdOverride != null) {
+         this.getEntityOrNull(gameClientState.perspectiveEntityIdOverride)
+      } else if (gameClientState.shouldSpectateByDefault) {
+         null
+      } else {
+         userControlledEntities.firstOrNull()
+      }
+
+      val visibilityOfOnlyNoPositionEntities = { entityToCheck: Entity ->
+         val hasPositionComponent = entityToCheck.getComponentOrNull<PositionComponentData>() != null
+
+         !hasPositionComponent
+      }
+
+      val sourceEntityContainer: EntityContainer
+      val hasVisibilityOfEntity: (Entity) -> Boolean
+
+      if (perspectiveEntity != null) {
+         val sourceEntityContainerForPerspectiveEntity =
+            this.perspectiveEntityContainersByCharacterEntityId[perspectiveEntity.entityId]
+
+         if (sourceEntityContainerForPerspectiveEntity != null) {
+            hasVisibilityOfEntity = { true }
+            sourceEntityContainer = sourceEntityContainerForPerspectiveEntity
+         } else {
+            hasVisibilityOfEntity = visibilityOfOnlyNoPositionEntities
+            sourceEntityContainer = this.rootEntityContainer
+         }
+      } else if (gameClientState.shouldSpectateByDefault) {
+         hasVisibilityOfEntity = { true }
+         sourceEntityContainer = this.rootEntityContainer
+      } else {
+         hasVisibilityOfEntity = visibilityOfOnlyNoPositionEntities
+         sourceEntityContainer = this.rootEntityContainer
+      }
+
+      client.entityContainer.sync(
+         source = sourceEntityContainer,
+         hasVisibilityOfEntity = hasVisibilityOfEntity,
+         skipSendForSnapshot = skipSendForSnapshot
+      )
    }
 
    fun getActivityStreamEntity() =
@@ -384,6 +447,8 @@ class GameSimulation(
             this.collisionMapDebugInfoIsOutOfDate = true
          }
       }
+
+      this.perspectiveEntityContainersByCharacterEntityId.remove(entity.entityId)
    }
 
    fun addCharacterMessage(
@@ -570,7 +635,82 @@ class GameSimulation(
       return EquipItemResult.Success
    }
 
+   fun syncPerspectiveEntityContainer(
+      perspectiveEntity: Entity,
+      perspectiveEntityContainer: EntityContainer
+   ) {
+      val perspectiveLocation = perspectiveEntity.resolvePosition()
+      val observationRadius = perspectiveEntity.getComponent<CharacterComponentData>().data.observationRadius
+
+      perspectiveEntityContainer.sync(
+         source = this.rootEntityContainer,
+         hasVisibilityOfEntity = { entityToCheck: Entity ->
+            val hasPositionComponent = entityToCheck.getComponentOrNull<PositionComponentData>() != null
+
+            if (!hasPositionComponent) {
+               true
+            } else {
+               val distance = entityToCheck.resolvePosition().distance(perspectiveLocation)
+               distance <= observationRadius
+            }
+         },
+         notifySourceEntityIsVisible = { entity, sourceEntityIsVisible ->
+            if (!sourceEntityIsVisible) {
+               val positionComponent = entity.getComponent<PositionComponentData>()
+
+               if (positionComponent.data.positionAnimation.keyFrames.size > 1) {
+                  positionComponent.modifyData {
+                     it.copy(
+                        positionAnimation = Vector2Animation.static(entity.resolvePosition())
+                     )
+                  }
+               }
+            }
+         },
+         setEntityIsStale = { entity, isStale ->
+            val fogOfWarComponent = entity.getComponentOrNull<FogOfWarComponentData>()
+
+            if (fogOfWarComponent == null) {
+               if (isStale) {
+                  throw Exception("Attempted to set stale on entity without FogOfWarComponentData: ${entity.entityId}")
+               }
+            } else {
+               if (fogOfWarComponent.data.isStale != isStale) {
+                  if (isStale) {
+                     entity.getComponent<PositionComponentData>().modifyData {
+                        it.copy(
+                           positionAnimation = Vector2Animation.static(entity.resolvePosition())
+                        )
+                     }
+                  }
+
+                  fogOfWarComponent.modifyData {
+                     it.copy(
+                        isStale = isStale
+                     )
+                  }
+               }
+            }
+         }
+      )
+   }
+
+   fun syncPerspectiveEntityContainers() {
+      for (entry in this.perspectiveEntityContainersByCharacterEntityId) {
+         val entityId = entry.key
+         val perspectiveEntityContainer = entry.value
+         val perspectiveEntity = this.getEntity(entityId)
+
+         this.syncPerspectiveEntityContainer(
+            perspectiveEntity = perspectiveEntity,
+            perspectiveEntityContainer = perspectiveEntityContainer
+         )
+      }
+   }
+
    override fun onTick(deltaTime: Double) {
+      this.syncPerspectiveEntityContainers()
+
       this.updateCollisionDebugInfoIfNeeded()
 
       val autoPauseAiPerSpentDollars = this.gameScenario.autoPauseAiPerSpentDollars
@@ -609,7 +749,6 @@ class GameSimulation(
       requestedStackIndex: Int?
    ): EquipItemResult {
       val inventoryComponent = entity.getComponent<InventoryComponentData>()
-      val characterComponent = entity.getComponent<CharacterComponentData>()
 
       val itemConfig = this.getConfig<ItemConfig>(expectedItemConfigKey)
 
@@ -1352,7 +1491,13 @@ class GameSimulation(
          return MoveToResult.Busy
       }
 
-      val clampedEndPoint = this.collisionMap.clampPoint(endPoint)
+      val observationRadius = entity.getComponent<CharacterComponentData>().data.observationRadius
+
+      // joshr: Avoid leaking information about entities in fog-of-war areas
+      val endPointClampedToObservationRadius =
+         entity.resolvePosition().moveTowards(endPoint, maxDistance = observationRadius)
+
+      val clampedEndPoint = this.collisionMap.clampPoint(endPointClampedToObservationRadius)
 
       val positionComponent = entity.getComponentOrNull<PositionComponentData>()
 
@@ -1578,7 +1723,8 @@ class GameSimulation(
          ),
          PositionComponentData(
             positionAnimation = Vector2Animation.static(resolvedLocation)
-         )
+         ),
+         FogOfWarComponentData()
       )
 
       if (itemConfig.damageableConfig != null) {
@@ -1672,7 +1818,7 @@ class GameSimulation(
 
       val resolvedLocation = this.collisionMap.indexPairToCellCenter(openCell)
 
-      return this.createEntity(
+      val createdEntity = this.createEntity(
          additionalComponents + listOf(
             CharacterComponentData(
                name = name,
@@ -1686,9 +1832,23 @@ class GameSimulation(
             InventoryComponentData(),
             PositionComponentData(
                positionAnimation = Vector2Animation.static(resolvedLocation)
-            )
+            ),
+            FogOfWarComponentData()
          )
       )
+
+      val perspectiveEntityContainer = EntityContainer(
+         simulation = this
+      )
+
+      this.perspectiveEntityContainersByCharacterEntityId[createdEntity.entityId] = perspectiveEntityContainer
+
+      this.syncPerspectiveEntityContainer(
+         perspectiveEntity = createdEntity,
+         perspectiveEntityContainer = perspectiveEntityContainer
+      )
+
+      return createdEntity
    }
 
    fun getNearestEntities(
@@ -1763,6 +1923,26 @@ class GameSimulation(
             client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<MoveToPointRequest>(messageData)
             this.handleMoveToPointRequest(client, request)
+         }
+
+         "SetShouldSpectateByDefaultRequest" -> {
+            client.notifyInteractionReceived()
+            val request = Json.decodeFromJsonElement<SetShouldSpectateByDefaultRequest>(messageData)
+            this.getGameClientStateComponent(client).modifyData {
+               it.copy(
+                  shouldSpectateByDefault = request.shouldSpectateByDefault
+               )
+            }
+         }
+
+         "SetPerspectiveEntityIdOverrideRequest" -> {
+            client.notifyInteractionReceived()
+            val request = Json.decodeFromJsonElement<SetPerspectiveEntityIdOverrideRequest>(messageData)
+            this.getGameClientStateComponent(client).modifyData {
+               it.copy(
+                  perspectiveEntityIdOverride = request.perspectiveEntityIdOverride
+               )
+            }
          }
 
          "NotifyClientActive" -> {
@@ -2121,7 +2301,23 @@ class GameSimulation(
       )
    }
 
+   fun buildGameClientStateEntityId(client: Client): EntityId {
+      return EntityId("game-client-state:" + client.clientId.value)
+   }
+
+   fun getGameClientStateComponent(client: Client) =
+      this.getEntity(
+         entityId = this.buildGameClientStateEntityId(client)
+      ).getComponent<GameClientStateComponentData>()
+
    override fun handleNewClient(client: Client) {
+      val gameClientStateEntityId = this.buildGameClientStateEntityId(client)
+
+      this.createEntity(
+         entityId = gameClientStateEntityId,
+         components = listOf(GameClientStateComponentData())
+      )
+
       val isCreator = this.context.createdByUserSecret == client.userSecret
 
       val shouldSpawnPlayerEntity = when (this.gameScenario.autoSpawnPlayersEntityMode) {
@@ -2166,8 +2362,6 @@ class GameSimulation(
          }
       }
    }
-
-   val pendingAutoInteractCallbackByEntityId = mutableMapOf<EntityId, (ActionResultType) -> Unit>()
 
    fun autoInteractWithEntity(
       entity: Entity,

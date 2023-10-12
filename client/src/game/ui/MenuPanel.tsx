@@ -1,6 +1,6 @@
 import {useOnKeyDown} from "./useOnKeyDown";
 import React from "react";
-import {Button, Switch, Text} from "@mantine/core";
+import {Button, Text} from "@mantine/core";
 import {DynamicState} from "./DynamicState";
 import {GetSimulationInfoResponse} from "./GameSimulationComponent";
 import {Entity} from "../../engine/simulation/Entity";
@@ -21,8 +21,6 @@ interface MenuPanelProps {
   terminateSimulation: () => void
   exitSimulation: () => void
   close: () => void
-  isInForceSpectateMode: boolean
-  setIsInForceSpectateMode: (value: boolean) => void
 }
 
 export function MenuPanel(props: MenuPanelProps) {
@@ -217,9 +215,9 @@ export function MenuPanel(props: MenuPanelProps) {
         alignItems: "center"
       }}
     >
-      <PanelCloseButton
+      {canClose ? <PanelCloseButton
         close={props.close}
-      />
+      /> : null}
 
       <div
         key="header"

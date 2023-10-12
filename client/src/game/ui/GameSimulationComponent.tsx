@@ -25,7 +25,7 @@ import {CraftingPanel} from "./CraftingPanel";
 import {InspectionPanel} from "./InspectionPanel";
 import {Entity} from "../../engine/simulation/Entity";
 import {HelpPanel} from "./HelpPanel";
-import {SimulationId, UserId, UserSecret} from "../../engine/simulation/Simulation";
+import {SimulationContext, SimulationId, UserId, UserSecret} from "../../engine/simulation/Simulation";
 import {useNavigate, useParams} from "react-router-dom";
 import {getFileRequest} from "../../misc/request";
 import {apiRequest} from "../../engine/apiRequest";
@@ -95,7 +95,7 @@ export const GameSimulationComponent = (props: SimulationProps) => {
 
   const [replayData, setReplayData] = useState<ReplayData | null>(null)
   const [getSimulationInfoResponse, setGetSimulationInfoResponse] = useState<GetSimulationInfoResponse | null>(null)
-  const [perspectiveEntityIdOverride, setPerspectiveEntityIdOverride] = useState<EntityId | null>(null)
+
 
   function closePanel(panelType: PanelType) {
     setShowingPanels(showingPanels.filter(it => it !== panelType))
@@ -119,13 +119,10 @@ export const GameSimulationComponent = (props: SimulationProps) => {
 
   const [isViewingReplay, setIsViewingReplay] = useState(false)
   const [loadReplayError, setLoadReplayError] = useState<string | null>(null)
-  const [isInForceSpectateMode, setIsInForceSpectateMode] = useState(false)
 
   const dynamicStateContext: DynamicStateContext = {
     setForceUpdateCounter: setForceUpdateCounter,
-    selectEntity: selectEntity,
-    setPerspectiveEntityIdOverride: setPerspectiveEntityIdOverride,
-    setIsInForceSpectateMode: setIsInForceSpectateMode
+    selectEntity: selectEntity
   }
 
   const [dynamicState] = useState<DynamicState>(new DynamicState(userId, dynamicStateContext))
@@ -207,7 +204,6 @@ export const GameSimulationComponent = (props: SimulationProps) => {
     setShouldShowMenuPanel(false)
     setWasDisconnected(false)
     setIsViewingReplay(true)
-    setIsInForceSpectateMode(true)
   }
 
   if (dynamicState.scene != null) {
@@ -245,15 +241,19 @@ export const GameSimulationComponent = (props: SimulationProps) => {
       dynamicState.scene = null
     }
 
-    dynamicState.simulation = new GameSimulation(
-      initialSimulationData,
-      () => {
+    const simulationContext: SimulationContext = {
+      clientId: dynamicState.clientId,
+      userId: dynamicState.userId,
+      initialSimulationData: initialSimulationData,
+      onSimulationDataChanged: () => {
         dynamicState.forceUpdate()
       },
-      (type: string, data: any) => {
+      sendMessageImplementation: (type: string, data: any) => {
         dynamicState.sendWebSocketMessage(type, data)
       }
-    )
+    }
+
+    dynamicState.simulation = new GameSimulation(simulationContext)
   }
 
   const shouldWebsocketConnect = !isViewingReplay &&
@@ -338,7 +338,6 @@ export const GameSimulationComponent = (props: SimulationProps) => {
           dynamicState.sendWebSocketMessage(type, data)
         },
         setSelectedEntityId: setSelectedEntityId,
-        setPerspectiveEntityIdOverride: setPerspectiveEntityIdOverride,
         closePanels: () => setShowingPanels([]),
         showHelpPanel: () => {
           setShouldShowHelpPanel(true)
@@ -388,7 +387,10 @@ export const GameSimulationComponent = (props: SimulationProps) => {
   }) ?? null
     : null
 
-  const userControlledEntity: Entity | null = (!isInForceSpectateMode && (perspectiveEntityIdOverride == null || perspectiveEntityIdOverride === rawUserControlledEntity?.entityId))
+  const perspectiveEntityIdOverride = simulation?.perspectiveEntityIdOverride
+  const shouldSpectateByDefault = isViewingReplay ? true : (simulation?.shouldSpectateByDefault || false)
+
+  const userControlledEntity: Entity | null = (!shouldSpectateByDefault && (perspectiveEntityIdOverride == null || perspectiveEntityIdOverride === rawUserControlledEntity?.entityId))
     ? rawUserControlledEntity
     : null
 
@@ -916,8 +918,6 @@ export const GameSimulationComponent = (props: SimulationProps) => {
         terminateSimulation={terminateSimulation}
         viewReplay={viewReplay}
         wasDisconnected={wasDisconnected}
-        setIsInForceSpectateMode={setIsInForceSpectateMode}
-        isInForceSpectateMode={isInForceSpectateMode}
         rawUserControlledEntity={rawUserControlledEntity}
       /> : null}
 

@@ -16,7 +16,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.encodeToJsonElement
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.io.path.Path
@@ -36,34 +35,11 @@ value class UserSecret(val value: String)
 @Serializable
 value class ClientId(val value: String)
 
-class Client(
-   val webSocketSession: DefaultWebSocketServerSession,
-   val clientId: ClientId,
-   val userId: UserId,
-   val userSecret: UserSecret
-) {
-   var lastReceivedMessageUnixTime = getCurrentUnixTimeSeconds()
-      private set
-
-   var lastReceivedInteractionUnixTime = getCurrentUnixTimeSeconds()
-      private set
-
-   fun notifyMessageReceived() {
-      this.lastReceivedMessageUnixTime = getCurrentUnixTimeSeconds()
-   }
-
-
-   fun notifyInteractionReceived() {
-      this.lastReceivedInteractionUnixTime = getCurrentUnixTimeSeconds()
-   }
-}
-
 @Serializable
 class ReplaySentMessage(
    val message: JsonElement,
    val simulationTime: Double
 )
-
 
 @Serializable
 class SimulationInfo(
@@ -109,8 +85,6 @@ open class Simulation(
 ) {
    private var lastAnyClientsConnectedUnixTime = getCurrentUnixTimeSeconds()
 
-   val simulationThread = Thread.currentThread()
-
    companion object {
       val replayS3UploadBucket = System.getenv()["BOTFARM_S3_REPLAY_BUCKET"]
       val replayS3UploadRegion = System.getenv()["BOTFARM_S3_REPLAY_REGION"] ?: "us-west-2"
@@ -138,14 +112,16 @@ open class Simulation(
 
    val latencyBufferTime = 0.2
 
-   private val mutableEntities: MutableList<Entity>
-   val entities: List<Entity>
+   val rootEntityContainer = EntityContainer(
+      simulation = this,
+      sendWebSocketMessage = {
+         this.recordMessageForReplay(it)
+      }
+   )
 
-   private val mutableEntitiesById = mutableMapOf<EntityId, Entity>()
-   private val mutableDestroyedEntitiesById = mutableMapOf<EntityId, Entity>()
-
-   private val entitiesById: Map<EntityId, Entity> = this.mutableEntitiesById
-   private val destroyedEntitiesById: Map<EntityId, Entity> = this.mutableDestroyedEntitiesById
+   val entities: List<Entity> = this.rootEntityContainer.entities
+   val entitiesById = this.rootEntityContainer.entitiesById
+   val destroyedEntitiesById: Map<EntityId, Entity> = this.rootEntityContainer.destroyedEntitiesById
 
    private val queuedCallbacks = QueuedCallbacks()
 
@@ -163,10 +139,12 @@ open class Simulation(
       task: () -> Unit
    ) {
       synchronized(this) {
-         this.requestsFromBackgroundThread.add(RequestFromBackgroundThread(
-            task = task,
-            handleException = handleException
-         ))
+         this.requestsFromBackgroundThread.add(
+            RequestFromBackgroundThread(
+               task = task,
+               handleException = handleException
+            )
+         )
       }
    }
 
@@ -239,16 +217,7 @@ open class Simulation(
 
    private val clients = mutableListOf<Client>()
 
-   init {
-      this.mutableEntities = data.entities.map {
-         Entity(
-            data = it,
-            simulation = this
-         )
-      }.toMutableList()
-
-      this.entities = this.mutableEntities
-   }
+   init {}
 
    open fun onStart() {
 
@@ -281,7 +250,7 @@ open class Simulation(
       }
    }
 
-   private fun sendWebSocketMessage(
+   fun sendWebSocketMessage(
       client: Client,
       message: WebSocketMessage
    ) {
@@ -333,16 +302,6 @@ open class Simulation(
       }
    }
 
-   private fun sendSnapshotMessage(client: Client) {
-      println("Sending snapshot message to client: " + client.clientId)
-      this.sendWebSocketMessage(
-         client = client,
-         message = SimulationSnapshotWebSocketMessage(
-            simulationData = this.buildClientData()
-         )
-      )
-   }
-
    open fun onEntityCreated(entity: Entity) {
 
    }
@@ -356,29 +315,14 @@ open class Simulation(
       entityId: EntityId = EntityId(buildShortRandomIdentifier())
    ): Entity {
       synchronized(this) {
-         if (this.mutableEntitiesById.containsKey(entityId)) {
+         if (this.entitiesById.containsKey(entityId)) {
             throw Exception("Entity already exists for entityId: $entityId")
          }
 
-         val initialEntityData = EntityData(
+         val entity = this.rootEntityContainer.addEntity(
             components = components,
             entityId = entityId
          )
-
-         val entity = Entity(
-            data = initialEntityData,
-            simulation = this
-         )
-
-         this.broadcastMessage(
-            EntityCreatedWebSocketMessage(
-               entityData = entity.buildData(),
-               simulationTime = this.getCurrentSimulationTime()
-            )
-         )
-
-         this.mutableEntities.add(entity)
-         this.mutableEntitiesById[entityId] = entity
 
          this.activateSystemsForEntity(entity)
 
@@ -389,80 +333,52 @@ open class Simulation(
    }
 
    fun handleEntityDestroyed(entity: Entity) {
-      synchronized(this) {
-         this.broadcastMessage(
-            EntityDestroyedWebSocketMessage(
-               entityId = entity.entityId,
-               simulationTime = this.getCurrentSimulationTime()
-            )
-         )
-
-         this.tickSystems.forEach { system ->
-            system.deactivateForEntity(entity)
-         }
-
-         this.coroutineSystems.forEach { system ->
-            system.deactivateForEntity(
-               entity = entity
-            )
-         }
-
-         this.mutableEntities.remove(entity)
-         this.mutableEntitiesById.remove(entity.entityId)
-
-         this.mutableDestroyedEntitiesById[entity.entityId] = entity
-
-         this.onEntityDestroyed(entity)
+      this.tickSystems.forEach { system ->
+         system.deactivateForEntity(entity)
       }
-   }
 
-   private fun broadcastMessage(message: WebSocketMessage) {
-      synchronized(this) {
-         val serializedMessage = DynamicSerialization.serialize(message)
-         val messageString = Json.encodeToString(serializedMessage)
-
-         this.pendingReplayData.sentMessages.add(
-            ReplaySentMessage(
-               simulationTime = this.getCurrentSimulationTime(),
-               message = serializedMessage
-            )
+      this.coroutineSystems.forEach { system ->
+         system.deactivateForEntity(
+            entity = entity
          )
-
-         this.clients.forEach { client ->
-            this.sendWebSocketMessage(
-               client = client,
-               messageString = messageString
-            )
-         }
       }
+
+      this.rootEntityContainer.destroyEntity(entity)
+
+      this.onEntityDestroyed(entity)
    }
 
-   private val excludeDefaultsJsonFormat = Json {
-      encodeDefaults = false
-   }
-
-   fun broadcastEntityComponentMessage(
-      entityId: EntityId,
-      componentData: EntityComponentData,
-      previousBroadcastData: EntityComponentData
+   private fun recordMessageForReplay(
+      message: WebSocketMessage
    ) {
-      val diff = DynamicSerialization.serializeDiff(
-         previous = previousBroadcastData,
-         new = componentData
+      val serializedMessage = DynamicSerialization.serialize(message)
+
+      this.pendingReplayData.sentMessages.add(
+         ReplaySentMessage(
+            simulationTime = this.simulationTime,
+            message = serializedMessage
+         )
+      )
+   }
+
+
+   private fun broadcastMessage(
+      message: WebSocketMessage
+   ) {
+      val serializedMessage = DynamicSerialization.serialize(message)
+      val messageString = Json.encodeToString(serializedMessage)
+
+      this.pendingReplayData.sentMessages.add(
+         ReplaySentMessage(
+            simulationTime = this.getCurrentSimulationTime(),
+            message = serializedMessage
+         )
       )
 
-      if (diff != null) {
-//         println("Broadcasting entity component message: entityId = $entityId, ${componentData::class}")
-         // jshmrsn: Pre-serialize so we can exclude defaults for less network data
-         val serializedDiff = this.excludeDefaultsJsonFormat.encodeToJsonElement(diff)
-
-         this.broadcastMessage(
-            EntityComponentWebSocketMessage(
-               entityId = entityId,
-               componentTypeName = DynamicSerialization.getSerializationNameForClass(componentData::class),
-               diff = serializedDiff,
-               simulationTime = this.getCurrentSimulationTime()
-            )
+      this.clients.forEach { client ->
+         this.sendWebSocketMessage(
+            client = client,
+            messageString = messageString
          )
       }
    }
@@ -477,22 +393,33 @@ open class Simulation(
       userSecret: UserSecret,
       webSocketSession: DefaultWebSocketServerSession
    ) {
-      synchronized(this) {
-         println("handleNewWebSocketClient: $clientId, $webSocketSession")
+      println("handleNewWebSocketClient: $clientId, $webSocketSession")
 
-         val client = Client(
-            clientId = clientId,
-            webSocketSession = webSocketSession,
-            userId = userId,
-            userSecret = userSecret
+      val client = Client(
+         clientId = clientId,
+         webSocketSession = webSocketSession,
+         userId = userId,
+         userSecret = userSecret,
+         simulation = this
+      )
+
+      this.clients.add(client)
+
+      this.handleNewClient(client)
+
+      this.syncClientEntityContainer(
+         client = client,
+         skipSendForSnapshot = true
+      )
+
+      this.sendWebSocketMessage(
+         client = client,
+         message = SimulationSnapshotWebSocketMessage(
+            simulationData = this.buildClientData(
+               entityContainer = client.entityContainer
+            )
          )
-
-         this.clients.add(client)
-
-         this.sendSnapshotMessage(client)
-
-         this.handleNewClient(client)
-      }
+      )
    }
 
    open fun handleNewClient(client: Client) {}
@@ -665,7 +592,10 @@ open class Simulation(
             val timeSinceMessage = getCurrentUnixTimeSeconds() - client.lastReceivedMessageUnixTime
 
             if (timeSinceMessage > context.clientReceiveMessageTimeoutSeconds) {
-               this.sendAlertMessage(client, "Disconnecting for not receiving message  (${timeSinceMessage.roundToInt()}).")
+               this.sendAlertMessage(
+                  client,
+                  "Disconnecting for not receiving message  (${timeSinceMessage.roundToInt()})."
+               )
                this.queueCallbackWithoutDelay {
                   this.disconnectClient(client, reason = "Message timeout: ${timeSinceMessage.roundToInt()}")
                }
@@ -692,8 +622,27 @@ open class Simulation(
 
       this.onTick(deltaTime = deltaTime)
 
+      this.clients.forEach { client ->
+         this.syncClientEntityContainer(
+            client = client,
+            skipSendForSnapshot = false
+         )
+      }
+
       return TickResult(
          shouldTerminate = false
+      )
+   }
+
+   open fun syncClientEntityContainer(
+      client: Client,
+      skipSendForSnapshot: Boolean
+   ) {
+      client.entityContainer.sync(
+         source = this.rootEntityContainer,
+         hasVisibilityOfEntity = { entityToCheck ->
+            true
+         }
       )
    }
 
@@ -708,16 +657,22 @@ open class Simulation(
       this.clients.remove(client)
    }
 
-   fun buildClientData(): ClientSimulationData {
-      return this.buildData().buildClientData()
+   fun buildClientData(
+      entityContainer: EntityContainer = this.rootEntityContainer
+   ): ClientSimulationData {
+      return this.buildData(
+         entityContainer = entityContainer
+      ).buildClientData()
    }
 
-   private fun buildData(): SimulationData {
+   private fun buildData(
+      entityContainer: EntityContainer = this.rootEntityContainer
+   ): SimulationData {
       return SimulationData(
          scenarioInfo = this.scenarioInfo,
          simulationId = this.simulationId,
          configs = this.configs,
-         entities = this.entities.map {
+         entities = entityContainer.entities.map {
             it.buildData()
          },
          simulationTime = this.getCurrentSimulationTime(),
@@ -730,10 +685,6 @@ open class Simulation(
 
    fun handleTermination() {
       this.isTerminated = true
-
-      this.entities.forEach {
-         it.stop()
-      }
 
       this.coroutineSystems.forEach { system ->
          system.handleTermination()

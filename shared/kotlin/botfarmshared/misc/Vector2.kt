@@ -49,6 +49,19 @@ class Vector2(
       return Vector2(newX, newY)
    }
 
+   fun moveTowards(target: Vector2, maxDistance: Double): Vector2 {
+      val delta = target - this
+      val distance = delta.magnitude()
+
+      if (distance <= maxDistance) {
+         return target
+      }
+
+      val direction = delta / Math.max(distance, 0.00001)
+
+      return this + direction * maxDistance
+   }
+
    operator fun times(scalar: Double) = Vector2(x * scalar, y * scalar)
    operator fun times(vector: Vector2) = Vector2(x * vector.x, y * vector.y)
    operator fun div(scalar: Double) = Vector2(x / scalar, y / scalar)
@@ -59,8 +72,8 @@ class Vector2(
 
    fun magnitude(): Double = sqrt(x * x + y * y)
 
-   fun normalize(): Vector2 {
-      val mag = magnitude()
+   fun normalized(): Vector2 {
+      val mag = Math.max(magnitude(), 0.00001)
       return Vector2(x / mag, y / mag)
    }
 

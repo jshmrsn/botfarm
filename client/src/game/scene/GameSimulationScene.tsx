@@ -22,7 +22,6 @@ export interface SimulationSceneContext {
   dynamicState: DynamicState,
   sendWebSocketMessage: (type: string, data: object) => void
   setSelectedEntityId: (entityId: EntityId | null) => void
-  setPerspectiveEntityIdOverride: (entityId: EntityId | null) => void
   closePanels: () => void
   showHelpPanel: () => void
   showMenuPanel: () => void
@@ -51,6 +50,10 @@ interface MoveToPointRequest {
   pendingInteractionEntityId?: EntityId
 }
 
+
+export class FogWarEntityState {
+  alpha: number = 0.0
+}
 
 export class GameSimulationScene extends Phaser.Scene {
   readonly simulationId: SimulationId
@@ -84,9 +87,10 @@ export class GameSimulationScene extends Phaser.Scene {
   readonly assetLoader: AssetLoader
   readonly gameInput: GameInput
 
+  hasEverRenderedEntities = false
   readonly fogOfWarVisibleEntities: Entity[] = []
   fogOfWarVisibleEntitiesById: Record<EntityId, Entity> = {}
-
+  fogOfWarStatesByEntityId: Record<EntityId, FogWarEntityState> = {}
 
   constructor(
     simulation: GameSimulation,
@@ -275,7 +279,7 @@ export class GameSimulationScene extends Phaser.Scene {
     return this.simulation.getConfig<T>(configKey, serverSerializationTypeName)
   }
 
-  render() {
+  render(deltaTime: number) {
     this.renderContext.render(() => {
       const renderContext = this.renderContext
 
@@ -298,7 +302,7 @@ export class GameSimulationScene extends Phaser.Scene {
       }
 
       const didRenderDebugInfo = renderDebugInfo(this)
-      renderEntities(this, didRenderDebugInfo, fogOfWarInfo, perspectiveEntity)
+      renderEntities(deltaTime, this, didRenderDebugInfo, fogOfWarInfo, perspectiveEntity)
     })
   }
 
@@ -317,7 +321,7 @@ export class GameSimulationScene extends Phaser.Scene {
 
     this.clampCamera()
 
-    this.render()
+    this.render(deltaTime)
   }
 
   getCurrentSimulationTime(): number {

@@ -1,9 +1,9 @@
 package botfarm.common
 
-import botfarmshared.misc.Vector2
-import botfarmshared.misc.Vector2Animation
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponentData
+import botfarmshared.misc.Vector2
+import botfarmshared.misc.Vector2Animation
 
 data class PositionComponentData(
    val positionAnimation: Vector2Animation = Vector2Animation(),

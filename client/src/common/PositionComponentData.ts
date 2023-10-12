@@ -27,3 +27,4 @@ export function resolvePositionForCurrentTime(positionComponent: EntityComponent
 export function resolvePositionForTime(positionComponent: EntityComponent<PositionComponentData>, simulationTime: number) {
   return Vector2Animation.resolve(positionComponent.data.positionAnimation, simulationTime)
 }
+
