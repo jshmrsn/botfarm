@@ -9,7 +9,7 @@ import {Entity} from "../simulation/Entity";
 import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
 import {EntityId} from "../simulation/EntityData";
 import {Simulation} from "../simulation/Simulation";
-import {GameSimulationScene} from "../game/GameSimulationScene";
+import {GameSimulationScene} from "../game/scene/GameSimulationScene";
 import {LongMessage} from "./GameSimulationComponent";
 
 

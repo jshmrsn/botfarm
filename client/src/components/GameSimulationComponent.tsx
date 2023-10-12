@@ -1,8 +1,16 @@
 import React, {ReactElement, useEffect, useState} from "react";
 import {ActionIcon, Button, Text} from "@mantine/core";
-import {IconHammer, IconMenu2, IconMessages, IconQuestionMark} from "@tabler/icons-react";
+import {
+  IconHammer,
+  IconHandGrab,
+  IconHandStop,
+  IconMenu2,
+  IconMessages,
+  IconQuestionMark,
+  IconTool
+} from "@tabler/icons-react";
 import Phaser from "phaser";
-import {AutoInteractActionType, GameSimulationScene, SimulationSceneContext} from "../game/GameSimulationScene";
+import {AutoInteractActionType, GameSimulationScene, SimulationSceneContext} from "../game/scene/GameSimulationScene";
 import {ClientSimulationData, EntityId, ReplayData} from "../simulation/EntityData";
 import useWebSocket from "react-use-websocket";
 import {useWindowSize} from "@react-hook/window-size";
@@ -339,13 +347,13 @@ export const GameSimulationComponent = (props: SimulationProps) => {
         }
       }
 
-      const newPhaserScene = new GameSimulationScene(dynamicState.simulation, sceneContext)
-      newPhaserScene.onLoadComplete(() => {
+      const newScene = new GameSimulationScene(dynamicState.simulation, sceneContext)
+      newScene.assetLoader.onLoadComplete(() => {
         setSceneLoadComplete(true)
       })
 
-      phaserGame.scene.add("main", newPhaserScene, true)
-      dynamicState.scene = newPhaserScene
+      phaserGame.scene.add("main", newScene, true)
+      dynamicState.scene = newScene
     }
   }, [phaserContainerDiv, hasSimulationData, hasWebSocket, hasReplayData, hasPhaserScene]);
 
@@ -489,13 +497,23 @@ export const GameSimulationComponent = (props: SimulationProps) => {
   if (autoInteraction != null && !isViewingReplay) {
     let actionTitle = autoInteraction.actionTitle
 
+    const icon = autoInteraction.type === AutoInteractActionType.StopMoving
+      ? <IconHandStop/> :
+      autoInteraction.type === AutoInteractActionType.Pickup
+        ? <IconHandGrab/>
+        : <IconTool/>
+
+    const color = autoInteraction.type === AutoInteractActionType.StopMoving
+      ? "gray"
+      : "blue"
+
     actionButton = <Button
       key={"action-button"}
       ref={button => actionButtonRef = button}
       fullWidth
-      color={autoInteraction.type === AutoInteractActionType.StopMoving ? "gray" : "blue"}
+      color={color}
       variant={"filled"}
-      leftIcon={autoInteraction.actionIcon}
+      leftIcon={icon}
       style={{
         height: 44,
         pointerEvents: "auto"

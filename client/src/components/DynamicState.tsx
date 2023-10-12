@@ -1,5 +1,5 @@
 import {ClientId, UserId} from "../simulation/Simulation";
-import {GameSimulationScene} from "../game/GameSimulationScene";
+import {GameSimulationScene} from "../game/scene/GameSimulationScene";
 import {GameSimulation} from "../game/GameSimulation";
 import {EntityId} from "../simulation/EntityData";
 import {generateId} from "../misc/utils";

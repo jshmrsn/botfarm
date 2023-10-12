@@ -1,5 +1,5 @@
 import {Vector2} from "../misc/Vector2";
-import {GameSimulationScene} from "../game/GameSimulationScene";
+import {GameSimulationScene} from "../game/scene/GameSimulationScene";
 import Phaser from "phaser";
 import Graphics = Phaser.GameObjects.Graphics;
 import FilterMode = Phaser.Textures.FilterMode;

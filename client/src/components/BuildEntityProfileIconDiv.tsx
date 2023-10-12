@@ -1,6 +1,6 @@
 import {EntityId} from "../simulation/EntityData";
 import {Simulation} from "../simulation/Simulation";
-import {GameSimulationScene} from "../game/GameSimulationScene";
+import {GameSimulationScene} from "../game/scene/GameSimulationScene";
 import React, {ReactElement} from "react";
 import {CharacterComponent} from "../game/CharacterComponentData";
 import {ItemComponent, ItemConfig} from "../game/ItemComponentData";
@@ -8,7 +8,7 @@ import {ItemComponent, ItemConfig} from "../game/ItemComponentData";
 export function buildEntityProfileIconDiv(
   entityId: EntityId | null,
   simulation: Simulation,
-  phaserScene: GameSimulationScene,
+  scene: GameSimulationScene,
   options?: {
     profileIconSize?: number
     alpha?: number,
@@ -56,7 +56,7 @@ export function buildEntityProfileIconDiv(
   const bodySelections = CharacterComponent.getDataOrNull(entity)?.bodySelections
 
   if (bodySelections != null) {
-    const layers = phaserScene.getProfileIconLayerUrlsForBodySelections(bodySelections)
+    const layers = scene.assetLoader.getProfileIconLayerUrlsForBodySelections(bodySelections)
 
     if (layers.length === 0) {
       return null
