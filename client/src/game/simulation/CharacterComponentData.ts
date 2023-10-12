@@ -22,19 +22,29 @@ export interface CharacterBodySelections {
 }
 
 export type ActionType = "UseToolToDamageEntity" |
+  "UseToolToKillEntity" |
   "PlaceGrowableInGrower" |
   "DropItem" |
+  "PickUpItem" |
   "UseEquippedTool" |
-  "PickupItem" |
-  "EquipItem"
+  "EquipItem" |
+  "UnequipItem" |
+  "Speak" |
+  "Thought" |
+  "Craft"
 
 export class ActionTypes {
+  static readonly UseToolToKillEntity: ActionType = "UseToolToKillEntity"
   static readonly UseToolToDamageEntity: ActionType = "UseToolToDamageEntity"
   static readonly PlaceGrowableInGrower: ActionType = "PlaceGrowableInGrower"
   static readonly DropItem: ActionType = "DropItem"
   static readonly UseEquippedTool: ActionType = "UseEquippedTool"
-  static readonly PickupItem: ActionType = "PickupItem"
+  static readonly PickUpItem: ActionType = "PickUpItem"
   static readonly EquipItem: ActionType = "EquipItem"
+  static readonly UnequipItem: ActionType = "UnequipItem"
+  static readonly Speak: ActionType = "Speak"
+  static readonly Thought: ActionType = "Thought"
+  static readonly Craft: ActionType = "Craft"
 }
 
 export interface PerformedAction {

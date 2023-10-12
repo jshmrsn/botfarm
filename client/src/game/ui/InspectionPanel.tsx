@@ -10,7 +10,7 @@ import {resolveEntityPositionForCurrentTime} from "../../common/PositionComponen
 import {DynamicState} from "./DynamicState";
 import {PanelCloseButton} from "./PanelCloseButton";
 import {useWindowHeight} from "@react-hook/window-size";
-import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
+import {buildIconDiv} from "./BuildIconDiv";
 
 
 interface InspectionPanelProps {
@@ -104,7 +104,7 @@ export function InspectionPanel(props: InspectionPanelProps) {
         alignItems: "center"
       }}
     >
-      {buildEntityProfileIconDiv(
+      {buildIconDiv(
         entity.entityId,
         simulation,
         scene,

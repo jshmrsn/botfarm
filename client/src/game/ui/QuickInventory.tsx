@@ -40,6 +40,7 @@ export function QuickInventory(props: QuickInventoryProps): ReactElement | null 
   if (inventoryComponent == null) {
     return null
   }
+
   const inventory = inventoryComponent.data.inventory;
   const itemStacks = inventory.itemStacks
 
@@ -118,7 +119,11 @@ export function QuickInventory(props: QuickInventoryProps): ReactElement | null 
         color={isEquipped ? "blue" : "gray"}
         size={50}
         variant={isEquipped ? "filled" : "subtle"}
-        disabled={props.perspectiveEntity !== props.userControlledEntity}
+        style={{
+          // jshmrsn: Using pointerEvents: none instead of disabling the button so that the blue equipped color still
+          // shows up for non-controlled entity
+          pointerEvents: props.perspectiveEntity !== props.userControlledEntity ? "none" : "auto"
+        }}
         onClick={() => {
           buttonRef?.blur()
 

@@ -117,9 +117,10 @@ class EntityInfo(
 
 enum class ActionType {
    UseToolToDamageEntity,
+   UseToolToKillEntity,
    PlaceGrowableInGrower,
    DropItem,
-   PickupItem,
+   PickUpItem,
    UseEquippedTool,
    EquipItem,
    UnequipItem,
@@ -135,6 +136,7 @@ enum class ActionResultType {
    TargetNotAnItem,
    UnexpectedItemInStack,
    UnexpectedEquippedItem,
+   ItemCannotBeEquipped,
    StillTooFarAfterMoving,
    FailedToMoveForAction,
    TargetNoLongerExists,
@@ -151,7 +153,6 @@ enum class ActionResultType {
 
 @Serializable
 data class SpawnedItemEntity(
-   val name: String,
    val amount: Int,
    val itemConfigKey: String,
    val entityId: EntityId
@@ -164,33 +165,26 @@ data class ActivityStreamEntry(
    val message: String? = null,
    val longMessage: String? = null,
 
-   val actionType: ActionType? = null,
-   val actionResultType: ActionResultType? = null,
-   val actionIconPath: String? = null,
-   val actionItemName: String? = null,
-   val actionItemConfigKey: String? = null,
-
    val shouldReportToAi: Boolean = true,
 
+   val agentReason: String? = null,
+   val agentUniqueActionId: String? = null,
 
+   val actionType: ActionType? = null,
+   val actionResultType: ActionResultType? = null,
+   val actionItemConfigKey: String? = null,
+
+   val sourceItemConfigKey: String? = null,
    val sourceLocation: Vector2? = null,
-   val sourceName: String? = null,
-   val sourceIconPath: String? = null,
    val sourceEntityId: EntityId? = null,
 
-   val targetIconPath: String? = null,
    val targetEntityId: EntityId? = null,
-   val targetName: String? = null,
-   val targetConfigKey: String? = null,
+   val targetItemConfigKey: String? = null,
 
-   val resultName: String? = null,
-   val resultIconPath: String? = null,
+   val resultItemConfigKey: String? = null,
    val resultEntityId: EntityId? = null,
 
-   val agentReason: String? = null,
-
    val onlyShowForPerspectiveEntity: Boolean,
-
 
    val observedByEntityIds: List<EntityId>? = null,
    val spawnedItems: List<SpawnedItemEntity>? = null

@@ -5,7 +5,6 @@ import botfarm.common.resolvePosition
 import botfarm.game.agentintegration.AgentIntegration
 import botfarm.game.agentintegration.buildEntityInfoForAgent
 import botfarm.game.scripting.UnwindScriptThreadThrowable
-import botfarm.game.components.AgentControlledComponentData
 import botfarm.game.components.CharacterComponentData
 import botfarm.game.components.InventoryComponentData
 import botfarm.game.config.ItemConfig
@@ -372,7 +371,7 @@ class AgentJavaScriptApi(
       this.addPendingActionAndWaitForResult(
          Action(
             reason = reason,
-            equipInventoryItem = ActionOnInventoryItem(
+            equipInventoryItem = EquipInventoryItem(
                itemConfigKey = itemConfigKey,
                stackIndex = stackIndex
             )
@@ -423,7 +422,7 @@ class AgentJavaScriptApi(
       this.addPendingActionAndWaitForResult(
          Action(
             reason = reason,
-            dropInventoryItem = ActionOnInventoryItem(
+            dropInventoryItem = DropInventoryItem(
                itemConfigKey = itemConfigKey,
                stackIndex = stackIndex,
                amount = amount

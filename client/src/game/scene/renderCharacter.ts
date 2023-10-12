@@ -400,7 +400,7 @@ export function renderCharacter(
         actionAnimationBaseName = "pickup"
       } else if (performedAction.actionType === ActionTypes.DropItem) {
         actionAnimationBaseName = "pickup"
-      } else if (performedAction.actionType === ActionTypes.PickupItem) {
+      } else if (performedAction.actionType === ActionTypes.PickUpItem) {
         actionAnimationBaseName = "pickup"
       } else if (performedAction.actionType === ActionTypes.EquipItem) {
         actionAnimationBaseName = "equip"

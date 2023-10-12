@@ -3,7 +3,7 @@ import {DynamicState} from "./DynamicState";
 import {Entity} from "../../engine/simulation/Entity";
 import styled from "styled-components";
 import {CharacterComponent} from "../simulation/CharacterComponentData";
-import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
+import {buildIconDiv} from "./BuildIconDiv";
 import {ActionIcon} from "@mantine/core";
 import {IconEye} from "@tabler/icons-react";
 
@@ -132,7 +132,7 @@ export function TopHeader(props: TopHeaderProps): ReactElement | null {
             }
           }}
         >
-          {buildEntityProfileIconDiv(
+          {buildIconDiv(
             entityId,
             simulation,
             scene,

@@ -6,17 +6,18 @@ import {DynamicState} from "./DynamicState";
 import styled from "styled-components";
 import {formatSeconds} from "./ReplayControls";
 import {Entity} from "../../engine/simulation/Entity";
-import {buildEntityProfileIconDiv} from "./BuildEntityProfileIconDiv";
+import {buildIconDiv} from "./BuildIconDiv";
 import {EntityId} from "../../engine/simulation/EntityData";
 import {Simulation} from "../../engine/simulation/Simulation";
 import {GameSimulationScene} from "../scene/GameSimulationScene";
 import {LongMessage} from "./GameSimulationComponent";
+import {ItemConfig} from "../simulation/ItemComponentData";
+import {ActionTypes, CharacterComponent} from "../simulation/CharacterComponentData";
 
 
 const ListItem = styled.div`
   display: flex;
   flex-direction: row;
-  //align-items: center;
   border-radius: 8px;
   padding: 5px;
   padding-left: 10px;
@@ -30,7 +31,7 @@ const ObservedCharacterButton = styled.div`
   border-radius: 10px;
   padding: 2px;
   background-color: rgba(255, 255, 255, 0.0);
-
+  
   &:hover {
     background-color: rgba(255, 255, 255, 0.75);
   }
@@ -38,7 +39,7 @@ const ObservedCharacterButton = styled.div`
   cursor: pointer;
 `;
 
-export function buildCharacterProfileIconButton(
+export function buildIconButton(
   entityId: EntityId | null,
   simulation: Simulation,
   scene: GameSimulationScene,
@@ -46,46 +47,55 @@ export function buildCharacterProfileIconButton(
     profileIconSize?: number,
     alpha?: number,
     onClick?: () => void,
-    fallbackItemConfigKey?: string
+    fallbackItemConfigKey?: string | null,
+    keySuffix?: string | null,
+    expectedToNotExist?: boolean
   }
 ): ReactElement | null {
   options = options || {}
 
-  const entity = entityId !== null ? scene.fogOfWarVisibleEntitiesById[entityId] : null
+  const entity = entityId !== null ? simulation.getEntityOrNull(entityId) : null
 
-  const alpha = options.alpha || (entity ? 1 : 0.3)
+  const visibleEntity = entityId !== null ? scene.fogOfWarVisibleEntitiesById[entityId] : null
 
-  const iconLayersDiv = buildEntityProfileIconDiv(
+  const alpha = options.alpha || ((entityId == null || options.expectedToNotExist || visibleEntity != null) ? 1 : 0.3)
+
+  const iconLayersDiv = buildIconDiv(
     entityId,
     simulation,
     scene,
     {
       profileIconSize: options.profileIconSize,
       alpha: alpha,
-      fallbackItemConfigKey: options.fallbackItemConfigKey
+      fallbackItemConfigKey: options.fallbackItemConfigKey,
+      keySuffix: options.keySuffix
     }
   )
 
   if (iconLayersDiv != null) {
-    const onClick = options.onClick || (() => {
-      if (entity != null) {
-        scene.dynamicState.selectEntity(entity.entityId)
-        scene.centerCameraOnEntityId(entity.entityId)
-      }
-    })
+    if (visibleEntity != null && !options.expectedToNotExist) {
+      const onClick = options.onClick || (() => {
+        if (entity != null) {
+          scene.dynamicState.selectEntity(entity.entityId)
+          scene.centerCameraOnEntityId(entity.entityId)
+        }
+      })
 
-    return <ObservedCharacterButton
-      key={"profile-icon-button:" + (entityId ?? options.fallbackItemConfigKey)}
-      style={{
-        height: (options.profileIconSize || 50) + 4
-      }}
-      onClick={(event) => {
-        event.stopPropagation()
-        onClick()
-      }}
-    >
-      {iconLayersDiv}
-    </ObservedCharacterButton>
+      return <ObservedCharacterButton
+        key={"profile-icon-button:" + (entityId ?? options.fallbackItemConfigKey)}
+        style={{
+          height: (options.profileIconSize || 50) + 4
+        }}
+        onClick={(event) => {
+          event.stopPropagation()
+          onClick()
+        }}
+      >
+        {iconLayersDiv}
+      </ObservedCharacterButton>
+    } else {
+      return iconLayersDiv
+    }
   } else {
     return null
   }
@@ -104,7 +114,7 @@ export function ActivityStreamList(props: {
 
   let lastEntryRef: HTMLElement | null = null
 
-  const phaserScene = props.dynamicState.scene
+  const scene = props.dynamicState.scene
 
   const filteredActivityStream = activityStream.filter(it => {
     if (it.onlyShowForPerspectiveEntity) {
@@ -121,7 +131,7 @@ export function ActivityStreamList(props: {
   const [previousEntryCount, setPreviousEntryCount] = useState(filteredActivityStream.length)
   const [shouldShowNewMessagesBadge, setShouldShowNewMessagesBadge] = useState(false)
 
-  if (phaserScene == null) {
+  if (scene == null) {
     return null
   }
 
@@ -134,21 +144,195 @@ export function ActivityStreamList(props: {
     })
   }
 
+  function buildIconDiv(
+    entityId: EntityId | null,
+    options?: {
+      profileIconSize?: number,
+      alpha?: number,
+      onClick?: () => void,
+      fallbackItemConfigKey?: string | null,
+      keySuffix?: string | null,
+      expectedToNotExist?: boolean
+    }
+  ): ReactElement | null {
+    return buildIconButton(
+      entityId,
+      simulation,
+      scene!,
+      options
+    )
+  }
+
   const content = filteredActivityStream.map((entry, activityStreamIndex) => {
-    const longMessage = entry.longMessage
+    const longMessage = entry.longMessage // JSON.stringify(entry, null, 2)
     const sourceLocation = entry.sourceLocation;
 
-    const sourceProfileIconDiv = buildCharacterProfileIconButton(
-      entry.sourceEntityId,
-      simulation,
-      phaserScene
-    )
 
-    const targetProfileIconDiv = buildCharacterProfileIconButton(
-      entry.targetEntityId,
-      simulation,
-      phaserScene
-    )
+    function resolveInfo(
+      options: {
+        entityId: EntityId | null,
+        itemConfigKey: string | null,
+        keySuffix?: string | null,
+        expectedToNotExist?: boolean
+      }
+    ): {
+      entity: Entity | null
+      itemConfig: ItemConfig | null
+      name: string | null
+      nameOrYou: string | null
+      nameOrLowercaseYou: string | null,
+      iconDiv: ReactElement | null
+      isEntityVisible: boolean
+    } {
+      const entity = options.entityId != null ? simulation.getEntityOrNull(options.entityId) : null
+      const isEntityVisible = options.entityId != null ? scene?.fogOfWarVisibleEntitiesById[options.entityId] != null : true
+      const itemConfig = options.itemConfigKey != null ? simulation.getConfig<ItemConfig>(options.itemConfigKey, "ItemConfig") : null
+      const characterComponent = entity != null ? CharacterComponent.getOrNull(entity) : null
+
+      const name = itemConfig != null
+        ? itemConfig.name
+        : characterComponent != null ?
+          characterComponent.data.name
+          : "?"
+
+      const nameOrYou = options.entityId != null && options.entityId === dynamicState.perspectiveEntity?.entityId
+        ? "You"
+        : name
+
+      const nameOrLowercaseYou = options.entityId != null && options.entityId === dynamicState.perspectiveEntity?.entityId
+        ? "you"
+        : name
+
+      return {
+        itemConfig: itemConfig,
+        entity: entity,
+        isEntityVisible: isEntityVisible,
+        name: name,
+        nameOrYou: nameOrYou,
+        nameOrLowercaseYou: nameOrLowercaseYou,
+        iconDiv: buildIconDiv(
+          options.entityId,
+          {
+            keySuffix: options.keySuffix,
+            fallbackItemConfigKey: options.itemConfigKey,
+            expectedToNotExist: options.expectedToNotExist,
+            profileIconSize: 45
+          }
+        )
+      }
+    }
+
+    const actionType = entry.actionType
+
+    const sourceInfo = resolveInfo({
+      entityId: entry.sourceEntityId,
+      itemConfigKey: entry.sourceItemConfigKey,
+      keySuffix: "source"
+    })
+
+    const targetInfo = resolveInfo({
+      entityId: entry.targetEntityId,
+      itemConfigKey: entry.targetItemConfigKey,
+      keySuffix: "target",
+      expectedToNotExist: actionType === ActionTypes.PickUpItem || actionType === ActionTypes.UseToolToKillEntity
+    })
+
+    const resultInfo = resolveInfo({
+      entityId: entry.resultEntityId,
+      itemConfigKey: entry.resultItemConfigKey,
+      keySuffix: "result"
+    })
+
+    const actionInfo = resolveInfo({
+      entityId: null,
+      itemConfigKey: entry.actionItemConfigKey,
+      keySuffix: "action"
+    })
+
+    function buildMessageBubbleDiv(message: string | null): ReactElement | null {
+      if (message == null) {
+        return null
+      }
+
+      return <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 5,
+          backgroundColor: "white",
+          borderRadius: 8,
+          paddingTop: 5,
+          paddingBottom: 5,
+          paddingLeft: 10,
+          paddingRight: 10
+        }}
+      >
+        {message.split("\n").map((line, index) => {
+          return <Text key={"line-" + index}>{line}</Text>
+        })}
+      </div>
+    }
+
+    function buildTitleDiv(title: string | null): ReactElement | null {
+      if (title == null) {
+        return null
+      }
+
+      return <Text><b>{title}</b></Text>
+    }
+
+    let title = entry.title || ""
+
+    const actionResultType = entry.actionResultType
+    let actionMessage: string | null = null
+
+    if (actionType != null) {
+      let actionTitle;
+
+      if (actionResultType !== "Success") {
+        actionTitle = `${actionType} action failed ${actionResultType}`
+      } else if (actionType === ActionTypes.UseToolToKillEntity) {
+        actionTitle = `${sourceInfo.nameOrYou} harvested a ${targetInfo.name} using a ${actionInfo.name}`
+      } else if (actionType === ActionTypes.UseToolToDamageEntity) {
+        actionTitle = `${sourceInfo.nameOrYou} damage a ${targetInfo.name} using a ${actionInfo.name}`
+      } else if (actionType === ActionTypes.PlaceGrowableInGrower) {
+        actionTitle = `${sourceInfo.nameOrYou} planted ${resultInfo.name} using a ${actionInfo.name}`
+      } else if (actionType === ActionTypes.DropItem) {
+        actionTitle = `${sourceInfo.nameOrYou} dropped a ${targetInfo.name}`
+      } else if (actionType === ActionTypes.PickUpItem) {
+        actionTitle = `${sourceInfo.nameOrYou} picked up a ${targetInfo.name}`
+      } else if (actionType === ActionTypes.UseEquippedTool) {
+        actionTitle = `${sourceInfo.nameOrYou} used a ${targetInfo.name}`
+
+        if (entry.spawnedItems != null && entry.spawnedItems.length > 0) {
+          const spawnedItemInfo = resolveInfo({
+            entityId: entry.spawnedItems[0].entityId,
+            itemConfigKey: entry.spawnedItems[0].itemConfigKey,
+            keySuffix: "first-spawned-item"
+          })
+
+          actionTitle += ` to create a ${spawnedItemInfo.name}`
+        }
+      } else if (actionType === ActionTypes.EquipItem) {
+        actionTitle = `${sourceInfo.nameOrYou} equipped a ${targetInfo.name}`
+      } else if (actionType === ActionTypes.UnequipItem) {
+        actionTitle = `${sourceInfo.nameOrYou} unequipped a ${targetInfo.name}`
+      } else if (actionType === ActionTypes.Speak) {
+        actionTitle = `${sourceInfo.nameOrYou} said...`
+      } else if (actionType === ActionTypes.Thought) {
+        actionTitle = `${sourceInfo.nameOrYou} thought...`
+      } else if (actionType === ActionTypes.Craft) {
+        actionTitle = `${sourceInfo.nameOrYou} crafted a ${targetInfo.name}`
+      } else {
+        actionTitle = `Unhandled action type: ${actionType}`
+      }
+
+      if (title !== "") {
+        title += "\n" + actionTitle
+      } else {
+        title = actionTitle
+      }
+    }
 
     return <ListItem
       key={"activity-stream-entry-" + activityStreamIndex}
@@ -176,39 +360,56 @@ export function ActivityStreamList(props: {
         justifyContent: "top"
       }}
     >
-      {sourceProfileIconDiv}
-
-      {entry.sourceIconPath != null ? <img
-        src={entry.sourceIconPath}
-        alt={"Source icon"}
+      <div
+        key={"source-column"}
         style={{
-          flexBasis: 40,
-          height: 40
+          display: "flex",
+          flexDirection: "column",
+          gap: 5
         }}
-      /> : null}
+      >
+        {sourceInfo.iconDiv}
+
+        {sourceLocation != null ?
+          <ObservedCharacterButton
+            onClick={(event) => {
+              event.stopPropagation()
+              props.dynamicState.scene?.centerCameraOnLocation(sourceLocation)
+            }}
+            style={{
+              gap: 2
+            }}
+          >
+            <IconMapPin color={"rgba(0, 0, 0, 0.25)"} size={17}/>
+
+            <Text style={{
+              fontSize: 11,
+              color: "rgba(0, 0, 0, 0.5)",
+            }}>{formatSeconds(entry.time)}</Text>
+          </ObservedCharacterButton> : null}
+      </div>
 
       <div
         key={"main-column"}
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 5,
+          gap: 1,
           padding: 5,
           flexBasis: 0,
           flexGrow: 1
         }}
       >
-        <Text><b>{entry.title}</b> <span style={{
-          fontSize: 11,
-          color: "rgba(0, 0, 0, 0.5)",
-        }}>({formatSeconds(entry.time)})</span></Text>
+        {buildTitleDiv(title)}
 
         <div
           key={"main-row"}
           style={{
             display: "flex",
             flexDirection: "row",
-            gap: 5
+            gap: 5,
+            alignItems: "center"
+            //backgroundColor: "red"
           }}
         >
           {longMessage != null ? <Button
@@ -222,43 +423,12 @@ export function ActivityStreamList(props: {
             View
           </Button> : null}
 
-          {entry.message != null ? <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 5,
-              backgroundColor: "white",
-              borderRadius: 8,
-              paddingTop: 5,
-              paddingBottom: 5,
-              paddingLeft: 10,
-              paddingRight: 10
-            }}
-          >
-            {entry.message.split("\n").map((line, index) => {
-              return <Text key={"line-" + index}>{line}</Text>
-            })}
-          </div> : null}
+          {buildMessageBubbleDiv(entry.message)}
+          {buildMessageBubbleDiv(actionMessage)}
 
-          {entry.actionIconPath != null ? <img
-            src={entry.actionIconPath}
-            alt={"Action icon"}
-            style={{
-              flexBasis: 40,
-              height: 40
-            }}
-          /> : null}
-
-          {targetProfileIconDiv}
-
-          {entry.targetIconPath != null ? <img
-            src={entry.targetIconPath}
-            alt={"Target icon"}
-            style={{
-              flexBasis: 40,
-              height: 40
-            }}
-          /> : null}
+          {actionInfo.iconDiv}
+          {targetInfo.iconDiv}
+          {resultInfo.iconDiv}
 
           {entry.spawnedItems != null ? <div
             key={"spawn-items-list"}
@@ -268,14 +438,13 @@ export function ActivityStreamList(props: {
               gap: 5
             }}
           >
-            {entry.spawnedItems.map(spawnedItem => {
-              return buildCharacterProfileIconButton(
+            {entry.spawnedItems.map((spawnedItem, spawnedItemIndex) => {
+              return buildIconDiv(
                 spawnedItem.entityId,
-                simulation,
-                phaserScene,
                 {
                   profileIconSize: 25,
-                  fallbackItemConfigKey: spawnedItem.itemConfigKey
+                  fallbackItemConfigKey: spawnedItem.itemConfigKey,
+                  keySuffix: "spawned-item:" + spawnedItemIndex
                 }
               )
             })}
@@ -284,16 +453,6 @@ export function ActivityStreamList(props: {
           <div style={{
             flexGrow: 1.0
           }}/>
-
-          {sourceLocation != null ?
-            <ObservedCharacterButton
-              onClick={(event) => {
-                event.stopPropagation()
-                props.dynamicState.scene?.centerCameraOnLocation(sourceLocation)
-              }}
-            >
-              <IconMapPin color={"rgba(0, 0, 0, 0.25)"} size={20}/>
-            </ObservedCharacterButton> : null}
         </div>
 
         {entry.observedByEntityIds != null || sourceLocation != null ? <div
@@ -303,15 +462,14 @@ export function ActivityStreamList(props: {
             flexDirection: "row",
             gap: 5,
             justifyContent: "right"
+            //backgroundColor: "green"
           }}
         >
           {(entry.observedByEntityIds || [])
             .filter(entityId => entityId !== entry.sourceEntityId && entityId !== props.perspectiveEntity?.entityId)
             .map(entityId => {
-              return buildCharacterProfileIconButton(
+              return buildIconDiv(
                 entityId,
-                simulation,
-                phaserScene,
                 {
                   profileIconSize: 28
                 }
@@ -402,7 +560,6 @@ export function ActivityStreamList(props: {
       }}
     >
       {content}
-
     </div>
 
     <div

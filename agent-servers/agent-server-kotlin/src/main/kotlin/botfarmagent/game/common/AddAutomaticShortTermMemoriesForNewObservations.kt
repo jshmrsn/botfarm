@@ -8,16 +8,28 @@ import botfarmshared.game.apidata.Observations
 val String.quotedAndEscaped: String
    get() = "\"${this.replace("\"", "")}\""
 
-fun buildReasonSuffix(reason: String?) = if (reason != null) {
-   " (because ${reason})"
-} else {
-   ""
-}
-
 fun buildAutomaticShortTermMemoriesForNewObservations(
    newObservations: Observations,
    selfEntityId: EntityId
 ): List<AutomaticShortTermMemory> {
+   fun getNameForEntityId(entityId: EntityId?, itemConfigKey: String? = null): String {
+      if (entityId == null) {
+         return itemConfigKey ?: "?"
+      }
+
+      if (itemConfigKey != null) {
+         return "'${itemConfigKey}' item entity '${entityId.value}'"
+      } else {
+         val entity = newObservations.entitiesById[entityId]
+
+         if (entity != null && entity.entityInfo.characterInfo != null) {
+            return "human named '${entity.entityInfo.characterInfo.name}' '${entityId.value}'"
+         } else {
+            return "entity '${entityId.value}'"
+         }
+      }
+   }
+
    return mutableListOf<AutomaticShortTermMemory>()
       .also { newAutomaticShortTermMemories ->
          newObservations.activityStreamEntries.forEach { entry ->
@@ -29,59 +41,59 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                ""
             }
 
-            val summary: String
-
-            if (entry.actionType == ActionType.Speak) {
+            val summary = if (entry.actionType == ActionType.Speak) {
                if (entry.sourceEntityId == selfEntityId) {
-                  summary = "I said: ${message.quotedAndEscaped}"
+                  "I said: ${message.quotedAndEscaped}"
                } else {
-                  summary = "I heard ${entry.sourceName?.quotedAndEscaped} say: ${message.quotedAndEscaped}"
+                  "I heard ${getNameForEntityId(entry.sourceEntityId)} say: ${message.quotedAndEscaped}"
                }
             } else if (entry.actionType == ActionType.Thought) {
-               summary = "I had the thought: ${message.quotedAndEscaped}"
+               "I had the thought: ${message.quotedAndEscaped}"
             } else if (entry.actionType == ActionType.DropItem) {
                if (entry.actionResultType == ActionResultType.Success) {
-                  val shared = "an item: ${entry.targetName?.quotedAndEscaped}"
+                  val shared = "an item: ${getNameForEntityId(entry.targetEntityId, entry.targetItemConfigKey)}"
 
                   if (entry.sourceEntityId == selfEntityId) {
-                     summary = "I dropped $shared"
+                     "I dropped $shared"
                   } else {
-                     summary = "I saw ${entry.sourceName?.quotedAndEscaped} drop $shared"
+                     "I saw ${getNameForEntityId(entry.sourceEntityId)} drop $shared"
                   }
                } else {
-                  summary =
-                     "I attempted to drop an item '${entry.targetName?.quotedAndEscaped}', but got failure ${entry.actionResultType?.name}"
+                  "I attempted to drop an item '${entry.targetItemConfigKey}', but got failure ${entry.actionResultType?.name}"
                }
-            } else if (entry.actionType == ActionType.PickupItem) {
+            } else if (entry.actionType == ActionType.PickUpItem) {
                if (entry.actionResultType == ActionResultType.Success) {
-                  val shared = "an item ${entry.targetName?.quotedAndEscaped} (${entry.targetEntityId?.value})"
+                  val shared = "an '${entry.targetItemConfigKey}' item (${entry.targetEntityId?.value})"
 
                   if (entry.sourceEntityId == selfEntityId) {
-                     summary = "I picked up $shared"
+                     "I picked up $shared"
                   } else {
-                     summary = "I saw ${entry.sourceName?.quotedAndEscaped} pick up $shared"
+                     "I saw ${getNameForEntityId(entry.sourceEntityId)} pick up $shared"
                   }
                } else {
-                  summary =
-                     "I attempted to pick up an item ${entry.targetName?.quotedAndEscaped} (${entry.targetEntityId?.value}), but got failure ${entry.actionResultType?.name}"
+                  "I attempted to pick up an entity item '${entry.targetItemConfigKey}' '${entry.targetEntityId?.value}', but got failure ${entry.actionResultType?.name}"
                }
             } else if (entry.actionType == ActionType.UseEquippedTool) {
                if (entry.actionResultType == ActionResultType.Success) {
-                  val shared = "the item ${entry.targetName?.quotedAndEscaped} to create an ${entry.resultName?.quotedAndEscaped} (${entry.resultEntityId?.value})"
+                  val spawnedItemsString = (entry.spawnedItems ?: listOf()).map {
+                     "${it.itemConfigKey} (${it.entityId.value})"
+                  }.joinToString(", ")
+
+                  val shared =
+                     "an ${entry.targetItemConfigKey} inventory item to create entity items: $spawnedItemsString"
 
                   if (entry.sourceEntityId == selfEntityId) {
-                     summary = "I used $shared"
+                     "I used $shared"
                   } else {
-                     summary = "I saw ${entry.sourceName?.quotedAndEscaped} use $shared"
+                     "I saw ${getNameForEntityId(entry.sourceEntityId, entry.sourceItemConfigKey)} use $shared"
                   }
                } else {
-                  summary =
-                     "I attempted to use the item ${entry.targetName?.quotedAndEscaped} to create an ${entry.resultName?.quotedAndEscaped}, but got failure ${entry.actionResultType?.name}"
+                  "I attempted to use the item ${entry.targetItemConfigKey} to create an '${entry.resultItemConfigKey}' item, but got failure ${entry.actionResultType?.name}"
                }
-            } else if (entry.actionType == ActionType.UseToolToDamageEntity) {
+            } else if (entry.actionType == ActionType.UseToolToKillEntity) {
                if (entry.actionResultType == ActionResultType.Success) {
                   val shared =
-                     "'${entry.actionItemName}' to harvest a '${entry.targetName}'" + if (entry.spawnedItems != null) {
+                     "'${entry.actionItemConfigKey}' to harvest a '${entry.targetItemConfigKey}'" + if (entry.spawnedItems != null) {
                         ", which created new item entities on the ground: ${
                            entry.spawnedItems.map { it.itemConfigKey + " (${it.entityId.value})" }.joinToString(", ")
                         }"
@@ -90,16 +102,37 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                      }
 
                   if (entry.sourceEntityId == selfEntityId) {
-                     summary = "I used $shared"
+                     "I used $shared"
                   } else {
-                     summary = "I saw ${entry.sourceName?.quotedAndEscaped} use $shared"
+                     "I saw ${getNameForEntityId(entry.sourceEntityId)} use $shared"
                   }
                } else {
-                  summary =
-                     "I attempted to use '${entry.actionItemName}' to harvest a '${entry.targetName}', but got failure ${entry.actionResultType?.name}"
+                  "I attempted to use '${entry.actionItemConfigKey}' to harvest a '${
+                     getNameForEntityId(
+                        entry.targetEntityId,
+                        entry.targetItemConfigKey
+                     )
+                  }', but got failure ${entry.actionResultType?.name}"
+               }
+            } else if (entry.actionType == ActionType.UseToolToDamageEntity) {
+               if (entry.actionResultType == ActionResultType.Success) {
+                  val shared = "'${entry.actionItemConfigKey}' to damage a '${entry.targetItemConfigKey}'"
+
+                  if (entry.sourceEntityId == selfEntityId) {
+                     "I used $shared"
+                  } else {
+                     "I saw ${getNameForEntityId(entry.sourceEntityId)} use $shared"
+                  }
+               } else {
+                  "I attempted to use '${entry.actionItemConfigKey}' to harvest a '${
+                     getNameForEntityId(
+                        entry.targetEntityId,
+                        entry.targetItemConfigKey
+                     )
+                  }', but got failure ${entry.actionResultType?.name}"
                }
             } else {
-               summary = entry.title + (entry.message?.let {
+               entry.title + (entry.message?.let {
                   "\n" + entry.message
                } ?: "")
             }
@@ -111,27 +144,6 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                )
             )
          }
-
-//         newObservations.selfSpokenMessages.forEach { selfSpokenMessage ->
-//            newAutomaticShortTermMemories.add(
-//               AutomaticShortTermMemory(
-//                  time = selfSpokenMessage.time,
-//                  summary = "I said \"${selfSpokenMessage.message}\" (while standing at ${selfSpokenMessage.location.asJsonArrayRounded})",
-//                  forcePreviousActivity = true
-//               )
-//            )
-//         }
-//
-//         newObservations.spokenMessages.forEach { observedMessage ->
-//            println("Adding heard message: ${observedMessage.message}")
-//
-//            newAutomaticShortTermMemories.add(
-//               AutomaticShortTermMemory(
-//                  time = observedMessage.time,
-//                  summary = "I heard ${observedMessage.characterName} say \"${observedMessage.message}\" (they were at ${observedMessage.speakerLocation.asJsonArrayRounded})",
-//               )
-//            )
-//         }
 
          fun buildReasonSuffix(reason: String?) = if (reason != null) {
             " (because ${reason})"
@@ -154,67 +166,5 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                )
             )
          }
-
-//         newObservations.actionOnEntityRecords.forEach { record ->
-//            val reasonSuffix = buildReasonSuffix(record.reason)
-//
-//            val summary = if (record.resultAutoInteractType == record.desiredAutoInteractType) {
-//               "I took the action '${record.resultAutoInteractType.name}' on entity '${record.targetEntityId.value}'$reasonSuffix"
-//            } else {
-//               "I attempted to take the action '${record.resultAutoInteractType.name}' on entity '${record.targetEntityId.value}'$reasonSuffix, but instead got the outcome ${record.resultAutoInteractType.name}"
-//            }
-//
-//            newAutomaticShortTermMemories.add(
-//               AutomaticShortTermMemory(
-//                  time = record.startedAtTime,
-//                  summary = summary,
-//                  forcePreviousActivity = true
-//               )
-//            )
-//         }
-
-//         newObservations.actionOnInventoryItemActionRecords.forEach { record ->
-//            val reasonSuffix = buildReasonSuffix(
-//               record.reason
-//            )
-//
-//            val summary = if (record.desiredActionOnInventoryType == record.resultActionOnInventoryType) {
-//               "I performed action '${record.resultActionOnInventoryType.name}' on the item '${record.itemConfigKey}' from my inventory$reasonSuffix"
-//            } else {
-//               "I attempted to perform action '${record.desiredActionOnInventoryType.name}' on the item '${record.itemConfigKey}' from my inventory '${record.itemConfigKey}'$reasonSuffix, but instead got the outcome ${record.resultActionOnInventoryType.name}"
-//            }
-//
-//            newAutomaticShortTermMemories.add(
-//               AutomaticShortTermMemory(
-//                  time = record.startedAtTime,
-//                  summary = summary,
-//                  forcePreviousActivity = true
-//               )
-//            )
-//         }
-
-//         newObservations.craftItemActionRecords.forEach { record ->
-//            newAutomaticShortTermMemories.add(
-//               AutomaticShortTermMemory(
-//                  time = record.startedAtTime,
-//                  summary = "I crafted an '${record.itemConfigKey}' item" + buildReasonSuffix(
-//                     record.reason
-//                  ),
-//                  forcePreviousActivity = true
-//               )
-//            )
-//         }
-
-//         newObservations.selfThoughts.forEach { record ->
-//            newAutomaticShortTermMemories.add(
-//               AutomaticShortTermMemory(
-//                  time = record.time,
-//                  summary = "I had the thought '${record.thought}'" + buildReasonSuffix(
-//                     record.reason
-//                  ),
-//                  forcePreviousActivity = true
-//               )
-//            )
-//         }
       }
 }

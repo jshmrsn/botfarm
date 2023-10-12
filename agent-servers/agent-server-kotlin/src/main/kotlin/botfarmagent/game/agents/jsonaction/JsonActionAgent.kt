@@ -584,7 +584,7 @@ class JsonActionAgent(
             },
             dropInventoryItem = genericActionOnInventoryItem?.let {
                if (genericActionOnInventoryItem.actionId == "dropItem") {
-                  ActionOnInventoryItem(
+                  DropInventoryItem(
                      itemConfigKey = genericActionOnInventoryItem.itemConfigKey,
                      stackIndex = genericActionOnInventoryItem.stackIndex,
                      amount = genericActionOnInventoryItem.amount
@@ -595,10 +595,9 @@ class JsonActionAgent(
             },
             equipInventoryItem = genericActionOnInventoryItem?.let {
                if (genericActionOnInventoryItem.actionId == "equipItem") {
-                  ActionOnInventoryItem(
+                  EquipInventoryItem(
                      itemConfigKey = genericActionOnInventoryItem.itemConfigKey,
-                     stackIndex = genericActionOnInventoryItem.stackIndex,
-                     amount = genericActionOnInventoryItem.amount
+                     stackIndex = genericActionOnInventoryItem.stackIndex
                   )
                } else {
                   null

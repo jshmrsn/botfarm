@@ -1,5 +1,6 @@
 import {Vector2} from "../../misc/Vector2";
 import {EntityId} from "../../engine/simulation/EntityData";
+import {ActionType} from "./CharacterComponentData";
 
 export interface SpawnedItemEntity {
   name: string
@@ -14,13 +15,24 @@ export interface ActivityStreamEntry {
   message: string | null
   longMessage: string | null
   onlyShowForPerspectiveEntity: boolean
-  readonly sourceLocation: Vector2 | null
-  sourceIconPath: string | null
-  actionType: string | null
-  actionIconPath: string | null
-  targetIconPath: string | null
-  sourceEntityId: EntityId | null
-  targetEntityId: EntityId | null
   observedByEntityIds: EntityId[] | null
   spawnedItems: SpawnedItemEntity[] | null
+
+  agentReason: string | null
+  agentUniqueActionId: string | null
+
+
+  actionType: ActionType | null
+  actionResultType: string | null
+  actionItemConfigKey: string | null
+
+  sourceItemConfigKey: string | null
+  sourceLocation: Vector2 | null
+  sourceEntityId: EntityId | null
+
+  targetItemConfigKey: string | null
+  targetEntityId: EntityId | null
+
+  resultItemConfigKey: string | null
+  resultEntityId: string | null
 }

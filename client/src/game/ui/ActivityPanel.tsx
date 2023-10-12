@@ -25,7 +25,7 @@ export function ActivityPanel(
   const dynamicState = props.dynamicState
   const sideBarWidth = props.useMobileLayout
     ? windowWidth - 20
-    : Math.min(350, windowWidth * 0.4)
+    : Math.min(375, windowWidth * 0.4)
   //Math.max(400, Math.min(windowWidth * 0.3, 350))
   const simulation = props.dynamicState.simulation
 

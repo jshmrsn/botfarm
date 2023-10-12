@@ -57,10 +57,14 @@ class UseEquippedToolItem(BaseModel):
 class ActionOnEntity(BaseModel):
     targetEntityId: EntityId
 
-class ActionOnInventoryItem(BaseModel):
+class DropInventoryItem(BaseModel):
     itemConfigKey: str
     stackIndex: Optional[int] = None
     amount: Optional[int] = None
+
+class EquipInventoryItem(BaseModel):
+    itemConfigKey: str
+    stackIndex: Optional[int] = None
 
 class CraftItemAction(BaseModel):
     itemConfigKey: str
@@ -73,8 +77,8 @@ class Action(BaseModel):
     pickUpEntity: Optional[ActionOnEntity] = None
     useEquippedToolItemOnEntity: Optional[ActionOnEntity] = None
     useEquippedToolItem: Optional[UseEquippedToolItem] = None
-    dropInventoryItem: Optional[ActionOnInventoryItem] = None
-    equipInventoryItem: Optional[ActionOnInventoryItem] = None
+    dropInventoryItem: Optional[DropInventoryItem] = None
+    equipInventoryItem: Optional[EquipInventoryItem] = None
     craftItem: Optional[CraftItemAction] = None
     speak: Optional[str] = None
     facialExpressionEmoji: Optional[str] = None

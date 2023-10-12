@@ -5,7 +5,6 @@ import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.AgentSyncRequest
 import botfarmshared.game.apidata.AgentSyncResponse
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.post
@@ -67,8 +66,8 @@ class AgentService(
                encodeDefaults = true
                prettyPrint = true
             }
-            val demoBodyString = jsonFormat.encodeToString(request)
-            println("Agent sync: " + demoBodyString)
+            val requestString = jsonFormat.encodeToString(request)
+            println("Agent sync: " + requestString)
          }
 
          val httpResponse = this.httpClient.post("$agentServerEndpoint/api/sync") {

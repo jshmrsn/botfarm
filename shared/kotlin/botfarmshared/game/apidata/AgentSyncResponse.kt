@@ -67,8 +67,8 @@ class Action(
    val pickUpEntity: ActionOnEntity? = null,
    val useEquippedToolItemOnEntity: ActionOnEntity? = null,
    val useEquippedToolItem: UseEquippedToolItem? = null,
-   val dropInventoryItem: ActionOnInventoryItem? = null,
-   val equipInventoryItem: ActionOnInventoryItem? = null,
+   val dropInventoryItem: DropInventoryItem? = null,
+   val equipInventoryItem: EquipInventoryItem? = null,
    val craftItem: CraftItemAction? = null,
    val speak: String? = null,
    val facialExpressionEmoji: String? = null,
@@ -97,10 +97,16 @@ class ActionOnEntity(
 )
 
 @Serializable
-class ActionOnInventoryItem(
+class DropInventoryItem(
    val itemConfigKey: String,
    val stackIndex: Int? = null,
    val amount: Int? = null
+)
+
+@Serializable
+class EquipInventoryItem(
+   val itemConfigKey: String,
+   val stackIndex: Int? = null
 )
 
 @Serializable

@@ -5,14 +5,15 @@ import React, {ReactElement} from "react";
 import {CharacterComponent} from "../simulation/CharacterComponentData";
 import {ItemComponent, ItemConfig} from "../simulation/ItemComponentData";
 
-export function buildEntityProfileIconDiv(
+export function buildIconDiv(
   entityId: EntityId | null,
   simulation: Simulation,
   scene: GameSimulationScene,
   options?: {
     profileIconSize?: number
     alpha?: number,
-    fallbackItemConfigKey?: string
+    fallbackItemConfigKey?: string | null,
+    keySuffix?: string | null
   }
 ): ReactElement | null {
   options = options || {}
@@ -26,7 +27,7 @@ export function buildEntityProfileIconDiv(
       const itemConfig = simulation.getConfig<ItemConfig>(fallbackItemConfigKey, "ItemConfig")
 
       return <div
-        key={"item-icon:" + entityId}
+        key={"item-icon:" + (entityId ?? fallbackItemConfigKey) + ":" + (options.keySuffix ?? "")}
         style={{
           flexBasis: profileIconSize,
           height: profileIconSize,

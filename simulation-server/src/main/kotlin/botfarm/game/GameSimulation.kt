@@ -156,26 +156,20 @@ class GameSimulation(
       onlyShowForPerspectiveEntity: Boolean = false,
 
       agentReason: String? = null,
+      agentUniqueActionId: String? = null,
 
 
       actionType: ActionType? = null,
       actionResultType: ActionResultType? = null,
-      actionIconPath: String? = null,
-      actionItemName: String? = null,
-      actionItemConfigKey: String? = null,
+      actionItemConfig: ItemConfig? = null,
 
       sourceEntityId: EntityId? = null,
       sourceLocation: Vector2? = null,
-      sourceIconPath: String? = null,
-      sourceName: String? = null,
 
-      targetIconPath: String? = null,
-      targetName: String? = null,
-      targetConfigKey: String? = null,
+      targetItemConfig: ItemConfig? = null,
       targetEntityId: EntityId? = null,
 
-      resultName: String? = null,
-      resultIconPath: String? = null,
+      resultItemConfig: ItemConfig? = null,
       resultEntityId: EntityId? = null,
 
       shouldLimitObservation: Boolean = sourceLocation != null,
@@ -222,28 +216,24 @@ class GameSimulation(
                observedByEntityIds = observedByEntityIds,
                time = this.simulationTime,
                title = title,
-
                message = message,
                longMessage = longMessage,
+               shouldReportToAi = shouldReportToAi,
+               onlyShowForPerspectiveEntity = onlyShowForPerspectiveEntity,
+
                sourceEntityId = sourceEntityId,
                sourceLocation = sourceLocation,
-               sourceIconPath = sourceIconPath,
+
                targetEntityId = targetEntityId,
-               targetIconPath = targetIconPath,
-               targetConfigKey = targetConfigKey,
-               shouldReportToAi = shouldReportToAi,
+               targetItemConfigKey = targetItemConfig?.key,
                actionType = actionType,
                actionResultType = actionResultType,
-               actionIconPath = actionIconPath,
-               actionItemConfigKey = actionItemConfigKey,
-               actionItemName = actionItemName,
-               sourceName = sourceName,
-               targetName = targetName,
-               resultIconPath = resultIconPath,
-               resultName = resultName,
+               actionItemConfigKey = actionItemConfig?.key,
+
+               resultItemConfigKey = resultItemConfig?.key,
                resultEntityId = resultEntityId,
+               agentUniqueActionId = agentUniqueActionId,
                agentReason = agentReason,
-               onlyShowForPerspectiveEntity = onlyShowForPerspectiveEntity,
                spawnedItems = spawnedItems
             )
          )
@@ -396,7 +386,12 @@ class GameSimulation(
       }
    }
 
-   fun addCharacterMessage(entity: Entity, message: String, reason: String? = null) {
+   fun addCharacterMessage(
+      entity: Entity,
+      message: String,
+      agentReason: String? = null,
+      agentActionUniqueId: String? = null
+   ) {
       val characterComponent = entity.getComponentOrNull<CharacterComponentData>()
 
       if (characterComponent != null) {
@@ -416,13 +411,13 @@ class GameSimulation(
          }
 
          this.addActivityStreamEntry(
-            title = "${characterComponent.data.name} said...",
             actionType = ActionType.Speak,
+            actionResultType = ActionResultType.Success,
             message = message,
             sourceLocation = location,
             sourceEntityId = entity.entityId,
-            sourceName = characterComponent.data.name,
-            agentReason = reason
+            agentReason = agentReason,
+            agentUniqueActionId = agentActionUniqueId
          )
       }
    }
@@ -476,14 +471,11 @@ class GameSimulation(
       val entityPosition = entity.resolvePosition()
 
       this.addActivityStreamEntry(
-         title = "$name crafted a ${itemConfig.name}",
-         sourceName = name,
          sourceEntityId = entity.entityId,
-         targetName = itemConfig.name,
          sourceLocation = entityPosition,
-         targetIconPath = itemConfig.iconUrl,
          actionType = ActionType.Craft,
-         actionResultType = ActionResultType.Success
+         actionResultType = ActionResultType.Success,
+         targetItemConfig = itemConfig
       )
 
       if (itemConfig.storableConfig != null) {
@@ -568,15 +560,11 @@ class GameSimulation(
       }
 
       this.addActivityStreamEntry(
-         sourceIconPath = null,
-         title = "$name equipped ${itemConfigToEquip.name}",
          actionResultType = ActionResultType.Success,
          sourceLocation = entity.resolvePosition(),
-         targetIconPath = itemConfigToEquip.iconUrl,
+         targetItemConfig = itemConfigToEquip,
          actionType = ActionType.EquipItem,
-         sourceEntityId = entity.entityId,
-         sourceName = name,
-         targetName = itemConfigToEquip.name
+         sourceEntityId = entity.entityId
       )
 
       return EquipItemResult.Success
@@ -659,16 +647,12 @@ class GameSimulation(
          )
       }
 
-      val name = characterComponent.data.name
-
       this.addActivityStreamEntry(
-         sourceIconPath = null,
-         title = "$name unequipped ${itemConfig.name}",
-         sourceName = name,
+         sourceEntityId = entity.entityId,
          sourceLocation = entity.resolvePosition(),
-         targetIconPath = itemConfig.iconUrl,
+         targetItemConfig = itemConfig,
          actionType = ActionType.UnequipItem,
-         targetName = itemConfig.name
+         actionResultType = ActionResultType.Success
       )
 
       return EquipItemResult.Success
@@ -796,7 +780,8 @@ class GameSimulation(
       expectedItemConfigKey: String,
       stackIndex: Int,
       amountToDropFromStack: Int? = null,
-      agentReason: String? = null
+      agentReason: String? = null,
+      agentActionUniqueId: String? = null
    ): Entity? {
       val itemConfig = this.getConfig<ItemConfig>(expectedItemConfigKey)
 
@@ -861,20 +846,14 @@ class GameSimulation(
          location = droppingEntity.resolvePosition() + Vector2.randomSignedXY(50.0)
       )
 
-      val character = droppingEntity.getComponentOrNull<CharacterComponentData>()
-      val name = character?.data?.name ?: "?"
-
       this.addActivityStreamEntry(
-         sourceIconPath = null,
-         title = "$name dropped a ${itemConfig.name}",
          sourceLocation = droppingEntity.resolvePosition(),
-         targetIconPath = itemConfig.iconUrl,
+         sourceEntityId = droppingEntity.entityId,
+         targetItemConfig = itemConfig,
          actionType = ActionType.DropItem,
          actionResultType = ActionResultType.Success,
-         sourceEntityId = droppingEntity.entityId,
-         sourceName = name,
-         targetName = itemConfig.name,
-         agentReason = agentReason
+         agentReason = agentReason,
+         agentUniqueActionId = agentActionUniqueId
       )
 
       return spawnedEntity
@@ -992,20 +971,23 @@ class GameSimulation(
                val spawnedItem = spawnedItems.firstOrNull()
 
                this.addActivityStreamEntry(
-                  title = "$interactingEntityName created a ${spawnItemConfig.name}",
-
                   actionType = ActionType.UseEquippedTool,
 
-                  sourceName = interactingEntityName,
                   sourceLocation = entityLocation,
                   sourceEntityId = interactingEntity.entityId,
 
-                  targetName = equippedToolItemConfig.name,
-                  targetIconPath = equippedToolItemConfig.iconUrl,
+                  targetItemConfig = equippedToolItemConfig,
 
-                  resultName = spawnItemConfig.name,
-                  resultIconPath = spawnItemConfig.iconUrl,
-                  resultEntityId = spawnedItem?.entityId
+                  resultItemConfig = spawnItemConfig,
+                  resultEntityId = spawnedItem?.entityId,
+
+                  spawnedItems = spawnedItems.map {
+                     SpawnedItemEntity(
+                        amount = it.getComponent<ItemComponentData>().data.amount,
+                        itemConfigKey = it.getComponent<ItemComponentData>().data.itemConfigKey,
+                        entityId = it.entityId
+                     )
+                  }
                )
             }
 
@@ -1063,8 +1045,6 @@ class GameSimulation(
       val targetItemComponent = targetEntity.getComponent<ItemComponentData>()
       val targetItemConfig = this.getConfig<ItemConfig>(targetItemComponent.data.itemConfigKey)
 
-      val interactingEntityName = characterComponentData.name
-
       val maxDistance = this.collisionMap.cellWidth
 
       val interactingEntityPosition = interactingEntity.resolvePosition()
@@ -1101,15 +1081,15 @@ class GameSimulation(
 
             if (applyDamageResult is ApplyDamageResult.Killed) {
                val spawnedItems = if (applyDamageResult.spawnedItemEntitiesOnKill.isNotEmpty()) {
-                  applyDamageResult.spawnedItemEntitiesOnKill.map {
-                     val itemComponent = it.getComponent<ItemComponentData>()
-                     val itemConfig = this.getConfig<ItemConfig>(itemComponent.data.itemConfigKey)
-                     val amount = itemComponent.data.amount
+                  applyDamageResult.spawnedItemEntitiesOnKill.map { spawnedEntity ->
+                     val spawnedItemComponent = spawnedEntity.getComponent<ItemComponentData>()
+                     val itemConfig = this.getConfig<ItemConfig>(spawnedItemComponent.data.itemConfigKey)
+                     val amount = spawnedItemComponent.data.amount
+
                      SpawnedItemEntity(
-                        name = itemConfig.name,
                         itemConfigKey = itemConfig.key,
                         amount = amount,
-                        entityId = it.entityId
+                        entityId = spawnedEntity.entityId
                      )
                   }
                } else {
@@ -1117,38 +1097,26 @@ class GameSimulation(
                }
 
                this.addActivityStreamEntry(
-                  title = "$interactingEntityName harvested a ${targetItemConfig.name} using a ${equippedToolItemConfig.name}",
-
                   sourceEntityId = interactingEntity.entityId,
-                  sourceName = interactingEntityName,
                   sourceLocation = interactingEntityPosition,
 
-                  targetIconPath = targetItemConfig.iconUrl,
-                  targetName = targetItemConfig.name,
-                  targetConfigKey = targetItemConfig.key,
+                  targetEntityId = targetEntity.entityId,
+                  targetItemConfig = targetItemConfig,
 
-                  actionItemConfigKey = equippedToolItemConfig.key,
-                  actionItemName = equippedToolItemConfig.name,
-                  actionIconPath = equippedToolItemConfig.iconUrl,
-                  actionType = ActionType.UseToolToDamageEntity,
+                  actionItemConfig = equippedToolItemConfig,
+                  actionType = ActionType.UseToolToKillEntity,
                   actionResultType = ActionResultType.Success,
                   spawnedItems = spawnedItems
                )
             } else {
                this.addActivityStreamEntry(
-                  title = "$interactingEntityName damaged a ${targetItemConfig.name} using a ${equippedToolItemConfig.name}",
-
                   sourceEntityId = interactingEntity.entityId,
-                  sourceName = interactingEntityName,
                   sourceLocation = interactingEntityPosition,
 
-                  targetIconPath = targetItemConfig.iconUrl,
-                  targetName = targetItemConfig.name,
-                  targetConfigKey = targetItemConfig.key,
+                  targetEntityId = targetEntity.entityId,
+                  targetItemConfig = targetItemConfig,
 
-                  actionItemConfigKey = equippedToolItemConfig.key,
-                  actionItemName = equippedToolItemConfig.name,
-                  actionIconPath = equippedToolItemConfig.iconUrl,
+                  actionItemConfig = equippedToolItemConfig,
                   actionType = ActionType.UseToolToDamageEntity,
                   actionResultType = ActionResultType.Success
                )
@@ -1187,19 +1155,13 @@ class GameSimulation(
 
                if (didTake) {
                   this.addActivityStreamEntry(
-                     sourceIconPath = null,
-                     title = "$interactingEntityName planted ${equippedToolItemConfig.name}",
-
                      sourceLocation = interactingEntity.resolvePosition(),
                      sourceEntityId = interactingEntity.entityId,
 
                      actionType = ActionType.PlaceGrowableInGrower,
+                     actionResultType = ActionResultType.Success,
 
-                     targetName = targetItemConfig.name,
-                     targetIconPath = targetItemConfig.iconUrl,
-
-                     resultName = equippedToolItemConfig.name,
-                     resultIconPath = equippedToolItemConfig.iconUrl
+                     targetItemConfig = equippedToolItemConfig
                   )
 
                   growerComponent.modifyData {
@@ -1352,25 +1314,20 @@ class GameSimulation(
 
       this.applyPerformedAction(
          entity = pickingUpEntity,
-         actionType = ActionType.PickupItem,
+         actionType = ActionType.PickUpItem,
          targetEntityId = null
       )
 
-      val name = characterComponentData?.name ?: "?"
       val entityPosition = pickingUpEntity.resolvePosition()
 
       this.addActivityStreamEntry(
-         title = "$name picked up a ${targetItemConfig.name}",
-
          sourceLocation = entityPosition,
-         sourceName = name,
          sourceEntityId = pickingUpEntity.entityId,
 
-         actionType = ActionType.PickupItem,
+         actionType = ActionType.PickUpItem,
          actionResultType = ActionResultType.Success,
 
-         targetName = targetItemConfig.name,
-         targetIconPath = targetItemConfig.iconUrl,
+         targetItemConfig = targetItemConfig,
          targetEntityId = targetEntity.entityId
       )
 
