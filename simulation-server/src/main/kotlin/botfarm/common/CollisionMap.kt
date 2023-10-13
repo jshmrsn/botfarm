@@ -2,6 +2,7 @@ package botfarm.common
 
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.misc.Vector2
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 class CollisionMap<COLLISION_FLAG : Any>(
@@ -10,6 +11,7 @@ class CollisionMap<COLLISION_FLAG : Any>(
    val cellWidth: Double,
    val cellHeight: Double
 ) {
+   val diagonalLength = Math.sqrt(this.cellWidth.pow(2) + this.cellHeight.pow(2))
    companion object {
       val defaultMaxSearchOffset = 15
    }
@@ -246,6 +248,7 @@ class CollisionMap<COLLISION_FLAG : Any>(
    fun findOpenTopLeftCellForShape(
       startIndexPair: IndexPair,
       maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
+      sortNearestToIndexPair: IndexPair? = null,
       fitShapeWidth: Int = 1,
       fitShapeHeight: Int = 1,
       flag: COLLISION_FLAG
@@ -268,6 +271,8 @@ class CollisionMap<COLLISION_FLAG : Any>(
       }
 
       for (searchOffset in 1..maxSearchOffset) {
+         val indexPairsToCheckAtOffset = mutableListOf<IndexPair>()
+
          for (rowOffsetToCheck in listOf(-searchOffset, searchOffset)) {
             for (columnOffsetToCheck in -searchOffset..searchOffset) {
                val indexPairToCheck = IndexPair(
@@ -275,9 +280,7 @@ class CollisionMap<COLLISION_FLAG : Any>(
                   col = clampedStartIndexPair.col + columnOffsetToCheck
                )
 
-               if (areCellsUnderShapeOpen(indexPairToCheck)) {
-                  return indexPairToCheck
-               }
+               indexPairsToCheckAtOffset.add(indexPairToCheck)
             }
          }
 
@@ -290,9 +293,22 @@ class CollisionMap<COLLISION_FLAG : Any>(
                   col = clampedStartIndexPair.col + columnOffsetToCheck
                )
 
-               if (areCellsUnderShapeOpen(indexPairToCheck)) {
-                  return indexPairToCheck
-               }
+               indexPairsToCheckAtOffset.add(indexPairToCheck)
+            }
+         }
+
+
+         val sortedIndexPairsToCheckAtOffset = if (sortNearestToIndexPair != null) {
+            indexPairsToCheckAtOffset.sortedBy {
+               it.distanceSquared(sortNearestToIndexPair)
+            }
+         } else {
+            indexPairsToCheckAtOffset
+         }
+
+         for (indexPairToCheck in sortedIndexPairsToCheckAtOffset) {
+            if (areCellsUnderShapeOpen(indexPairToCheck)) {
+               return indexPairToCheck
             }
          }
       }
@@ -303,6 +319,7 @@ class CollisionMap<COLLISION_FLAG : Any>(
    fun findOpenTopLeftCellForShapeOrFallback(
       startIndexPair: IndexPair,
       maxSearchOffset: Int = Companion.defaultMaxSearchOffset,
+      sortNearestToIndexPair: IndexPair? = null,
       fitShapeWidth: Int = 1,
       fitShapeHeight: Int = 1,
       flag: COLLISION_FLAG
@@ -312,27 +329,28 @@ class CollisionMap<COLLISION_FLAG : Any>(
          maxSearchOffset = maxSearchOffset,
          fitShapeWidth = fitShapeWidth,
          fitShapeHeight = fitShapeHeight,
+         sortNearestToIndexPair = sortNearestToIndexPair,
          flag = flag
       ) ?: this.clampIndexPair(startIndexPair)
    }
 
    fun findOpenCellCenterAround(
       startPoint: Vector2,
-      searchRadius: Int = 6,
+      searchRadius: Int = Companion.defaultMaxSearchOffset,
+      sortNearestToIndexPair: IndexPair? = null,
       fitShapeWidth: Int = 1,
       fitShapeHeight: Int = 1,
       flag: COLLISION_FLAG
-   ): Vector2? {
+   ): IndexPair? {
       val startIndexPair = this.pointToIndexPair(startPoint)
-      val indexPairResult = this.findOpenTopLeftCellForShape(
+      return this.findOpenTopLeftCellForShape(
          startIndexPair = startIndexPair,
          maxSearchOffset = searchRadius,
          fitShapeWidth = fitShapeWidth,
          fitShapeHeight = fitShapeHeight,
+         sortNearestToIndexPair = sortNearestToIndexPair,
          flag = flag
-      ) ?: return null
-
-      return this.indexPairToCellCenter(indexPairResult)
+      )
    }
 
    fun findOpenCellCenterAroundOrFallback(
@@ -359,8 +377,17 @@ class CollisionMap<COLLISION_FLAG : Any>(
       endPoint: Vector2,
       flag: COLLISION_FLAG
    ): List<IndexPair> {
-      val startIndexPair = this.findOpenCellBetween(startPoint, endPoint, flag = flag)
-      val endIndexPair = this.findOpenCellBetween(endPoint, startPoint, flag = flag)
+      val startIndexPair = this.findOpenCellBetween(
+         startPoint = startPoint,
+         endPoint = endPoint,
+         flag = flag
+      )
+
+      val endIndexPair = this.findOpenCellCenterAround(
+         startPoint = endPoint,
+         sortNearestToIndexPair = startIndexPair,
+         flag = flag
+      )
 
       if (startIndexPair == null ||
          endIndexPair == null

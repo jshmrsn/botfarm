@@ -3,7 +3,13 @@ package botfarm.common
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class IndexPair(val row: Int, val col: Int)
+data class IndexPair(val row: Int, val col: Int) {
+   fun distanceSquared(other: IndexPair): Int {
+      val rowDelta = this.row - other.row
+      val colDelta = this.col - other.col
+      return rowDelta * rowDelta + colDelta * colDelta
+   }
+}
 
 data class Node(
    val position: IndexPair,

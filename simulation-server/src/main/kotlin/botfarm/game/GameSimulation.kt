@@ -315,7 +315,6 @@ class GameSimulation(
    ): Double {
       val itemConfig = targetEntity.itemConfigOrNull
       val targetLocation = targetEntity.resolvePosition()
-      val offset = location - targetLocation
 
       val defaultTargetRadius = 15.0
 
@@ -323,24 +322,26 @@ class GameSimulation(
          val collisionConfig = itemConfig.collisionConfig
 
          if (collisionConfig != null) {
-            val cellWidth = this.collisionMap.cellWidth
-            val collisionGridWidth = cellWidth * collisionConfig.width
-            val cellHeight = this.collisionMap.cellHeight
-            val collisionGridHeight = cellHeight * collisionConfig.height
+            val targetCollisionCenter = targetLocation + collisionConfig.collisionOffset
 
-            val offsetFromCollisionCenter = offset
+            val cellWidth = this.collisionMap.cellWidth
+            val targetcCollisionWidth = cellWidth * collisionConfig.width
+            val cellHeight = this.collisionMap.cellHeight
+            val targetCollisionHeight = cellHeight * collisionConfig.height
+
+            val offsetFromCollisionCenter = location - targetCollisionCenter
 
             val edgeDistances = Vector2(
-               offsetFromCollisionCenter.x.absoluteValue - collisionGridWidth * 0.5,
-               offsetFromCollisionCenter.y.absoluteValue - collisionGridHeight * 0.5
+               offsetFromCollisionCenter.x.absoluteValue - targetcCollisionWidth * 0.5,
+               offsetFromCollisionCenter.y.absoluteValue - targetCollisionHeight * 0.5
             )
 
             return Math.min(edgeDistances.x, edgeDistances.y)
          } else {
-            return offset.magnitude() - defaultTargetRadius
+            return location.distance(targetLocation) - defaultTargetRadius
          }
       } else {
-         return offset.magnitude() - defaultTargetRadius
+         return location.distance(targetLocation) - defaultTargetRadius
       }
    }
 
@@ -1431,7 +1432,7 @@ class GameSimulation(
       val targetItemComponent = targetEntity.getComponent<ItemComponentData>()
       val targetItemConfig = this.getConfig<ItemConfig>(targetItemComponent.data.itemConfigKey)
 
-      val maxDistance = this.collisionMap.cellWidth * 1.5
+      val maxDistance = 0.5 * this.collisionMap.diagonalLength
 
       val pickingUpEntityPosition = pickingUpEntity.resolvePosition()
 
@@ -1541,10 +1542,10 @@ class GameSimulation(
       )
 
       if (pathIndexPairs.isEmpty()) {
-         if (retryCount >= maxRetryCount) {
-            return MoveToResult.PathNotFound
+         return if (retryCount >= maxRetryCount) {
+            MoveToResult.PathNotFound
          } else {
-            return this.startEntityMovement(
+            this.startEntityMovement(
                entity = entity,
                endPoint = clampedEndPoint,
                retryCount = retryCount + 1,
