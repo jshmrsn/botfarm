@@ -89,12 +89,7 @@ export function TopHeader(props: TopHeaderProps): ReactElement | null {
         variant={dynamicState.perspectiveEntity == null ? "filled" : "subtle"}
         color={dynamicState.perspectiveEntity == null ? "blue" : "gray"}
         onClick={() => {
-          if (dynamicState.perspectiveEntity == null) {
-            simulation.setShouldSpectateByDefault(false)
-          } else {
-            simulation.setShouldSpectateByDefault(true)
-          }
-
+          simulation.setShouldSpectateByDefault(true)
           simulation.setPerspectiveEntityIdOverride(null)
         }}
       >

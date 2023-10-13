@@ -1,5 +1,6 @@
 package botfarmagent.game
 
+import botfarmagent.game.common.LongTermMemory
 import botfarmagent.misc.LanguageModelService
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.*

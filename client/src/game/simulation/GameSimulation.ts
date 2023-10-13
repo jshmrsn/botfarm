@@ -6,6 +6,8 @@ import {Entity} from "../../engine/simulation/Entity";
 import {GameSimulationConfig} from "./GameSimulationConfig";
 import {getNearestEntitiesFromList} from "../../common/utils";
 import {GameClientStateComponentData} from "../../common/GameClientStateComponentData";
+import {ItemComponent, ItemComponentData, ItemConfig} from "./ItemComponentData";
+import {resolveEntityPositionForCurrentTime} from "../../common/PositionComponentData";
 
 
 export class GameSimulation extends Simulation {
@@ -87,5 +89,54 @@ export class GameSimulation extends Simulation {
       maxDistance,
       filter
     )
+  }
+
+  getSignedEdgeDistanceFromEntity(location: Vector2, targetEntity: Entity): Vector2 {
+    const itemComponent = ItemComponent.get(targetEntity)
+    const itemConfig = itemComponent != null
+      ? this.getConfig<ItemConfig>(itemComponent.data.itemConfigKey, "ItemConfig")
+      : null
+
+    const targetLocation = resolveEntityPositionForCurrentTime(targetEntity)
+
+    const defaultTargetRadius = 15.0
+
+    if (itemConfig !== null) {
+      const collisionConfig = itemConfig.collisionConfig;
+
+      if (collisionConfig !== null) {
+        const targetCollisionCenter = Vector2.plus(targetLocation, collisionConfig.collisionOffset)
+
+        const cellWidth = this.gameSimulationConfig.cellWidth
+        const targetCollisionWidth = cellWidth * collisionConfig.width
+        const cellHeight = this.gameSimulationConfig.cellHeight
+        const targetCollisionHeight = cellHeight * collisionConfig.height
+
+        const offsetFromCollisionCenter = Vector2.minus(location, targetCollisionCenter)
+
+        const halfTargetCollisionWidth = targetCollisionWidth * 0.5
+        const halfTargetCollisionHeight = targetCollisionHeight * 0.5
+
+        let xEdgeDistance = 0;
+        if (offsetFromCollisionCenter.x < -halfTargetCollisionWidth) {
+          xEdgeDistance = offsetFromCollisionCenter.x + halfTargetCollisionWidth
+        } else if (offsetFromCollisionCenter.x > halfTargetCollisionWidth) {
+          xEdgeDistance = offsetFromCollisionCenter.x - halfTargetCollisionWidth
+        }
+
+        let yEdgeDistance = 0;
+        if (offsetFromCollisionCenter.y < -halfTargetCollisionHeight) {
+          yEdgeDistance = offsetFromCollisionCenter.y + halfTargetCollisionHeight
+        } else if (offsetFromCollisionCenter.y > halfTargetCollisionHeight) {
+          yEdgeDistance = offsetFromCollisionCenter.y - halfTargetCollisionHeight
+        }
+
+        return new Vector2(xEdgeDistance, yEdgeDistance)
+      } else {
+        return Vector2.uniform(Vector2.distance(location, targetLocation) - defaultTargetRadius)
+      }
+    } else {
+      return Vector2.uniform(Vector2.distance(location, targetLocation) - defaultTargetRadius)
+    }
   }
 }

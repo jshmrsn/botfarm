@@ -230,6 +230,7 @@ class AgentIntegration(
             agentReason = reason,
             agentUniqueActionId = actionUniqueId,
             actionType = ActionType.Thought,
+            actionResultType = ActionResultType.Success,
             onlyShowForPerspectiveEntity = true
          )
       }

@@ -44,7 +44,7 @@ class JsonActionAgent(
          this.memoryState.automaticShortTermMemories.add(
             AutomaticShortTermMemory(
                time = simulationTime,
-               summary = "I had the thought: \"" + memory.content + "\"",
+               summary = "You had the thought: \"" + memory.content + "\"",
             )
          )
       }
@@ -53,15 +53,12 @@ class JsonActionAgent(
    }
 
    override fun consumeInput(input: AgentSyncInput) {
-      val newObservations = input.newObservations
-
-      val newShortTermMemories = buildAutomaticShortTermMemoriesForNewObservations(
+      this.memoryState.ingestNewObservations(
+         selfInfo = input.selfInfo,
+         newObservations = input.newObservations,
          entitiesById = this.entitiesById,
-         newObservations = newObservations,
-         selfEntityId = input.selfInfo.entityInfoWrapper.entityInfo.entityId
+         simulationTime = input.simulationTime
       )
-
-      addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemories, newShortTermMemories)
    }
 
    override suspend fun step(
@@ -332,7 +329,7 @@ class JsonActionAgent(
       }
 
       builder.addSection("shortTermMemory") {
-         it.addLine("## YOUR_ACTIVE_MEMORY")
+         it.addLine("## YOUR SHORT TERM MEMORY (WRITTEN FROM YOUR PERSPECTIVE)")
          it.addLine(this.memoryState.shortTermMemory)
          it.addLine("")
       }
@@ -365,7 +362,10 @@ class JsonActionAgent(
 
       newActivitySection.also {
          val headerDidFit =
-            it.addLine("## NEW_OBSERVED_ACTIVITY (THESE ARE WRITTEN FROM YOUR PERSPECTIVE) (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
+            it.addLine(
+               "## NEW OBSERVED ACTIVITY (WRITTEN FROM YOUR PERSPECTIVE) (YOU SHOULD CONSIDER REACTING TO THIS)",
+               optional = true
+            ).didFit
 
          if (headerDidFit) {
             if (newActivity.isEmpty()) {
@@ -389,7 +389,7 @@ class JsonActionAgent(
       if (previousActivity.isNotEmpty()) {
          recentActivitySection.also {
             val headerDidFit = it.addLine(
-               "## PREVIOUS_OBSERVED_ACTIVITY (THESE ARE WRITTEN FROM YOUR PERSPECTIVE) (YOU MAY HAVE ALREADY REACTED TO THESE)",
+               "## PREVIOUS_OBSERVED_ACTIVITY (WRITTEN FROM YOUR PERSPECTIVE) (YOU MAY HAVE ALREADY REACTED TO THESE)",
                optional = true
             ).didFit
 
@@ -403,6 +403,8 @@ class JsonActionAgent(
             }
          }
       }
+
+      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.clear()
 
       val prompt = builder.buildText()
       val promptId = buildShortRandomIdentifier()
@@ -418,8 +420,6 @@ class JsonActionAgent(
             )
          )
       )
-
-      val promptSendTime = getCurrentUnixTimeSeconds()
 
       val promptResult: RunJsonPromptResult = runPromptWithJsonOutput(
          languageModelService = languageModelService,
@@ -525,28 +525,7 @@ class JsonActionAgent(
          val craftItemAction = responseAction.craftItem
          val useEquippedToolItem = responseAction.useEquippedToolItem
 
-         val newThoughts = responseAction.recordThought ?: listOf()
-
-         val newLongTermMemories = newThoughts.map { newLongTermMemory ->
-            LongTermMemory(
-               createdTime = simulationTimeForStep,
-               content = newLongTermMemory,
-               id = this.memoryState.longTermMemories.size + 1,
-               createdAtLocation = currentLocation,
-               importance = 0
-            )
-         }
-
-         this.memoryState.longTermMemories.addAll(newLongTermMemories)
-
-         newLongTermMemories.forEach { memory ->
-            this.memoryState.automaticShortTermMemories.add(
-               AutomaticShortTermMemory(
-                  time = simulationTimeForStep,
-                  summary = "I had the thought: " + memory.content,
-               )
-            )
-         }
+         val recordThought = responseAction.recordThought
 
          val walk = if (locationToWalkTo != null) {
             if (locationToWalkTo.size == 2) {
@@ -608,7 +587,8 @@ class JsonActionAgent(
             facialExpressionEmoji = facialExpressionEmoji,
             craftItem = craftItemAction,
             useEquippedToolItem = useEquippedToolItem,
-            actionUniqueId = buildShortRandomIdentifier()
+            actionUniqueId = buildShortRandomIdentifier(),
+            recordThought = recordThought
          )
       }
 

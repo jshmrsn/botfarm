@@ -2,6 +2,7 @@ import {Config, EntityComponentData} from "../../engine/simulation/EntityData";
 import {CompositeAnimationSelection} from "./CompositeAnimationSelection";
 import {RandomConfig} from "../../common/RandomConfig";
 import {EntityComponentGetter} from "../../engine/simulation/EntityComponentGetter";
+import {Vector2} from "../../misc/Vector2";
 
 
 export interface RandomItemQuantity {
@@ -71,6 +72,16 @@ export interface StorableConfig {
   canBeDropped: boolean
 }
 
+export type CollisionFlag = string
+
+export interface CollisionConfig {
+  width: number
+  height: number
+  collisionOffset: Vector2
+  flags: CollisionFlag[]
+  overlapHeight: number
+}
+
 export interface ItemConfig extends Config {
   name: string
   description: string
@@ -79,14 +90,13 @@ export interface ItemConfig extends Config {
   useCustomAnimationBaseName: string | null,
   equippableConfig: EquippableConfig | null
   damageableConfig: DamageableConfig | null
-  blocksPathfinding: boolean,
-  blocksPlacement: boolean,
-  craftableConfig: CraftableConfig | null;
+  collisionConfig: CollisionConfig | null
+  craftableConfig: CraftableConfig | null
   storableConfig: StorableConfig | null
-  spawnItemOnDestructionConfig: SpawnItemOnDestructionConfig | null; // tree spawns wood when cut down
-  growerConfig: GrowerConfig | null; // farm plots receive and grow carrot seeds
-  growableConfig: GrowableConfig | null; // carrot seeds grow into carrots
-  spawnItemOnUseConfig: SpawnItemOnUseConfig | null; // hoe spawns farm plots
+  spawnItemOnDestructionConfig: SpawnItemOnDestructionConfig | null // tree spawns wood when cut down
+  growerConfig: GrowerConfig | null // farm plots receive and grow carrot seeds
+  growableConfig: GrowableConfig | null // carrot seeds grow into carrots
+  spawnItemOnUseConfig: SpawnItemOnUseConfig | null // hoe spawns farm plots
 }
 
 export interface ItemComponentData extends EntityComponentData {

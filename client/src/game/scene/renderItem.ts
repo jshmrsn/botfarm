@@ -3,17 +3,19 @@ import {RenderContext} from "../../engine/RenderContext";
 import {GrowerComponent, ItemComponentData, ItemConfig, KillableComponent} from "../simulation/ItemComponentData";
 import {clampZeroOne, lerp, Vector2} from "../../misc/Vector2";
 import {SpriteConfig} from "../../common/common";
-import {GameSimulationScene} from "./GameSimulationScene";
+import {EntityRenderState, GameSimulationScene} from "./GameSimulationScene";
 
 
 export function renderItem(
   scene: GameSimulationScene,
   simulationTime: number,
+  deltaTime: number,
   entity: Entity,
   renderContext: RenderContext,
   itemComponent: ItemComponentData,
   position: Vector2,
-  fogOfWarAlpha: number
+  entityRenderState: EntityRenderState,
+  renderedCharacterLocations: Vector2[]
 ) {
   const killedAtTime = KillableComponent.getDataOrNull(entity)?.killedAtTime
   const grower = GrowerComponent.getDataOrNull(entity)
@@ -28,6 +30,25 @@ export function renderItem(
 
   const baseDepth = scene.calculateDepthForPosition(position)
 
+  let isOverlapping = false
+  if (itemConfig.collisionConfig != null && itemConfig.collisionConfig.overlapHeight > 0.001) {
+    for (let renderedCharacterLocation of renderedCharacterLocations) {
+      const signedEdgeDistance = scene.simulation.getSignedEdgeDistanceFromEntity(renderedCharacterLocation, entity)
+      isOverlapping = Math.abs(signedEdgeDistance.x) <= 0.01 &&
+        signedEdgeDistance.y <= 0 && signedEdgeDistance.y > -itemConfig.collisionConfig.overlapHeight
+
+      if (isOverlapping) {
+        break
+      }
+    }
+  }
+
+  let targetAlpha = isOverlapping ? 0.7 : 1.0
+
+  entityRenderState.overlapAlpha = lerp(entityRenderState.overlapAlpha, targetAlpha, 4 * deltaTime)
+
+  const combinedAlpha = entityRenderState.fogOfWarAlpha * entityRenderState.overlapAlpha
+
   renderContext.renderSprite("item_" + entity.entityId + "_" + spriteConfig.key, {
     layer: scene.mainLayer,
     depth: baseDepth + spriteConfig.depthOffset,
@@ -39,7 +60,7 @@ export function renderItem(
       : spriteConfig.baseScale,
     alpha: (timeSinceKilled != null ?
       lerp(1, 0.0, timeSinceKilled / deathAnimationTime)
-      : 1.0) * fogOfWarAlpha
+      : 1.0) * combinedAlpha
   })
 
   if (grower != null && grower.activeGrowth != null) {
@@ -64,7 +85,7 @@ export function renderItem(
       position: Vector2.plus(position, spriteConfig.baseOffset),
       animation: null,
       scale: Vector2.timesScalar(growIntoSpriteConfig.baseScale, lerp(0.5, 1.0, growPercent)),
-      alpha: lerp(0.5, 1.0, growPercent) * fogOfWarAlpha
+      alpha: lerp(0.5, 1.0, growPercent) * combinedAlpha
     })
   }
 

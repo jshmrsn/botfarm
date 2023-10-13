@@ -66,7 +66,7 @@ class SpectateAgentsGameScenario : GameScenario(
          agentType = "script",
          bodySelections = simulation.buildRandomCharacterBodySelections(),
          age = 25,
-         location = Vector2(3000.0, 3000.0)
+         location = Vector2(2100.0, 2200.0)
       )
    }
 }

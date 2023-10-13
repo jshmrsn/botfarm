@@ -108,8 +108,8 @@ class GameSimulation(
       this.gameSimulationConfig = this.getConfig<GameSimulationConfig>(GameSimulationConfig.defaultKey)
       this.worldBounds = this.gameSimulationConfig.worldBounds
 
-      val cellWidth = 32.0
-      val cellHeight = 32.0
+      val cellWidth = this.gameSimulationConfig.cellWidth
+      val cellHeight = this.gameSimulationConfig.cellHeight
 
       val rowCount = (this.worldBounds.y / cellHeight).toInt()
       val columnCount = (this.worldBounds.x / cellWidth).toInt()
@@ -314,10 +314,10 @@ class GameSimulation(
       }
    }
 
-   fun getEffectiveDistanceFromEntity(
+   fun getSignedEdgeDistanceFromEntity(
       location: Vector2,
       targetEntity: Entity
-   ): Double {
+   ): Vector2 {
       val itemConfig = targetEntity.itemConfigOrNull
       val targetLocation = targetEntity.resolvePosition()
 
@@ -330,24 +330,57 @@ class GameSimulation(
             val targetCollisionCenter = targetLocation + collisionConfig.collisionOffset
 
             val cellWidth = this.collisionMap.cellWidth
-            val targetcCollisionWidth = cellWidth * collisionConfig.width
+            val targetCollisionWidth = cellWidth * collisionConfig.width
             val cellHeight = this.collisionMap.cellHeight
             val targetCollisionHeight = cellHeight * collisionConfig.height
 
             val offsetFromCollisionCenter = location - targetCollisionCenter
 
-            val edgeDistances = Vector2(
-               offsetFromCollisionCenter.x.absoluteValue - targetcCollisionWidth * 0.5,
-               offsetFromCollisionCenter.y.absoluteValue - targetCollisionHeight * 0.5
-            )
+            val halfTargetCollisionWidth = targetCollisionWidth * 0.5
+            val halfTargetCollisionHeight = targetCollisionHeight * 0.5
 
-            return Math.min(edgeDistances.x, edgeDistances.y)
+            val xEdgeDistance = if (offsetFromCollisionCenter.x < -halfTargetCollisionWidth) {
+               offsetFromCollisionCenter.x + halfTargetCollisionWidth
+            } else if (offsetFromCollisionCenter.x > halfTargetCollisionWidth) {
+               offsetFromCollisionCenter.x - halfTargetCollisionWidth
+            } else {
+               0.0
+            }
+
+            val yEdgeDistance = if (offsetFromCollisionCenter.y < -halfTargetCollisionHeight) {
+               offsetFromCollisionCenter.y + halfTargetCollisionHeight
+            } else if (offsetFromCollisionCenter.y > halfTargetCollisionHeight) {
+               offsetFromCollisionCenter.y - halfTargetCollisionHeight
+            } else {
+               0.0
+            }
+
+            return Vector2(
+               xEdgeDistance,
+               yEdgeDistance
+            )
          } else {
-            return location.distance(targetLocation) - defaultTargetRadius
+            return Vector2.uniform(
+               location.distance(targetLocation) - defaultTargetRadius
+            )
          }
       } else {
-         return location.distance(targetLocation) - defaultTargetRadius
+         return Vector2.uniform(
+            location.distance(targetLocation) - defaultTargetRadius
+         )
       }
+   }
+
+   fun getNearestEdgeDistanceFromEntity(
+      location: Vector2,
+      targetEntity: Entity
+   ): Double {
+      val signed = this.getSignedEdgeDistanceFromEntity(
+         location = location,
+         targetEntity = targetEntity
+      )
+
+      return Math.min(signed.x.absoluteValue, signed.y.absoluteValue)
    }
 
    override fun onStart() {
@@ -732,6 +765,7 @@ class GameSimulation(
       this.updateCollisionDebugInfoIfNeeded()
 
       val autoPauseAiPerSpentDollars = this.gameScenario.autoPauseAiPerSpentDollars
+
       if (autoPauseAiPerSpentDollars != null) {
          var totalAiSpend = 0.0
          this.entities.forEach {
@@ -1201,12 +1235,12 @@ class GameSimulation(
 
       val interactingEntityPosition = interactingEntity.resolvePosition()
 
-      val effectiveDistance = this.getEffectiveDistanceFromEntity(
+      val nearestEdgeDistance = this.getNearestEdgeDistanceFromEntity(
          location = interactingEntityPosition,
          targetEntity = targetEntity
       )
 
-      if (effectiveDistance > maxDistance) {
+      if (nearestEdgeDistance > maxDistance) {
          return InteractWithEntityUsingEquippedItemResult.TooFar
       }
 
@@ -1445,12 +1479,12 @@ class GameSimulation(
 
       val pickingUpEntityPosition = pickingUpEntity.resolvePosition()
 
-      val effectiveDistance = this.getEffectiveDistanceFromEntity(
+      val nearestEdgeDistance = this.getNearestEdgeDistanceFromEntity(
          location = pickingUpEntityPosition,
          targetEntity = targetEntity
       )
 
-      if (effectiveDistance > maxDistance) {
+      if (nearestEdgeDistance > maxDistance) {
          return PickUpItemResult.TooFar
       }
 
@@ -2327,10 +2361,12 @@ class GameSimulation(
    override fun handleNewClient(client: Client) {
       val gameClientStateEntityId = this.buildGameClientStateEntityId(client)
 
-      this.createEntity(
-         entityId = gameClientStateEntityId,
-         components = listOf(GameClientStateComponentData())
-      )
+      if (this.getEntityOrNull(gameClientStateEntityId) == null) {
+         this.createEntity(
+            entityId = gameClientStateEntityId,
+            components = listOf(GameClientStateComponentData())
+         )
+      }
 
       val isCreator = this.context.createdByUserSecret == client.userSecret
 

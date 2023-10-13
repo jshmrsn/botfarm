@@ -1,12 +1,16 @@
 import {Entity} from "../../engine/simulation/Entity";
 import {CharacterComponent, CharacterComponentData} from "../simulation/CharacterComponentData";
-import {PositionComponentData, resolvePositionForTime} from "../../common/PositionComponentData";
+import {
+  PositionComponentData,
+  resolveEntityPositionForCurrentTime,
+  resolvePositionForTime
+} from "../../common/PositionComponentData";
 import {ItemComponent, ItemComponentData} from "../simulation/ItemComponentData";
 import {lerp, Vector2} from "../../misc/Vector2";
 import {AgentControlledComponent} from "../simulation/AgentControlledComponentData";
 import {renderCharacter} from "./renderCharacter";
 import {renderItem} from "./renderItem";
-import {FogWarEntityState, GameSimulationScene} from "./GameSimulationScene";
+import {EntityRenderState, GameSimulationScene} from "./GameSimulationScene";
 import {FogOfWarInfo} from "./renderFogWar";
 import {FogOfWarComponent} from "../../common/FogOfWarComponentData";
 
@@ -24,8 +28,8 @@ export function renderEntities(
   const previousFogOfWarVisibleEntitiesById = scene.fogOfWarVisibleEntitiesById
   scene.fogOfWarVisibleEntitiesById = {}
 
-  const previousFogOfWarStatesByEntityId = scene.fogOfWarStatesByEntityId
-  scene.fogOfWarStatesByEntityId = {}
+  const previousFogOfWarStatesByEntityId = scene.renderStatesByEntityId
+  scene.renderStatesByEntityId = {}
 
   const simulationTime = scene.getCurrentSimulationTime()
 
@@ -34,6 +38,16 @@ export function renderEntities(
   const userControlledEntity = scene.dynamicState.userControlledEntity
 
   const playerCharacterComponent = userControlledEntity != null ? userControlledEntity.getComponentOrNull<CharacterComponentData>("CharacterComponentData") : null
+
+  const renderedCharacterLocations: Vector2[] = []
+  for (const entity of scene.simulation.entities) {
+    const character = CharacterComponent.getOrNull(entity)
+
+    if (character != null) {
+      const characterLocation = resolveEntityPositionForCurrentTime(entity)
+      renderedCharacterLocations.push(characterLocation)
+    }
+  }
 
   for (const entity of scene.simulation.entities) {
     const positionComponent = entity.getComponentOrNull<PositionComponentData>("PositionComponentData")
@@ -48,8 +62,8 @@ export function renderEntities(
 
     let position = resolvePositionForTime(positionComponent, simulationTime)
 
-    const fogWarEntityState = previousFogOfWarStatesByEntityId[entity.entityId] || new FogWarEntityState()
-    scene.fogOfWarStatesByEntityId[entity.entityId] = fogWarEntityState
+    const entityRenderState = previousFogOfWarStatesByEntityId[entity.entityId] || new EntityRenderState()
+    scene.renderStatesByEntityId[entity.entityId] = entityRenderState
 
     const isFogOfWarStale = fogOfWarComponent != null && fogOfWarComponent.data.isStale
 
@@ -66,9 +80,9 @@ export function renderEntities(
     }
 
     if (isFirstRender) {
-      fogWarEntityState.alpha = targetAlpha
+      entityRenderState.fogOfWarAlpha = targetAlpha
     } else {
-      fogWarEntityState.alpha = lerp(fogWarEntityState.alpha, targetAlpha, 4 * deltaTime)
+      entityRenderState.fogOfWarAlpha = lerp(entityRenderState.fogOfWarAlpha, targetAlpha, 4 * deltaTime)
     }
 
     if (isVisible) {
@@ -76,11 +90,11 @@ export function renderEntities(
       scene.fogOfWarVisibleEntities.push(entity)
     }
 
-    if (fogWarEntityState.alpha < 0.01) {
+    if (entityRenderState.fogOfWarAlpha < 0.01) {
       continue
     }
 
-    const fogOfWarAlpha = fogWarEntityState.alpha
+    const fogOfWarAlpha = entityRenderState.fogOfWarAlpha
 
     if (didRenderDebugInfo) {
       const spriteScale = Vector2.uniform(5.0 / 64.0)
@@ -149,11 +163,13 @@ export function renderEntities(
       renderItem(
         scene,
         simulationTime,
+        deltaTime,
         entity,
         renderContext,
         itemComponent.data,
         position,
-        fogOfWarAlpha
+        entityRenderState,
+        renderedCharacterLocations
       )
     }
   }

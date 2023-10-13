@@ -29,41 +29,19 @@ class ScriptExecutionAgent(
       val simulationTime = initialInputs.simulationTime
       val selfInfo = initialInputs.selfInfo
 
-      val initialLongTermMemories = selfInfo.initialMemories.mapIndexed { initialMemoryIndex, initialMemory ->
-         LongTermMemory(
-            createdAtLocation = selfInfo.entityInfoWrapper.entityInfo.location,
-            importance = 100,
-            createdTime = simulationTime,
-            content = initialMemory,
-            id = initialMemoryIndex
-         )
-      }
-
-      val initialAutomaticShortTermMemory = initialLongTermMemories.map { memory ->
-         AutomaticShortTermMemory(
-            time = simulationTime,
-            summary = "I had the thought: \"" + memory.content + "\"",
-            forcePreviousActivity = true
-         )
-      }
-
-      this.memoryState.automaticShortTermMemories.addAll(initialAutomaticShortTermMemory)
-      this.memoryState.automaticShortTermMemoriesSinceLastPrompt.addAll(initialAutomaticShortTermMemory)
-
-      this.memoryState.longTermMemories.addAll(initialLongTermMemories)
+      this.memoryState.ingestInitialMemories(
+         selfInfo = selfInfo,
+         simulationTime = simulationTime
+      )
    }
 
    override fun consumeInput(input: AgentSyncInput) {
-      val newObservations = input.newObservations
-
-      val newShortTermMemories = buildAutomaticShortTermMemoriesForNewObservations(
+      this.memoryState.ingestNewObservations(
+         selfInfo = input.selfInfo,
+         simulationTime = input.simulationTime,
          entitiesById = this.entitiesById,
-         newObservations = newObservations,
-         selfEntityId = input.selfInfo.entityInfoWrapper.entityInfo.entityId
+         newObservations = input.newObservations
       )
-
-      addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemories, newShortTermMemories)
-      addNewAutomaticShortTermMemories(this.memoryState.automaticShortTermMemoriesSinceLastPrompt, newShortTermMemories)
 
       val pendingNewActivityDebugString =
          this.memoryState.automaticShortTermMemoriesSinceLastPrompt.joinToString("\n") { it.summary }
@@ -95,7 +73,6 @@ class ScriptExecutionAgent(
       val simulationId = input.simulationId
       val syncId = input.syncId
 
-      var wasRateLimited = false
       val errors = mutableListOf<String>()
 
       val promptUsages = mutableListOf<PromptUsageInfo>()
@@ -119,7 +96,6 @@ class ScriptExecutionAgent(
             }
 
             is UpdateMemoryResult.RateLimit -> {
-               wasRateLimited = true
                errors.add("Memory update prompt rate limited: " + updateMemoryResult.errorId)
             }
 
@@ -163,12 +139,12 @@ class ScriptExecutionAgent(
 
       val newPromptTimeLimit = if (this.shouldUseMockResponses) {
          10.0
-      } else if (hasHighPriorityMemorySinceLastPrompt) {
-         15.0
       } else if (hasCompletedScript) {
-         20.0
+         1.0
+      } else if (hasHighPriorityMemorySinceLastPrompt) {
+         0.5
       } else {
-         60.0
+         30.0
       }
 
       val shouldPrompt = timeSincePrompt > newPromptTimeLimit
@@ -253,7 +229,7 @@ class ScriptExecutionAgent(
 
       builder.addSection("shortTermMemory") {
          if (this.memoryState.shortTermMemory.isNotBlank()) {
-            it.addLine("## YOUR MEMORY")
+            it.addLine("## YOUR SHORT TERM MEMORY (WRITTEN FROM YOUR PERSPECTIVE)")
             it.addLine(this.memoryState.shortTermMemory)
             it.addLine("")
          }
@@ -307,14 +283,6 @@ class ScriptExecutionAgent(
 //         reserveTokens = 300
 //      )
 
-      val omittedEntityIntroSection = builder.addSection(
-         "omittedEntityIntroSection",
-         reserveTokens = 50
-      )
-
-      val omittedEntitySummarySection = builder.addSection(
-         "omittedEntitySummarySection"
-      )
 
       builder.addSection("afterEntityListSection").also {
          it.addLine("")
@@ -343,6 +311,15 @@ class ScriptExecutionAgent(
          it.addLine("```")
       }
 
+      val omittedEntityIntroSection = builder.addSection(
+         "omittedEntityIntroSection",
+         reserveTokens = 50
+      )
+
+      val omittedEntitySummarySection = builder.addSection(
+         "omittedEntitySummarySection"
+      )
+
       val finalInstructionsSection = builder.addSection("finalInstructionsSection")
 
       finalInstructionsSection.addLine("First, write 1-3 sentences in English what you would like to do and achieve next, and how you would like to interact socially.")
@@ -359,7 +336,7 @@ class ScriptExecutionAgent(
 
       newActivitySection.also {
          val headerDidFit =
-            it.addLine("## NEW_OBSERVED_ACTIVITY (THESE ARE WRITTEN FROM YOUR PERSPECTIVE) (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
+            it.addLine("## NEW_OBSERVED_ACTIVITY (WRITTEN FROM YOUR PERSPECTIVE) (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
 
          if (headerDidFit) {
             if (newActivity.isEmpty()) {
@@ -383,7 +360,7 @@ class ScriptExecutionAgent(
       if (previousActivity.isNotEmpty()) {
          recentActivitySection.also {
             val headerDidFit = it.addLine(
-               "## PREVIOUS_OBSERVED_ACTIVITY (THESE ARE WRITTEN FROM YOUR PERSPECTIVE) (YOU MAY HAVE ALREADY REACTED TO THESE)",
+               "## PREVIOUS_OBSERVED_ACTIVITY (WRITTEN FROM YOUR PERSPECTIVE) (YOU MAY HAVE ALREADY REACTED TO THESE)",
                optional = true
             ).didFit
 
@@ -517,16 +494,15 @@ class ScriptExecutionAgent(
       }
 
       if (remainingEntities.isNotEmpty()) {
-         omittedEntityIntroSection.addLine("// NOTE: ${remainingEntities.size} entities were omitted from the above list to reduce prompt size.")
-         omittedEntityIntroSection.addLine("// You can use getCurrentNearbyEntities() in your response script to get the full list")
-
-         omittedEntityIntroSection.addLine("//   Summary of omitted entities:")
+         omittedEntityIntroSection.addLine("NOTE: ${remainingEntities.size} entities were omitted from the code list to reduce prompt size.")
+         omittedEntityIntroSection.addLine("You can use the getCurrentNearbyEntities() in your response script to process the full list of entities")
+         omittedEntityIntroSection.addLine("Summary of omitted entities:")
 
          val characterEntities = remainingEntities.filter { it.entityInfo.characterInfo != null }
 
          if (characterEntities.isNotEmpty()) {
             omittedEntitySummarySection.addLine(
-               "//     ${characterEntities.size} were other character entities",
+               "   ${characterEntities.size} additional human character entities",
                optional = true
             )
          }
@@ -543,13 +519,12 @@ class ScriptExecutionAgent(
             .entries
             .sortedBy { it.key }
             .forEach {
-               omittedEntitySummarySection.addLine("//     ${it.value} were '${it.key}' item entities", optional = true)
+               omittedEntitySummarySection.addLine("   ${it.value} additional '${it.key}' item entities", optional = true)
             }
       }
 
       val text = builder.buildText()
       println("prompt: $text")
-
 
       val promptId = buildShortRandomIdentifier()
 
@@ -589,7 +564,6 @@ class ScriptExecutionAgent(
       this.previousPromptSendSimulationTime = simulationTimeForStep
 
       val prompt = builder.buildText()
-
 
       this.addPendingOutput(
          AgentSyncOutput(

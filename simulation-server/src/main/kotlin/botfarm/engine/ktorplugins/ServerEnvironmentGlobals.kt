@@ -7,6 +7,10 @@ object ServerEnvironmentGlobals {
    val port = System.getenv()["BOTFARM_SIMULATION_SERVER_PORT"]?.toInt() ?: 5001
    val agentServerEndpoint = System.getenv()["BOTFARM_AGENT_SERVER_ENDPOINT"] ?: "http://localhost:5002"
 
+   val defaultPauseAiUsd = System.getenv()["BOTFARM_DEFAULT_PAUSE_AI_USD_CENTS"]
+      ?.toInt()?.let { it.toDouble() / 100.0 }
+      ?: 1.0
+
    val hideErrorDetailsFromClients = System.getenv()["BOTFARM_HIDE_ERROR_DETAILS"].let {
       if (it.isNullOrBlank()) {
          this.hasAdminSecret

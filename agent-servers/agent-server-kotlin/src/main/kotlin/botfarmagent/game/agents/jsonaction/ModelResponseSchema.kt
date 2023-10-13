@@ -56,7 +56,7 @@ object ModelResponseSchema {
       val craftItem: CraftItemAction? = null,
       val speak: String? = null,
       val facialExpressionEmoji: String? = null,
-      val recordThought: List<String>? = null,
+      val recordThought: String? = null,
       val useEquippedToolItem: UseEquippedToolItem? = null
    )
 
@@ -98,9 +98,8 @@ object ModelResponseSchema {
          ),
          speak to JsonStringSchema("Use this input when you would like to talk out loud to interact with other people"),
          facialExpressionEmojiKey to JsonStringSchema("Provide a single emoji to represent your current mood as a facial expression"),
-         recordThoughtKey to JsonArraySchema(
-            description = "Thoughts, memories, or reflections that you would like to store for the long term, so you can remember them in future prompts from the intelligence system.",
-            items = JsonStringSchema()
+         recordThoughtKey to JsonStringSchema(
+            description = "Record a thoughts, memory, or reflection that you would like to store for the long term, so you can remember them in future prompts from the intelligence system."
          )
       ),
       required = listOf(facialExpressionEmojiKey)

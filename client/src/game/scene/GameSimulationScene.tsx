@@ -51,8 +51,9 @@ interface MoveToPointRequest {
 }
 
 
-export class FogWarEntityState {
-  alpha: number = 0.0
+export class EntityRenderState {
+  fogOfWarAlpha: number = 0.0
+  overlapAlpha: number = 1.0
 }
 
 export class GameSimulationScene extends Phaser.Scene {
@@ -90,7 +91,7 @@ export class GameSimulationScene extends Phaser.Scene {
   hasEverRenderedEntities = false
   readonly fogOfWarVisibleEntities: Entity[] = []
   fogOfWarVisibleEntitiesById: Record<EntityId, Entity> = {}
-  fogOfWarStatesByEntityId: Record<EntityId, FogWarEntityState> = {}
+  renderStatesByEntityId: Record<EntityId, EntityRenderState> = {}
 
   constructor(
     simulation: GameSimulation,

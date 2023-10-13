@@ -141,6 +141,8 @@ export function MenuPanel(props: MenuPanelProps) {
           variant={"filled"}
           onClick={() => {
             dynamicState.simulation?.sendSpawnRequest()
+            dynamicState.simulation?.setShouldSpectateByDefault(false)
+            dynamicState.simulation?.setPerspectiveEntityIdOverride(null)
           }}
         >
           Spawn

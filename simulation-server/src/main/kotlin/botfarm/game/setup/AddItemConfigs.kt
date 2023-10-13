@@ -250,7 +250,8 @@ fun addItemConfigs(configs: MutableList<Config>) {
       collisionConfig = CollisionConfig(
          width = 3,
          height = 4,
-         collisionOffset = Vector2(0.0, -20.0)
+         collisionOffset = Vector2(0.0, -20.0),
+         overlapHeight = 30.0
       )
    )
 

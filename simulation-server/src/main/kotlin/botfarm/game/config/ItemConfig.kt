@@ -66,7 +66,8 @@ class CollisionConfig(
    val width: Int,
    val height: Int,
    val collisionOffset: Vector2 = Vector2.zero,
-   val flags: List<CollisionFlag> = CollisionFlag.entries
+   val flags: List<CollisionFlag> = CollisionFlag.entries,
+   val overlapHeight: Double = 0.0
 )
 
 class ItemConfig(

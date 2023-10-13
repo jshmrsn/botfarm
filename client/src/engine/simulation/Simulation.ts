@@ -168,9 +168,20 @@ export class Simulation {
     if (messageType === "EntityCreatedWebSocketMessage") {
       const entityCreatedMessage: EntityCreatedWebSocketMessage = messageData
 
-      const newEntity = new Entity(this, entityCreatedMessage.entityData)
-      this.entities.push(newEntity)
-      this.entitiesById[newEntity.entityId] = newEntity
+      const existingEntity = this.entitiesById[entityCreatedMessage.entityData.entityId]
+
+      if (existingEntity != null) {
+        // jshmrsn: Adding this case for certain error react-dev-server error reload cases.
+        // Clearing entities in advanced would be more robust
+        for (let component of entityCreatedMessage.entityData.components) {
+          const componentType = component.type
+          existingEntity.getComponent(componentType).ingestNewData(component)
+        }
+      } else {
+        const newEntity = new Entity(this, entityCreatedMessage.entityData)
+        this.entities.push(newEntity)
+        this.entitiesById[newEntity.entityId] = newEntity
+      }
 
       this.receivedSimulationTime = entityCreatedMessage.simulationTime
     } else if (messageType === "EntityDestroyedWebSocketMessage") {

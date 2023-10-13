@@ -22,7 +22,7 @@ open class GameScenario(
    requiresAdmin: Boolean = true,
    val buildMockAgent: ((context: MockAgentContext) -> MockAgent)? = null,
    val configureGameSimulationCallback: (GameSimulation) -> Unit = {},
-   val autoPauseAiPerSpentDollars: Double? = 1.0
+   val autoPauseAiPerSpentDollars: Double? = ServerEnvironmentGlobals.defaultPauseAiUsd
 ) : Scenario(
    identifier = identifier,
    gameIdentifier = "game",
