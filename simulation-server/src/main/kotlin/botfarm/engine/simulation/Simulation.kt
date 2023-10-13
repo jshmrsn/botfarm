@@ -81,7 +81,7 @@ class SimulationContext(
 open class Simulation(
    val context: SimulationContext,
    val systems: Systems = Systems.default,
-   val data: SimulationData
+   val initialData: SimulationData
 ) {
    private var lastAnyClientsConnectedUnixTime = getCurrentUnixTimeSeconds()
 
@@ -99,16 +99,16 @@ open class Simulation(
    val wasCreatedByAdmin = this.context.wasCreatedByAdmin
    val simulationContainer = this.context.simulationContainer
 
-   val startedAtUnixTime = data.simulationStartedAtUnixTime
+   val startedAtUnixTime = this.initialData.simulationStartedAtUnixTime
    var simulationTime = 0.0
       private set
 
    var lastTickUnixTime = getCurrentUnixTimeSeconds()
 
    val scenario = this.context.scenario
-   val scenarioInfo: ScenarioInfo = data.scenarioInfo
-   val simulationId = data.simulationId
-   val configs = data.configs
+   val scenarioInfo: ScenarioInfo = this.initialData.scenarioInfo
+   val simulationId = this.initialData.simulationId
+   val configs = this.initialData.configs
 
    val latencyBufferTime = 0.2
 
@@ -134,8 +134,8 @@ open class Simulation(
 
    private val requestsFromBackgroundThread = mutableListOf<RequestFromBackgroundThread>()
 
-   fun addRequestFromBackgroundThread(
-      handleException: (Exception) -> Unit = { println("addRequestFromBackgroundThread: Exception while executing task") },
+   fun runOnSimulationThread(
+      handleException: (Exception) -> Unit = { println("runOnSimulationThread: Exception while executing task") },
       task: () -> Unit
    ) {
       synchronized(this) {
@@ -145,6 +145,37 @@ open class Simulation(
                handleException = handleException
             )
          )
+      }
+   }
+
+   suspend fun runOnSimulationThreadAndWait(
+      delayIntervalMs: Int = 25,
+      debugInfo: String = "default",
+      task: () -> Unit
+   ) {
+      var didFinish = false
+      var simulationThreadExceptionVar: Exception? = null
+
+      this.runOnSimulationThread(
+         handleException = {
+            simulationThreadExceptionVar = it
+         },
+         task = {
+            task()
+            didFinish = true
+         }
+      )
+
+      while (true) {
+         val simulationThreadException = simulationThreadExceptionVar
+
+         if (simulationThreadExceptionVar != null) {
+            throw Exception("runRequestOnSimulationThreadAndWait: Exception from simulation thread ($debugInfo):", simulationThreadException)
+         } else if (didFinish) {
+            break
+         } else {
+            delay(delayIntervalMs.toLong())
+         }
       }
    }
 
@@ -231,7 +262,15 @@ open class Simulation(
          val currentUnixTime = getCurrentUnixTimeSeconds()
          val deltaTime = Math.max(0.0001, currentUnixTime - lastTickUnixTime)
          lastTickUnixTime = currentUnixTime
-         val tickResult = this.tick(deltaTime)
+
+         val tickResult = try {
+            this.tick(deltaTime)
+         } catch (exception: Exception) {
+            println("Exception in simulation tick (${this.simulationId}), will terminate: " + exception.stackTraceToString())
+            TickResult(
+               shouldTerminate = true
+            )
+         }
 
          if (tickResult.shouldTerminate) {
             if (!this.isTerminated) {
@@ -868,16 +907,14 @@ open class Simulation(
    }
 
    fun buildInfo(checkBelongsToUserSecret: UserSecret?): SimulationInfo {
-      synchronized(this) {
-         return SimulationInfo(
-            simulationId = this.simulationId,
-            scenarioInfo = this.scenarioInfo,
-            isTerminated = this.isTerminated,
-            startedAtUnixTime = this.startedAtUnixTime,
-            belongsToUser = checkBelongsToUserSecret == this.context.createdByUserSecret,
-            wasCreatedByAdmin = this.context.wasCreatedByAdmin
-         )
-      }
+      return SimulationInfo(
+         simulationId = this.simulationId,
+         scenarioInfo = this.scenarioInfo,
+         isTerminated = this.isTerminated,
+         startedAtUnixTime = this.startedAtUnixTime,
+         belongsToUser = checkBelongsToUserSecret == this.context.createdByUserSecret,
+         wasCreatedByAdmin = this.context.wasCreatedByAdmin
+      )
    }
 
    private var shouldTerminate = false

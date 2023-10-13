@@ -101,7 +101,7 @@ fun Application.configureRouting(
          } else if (scenario.requiresAdmin && !isAdmin) {
             throw Exception("Scenario requires admin: " + request.scenarioIdentifier)
          } else {
-            var createdSimulationVar: Simulation? = null
+            var createdSimulationInfoVar: SimulationInfo? = null
             var backgroundExceptionVar: Exception? = null
 
             thread {
@@ -116,7 +116,9 @@ fun Application.configureRouting(
                         coroutineScope = coroutineScope
                      )
 
-                     createdSimulationVar = createdSimulation
+                     createdSimulationInfoVar = createdSimulation.buildInfo(
+                        request.userSecret
+                     )
 
                      createdSimulation.startTickingInBackground()
                   } catch (exception: Exception) {
@@ -127,19 +129,16 @@ fun Application.configureRouting(
             }
 
             while (true) {
-               val createdSimulation = createdSimulationVar
+               val createdSimulationInfo = createdSimulationInfoVar
                val backgroundException = backgroundExceptionVar
 
                if (backgroundException != null) {
+                  println("Re-throwing exception in background while creating simulation: " + backgroundException.stackTraceToString())
                   throw Exception("Exception in background while creating simulation", backgroundException)
-               } else if (createdSimulation != null) {
-                  val simulationInfo = createdSimulation.buildInfo(
-                     checkBelongsToUserSecret = request.userSecret
-                  )
-
+               } else if (createdSimulationInfo != null) {
                   call.respond(
                      CreateSimulationResponse(
-                        simulationInfo = simulationInfo
+                        simulationInfo = createdSimulationInfo
                      )
                   )
                   break

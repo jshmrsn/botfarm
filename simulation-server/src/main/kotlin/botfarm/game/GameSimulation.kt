@@ -82,7 +82,7 @@ class GameSimulation(
 ) : Simulation(
    context = context,
    systems = gameSystems,
-   data = data
+   initialData = data
 ) {
    companion object {
       val activityStreamEntityId = EntityId("activity-stream")
@@ -177,10 +177,12 @@ class GameSimulation(
       val sourceEntityContainer: EntityContainer
       val hasVisibilityOfEntity: (Entity) -> Boolean
 
-      if (perspectiveEntity != null) {
-         val sourceEntityContainerForPerspectiveEntity =
-            this.perspectiveEntityContainersByCharacterEntityId[perspectiveEntity.entityId]
+      val sourceEntityContainerForPerspectiveEntity = perspectiveEntity?.let {
+         this.perspectiveEntityContainersByCharacterEntityId[it.entityId]
+      }
 
+
+      if (perspectiveEntity != null) {
          if (sourceEntityContainerForPerspectiveEntity != null) {
             hasVisibilityOfEntity = { true }
             sourceEntityContainer = sourceEntityContainerForPerspectiveEntity
@@ -196,11 +198,15 @@ class GameSimulation(
          sourceEntityContainer = this.rootEntityContainer
       }
 
-      client.entityContainer.sync(
-         source = sourceEntityContainer,
-         hasVisibilityOfEntity = hasVisibilityOfEntity,
-         skipSendForSnapshot = skipSendForSnapshot
-      )
+      try {
+         client.entityContainer.sync(
+            source = sourceEntityContainer,
+            hasVisibilityOfEntity = hasVisibilityOfEntity,
+            skipSendForSnapshot = skipSendForSnapshot
+         )
+      } catch (exception: Exception) {
+         throw Exception("Exception while syncing client entityContainer (perspectiveEntity = ${perspectiveEntity?.entityId}, shouldSpectateByDefault = ${gameClientState.shouldSpectateByDefault}, sourceEntityContainerForPerspectiveEntity != null = ${sourceEntityContainerForPerspectiveEntity != null})", exception)
+      }
    }
 
    fun getActivityStreamEntity() =

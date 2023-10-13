@@ -201,7 +201,7 @@ class AgentJavaScriptApi(
       var didFinishTask = false
       var resultExceptionVar: Exception? = null
 
-      this.simulation.addRequestFromBackgroundThread(
+      this.simulation.runOnSimulationThread(
          task = {
             task()
             didFinishTask = true

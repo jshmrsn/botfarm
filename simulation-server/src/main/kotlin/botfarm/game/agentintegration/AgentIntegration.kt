@@ -562,7 +562,7 @@ class AgentIntegration(
             description: String,
             exception: Exception
          ) {
-            simulation.addRequestFromBackgroundThread(
+            simulation.runOnSimulationThread(
                task = {
                   this.pendingObservations.scriptExecutionErrors.add(
                      ScriptExecutionError(
@@ -656,7 +656,7 @@ class AgentIntegration(
                         this.runningScript = null
                         this.mostRecentCompletedScriptId = scriptId
 
-                        simulation.addRequestFromBackgroundThread {
+                        simulation.runOnSimulationThread {
                            simulation.addActivityStreamEntry(
                               title = "Finished executing script",
                               sourceEntityId = entity.entityId,
@@ -689,7 +689,7 @@ class AgentIntegration(
                            this.runningScript = null
                            this.mostRecentCompletedScriptId = scriptId
 
-                           simulation.addRequestFromBackgroundThread {
+                           simulation.runOnSimulationThread {
                               simulation.addActivityStreamEntry(
                                  title = "Script execution unwound",
                                  message = scriptId,

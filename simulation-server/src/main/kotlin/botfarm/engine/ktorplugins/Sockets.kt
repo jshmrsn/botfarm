@@ -2,17 +2,20 @@ package botfarm.engine.ktorplugins
 
 import botfarm.engine.simulation.ClientId
 import botfarm.engine.simulation.SimulationContainer
-import botfarmshared.engine.apidata.SimulationId
 import botfarm.engine.simulation.UserId
 import botfarm.engine.simulation.UserSecret
+import botfarmshared.engine.apidata.SimulationId
 import botfarmshared.misc.jsonNullToNull
-import io.ktor.server.application.*
-import io.ktor.server.routing.*
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.routing.routing
 import io.ktor.server.websocket.*
-import io.ktor.websocket.*
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
+import io.ktor.websocket.close
+import io.ktor.websocket.readText
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
-import java.lang.Exception
 import java.time.Duration
 
 @Serializable
@@ -85,14 +88,17 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                            simulationContainer.getSimulation(simulationId)
                         }
 
-
                         if (simulation != null) {
-                           simulation.handleNewWebSocketClient(
-                              clientId = connectionRequest.clientId,
-                              userId = connectionRequest.userId,
-                              userSecret = connectionRequest.userSecret,
-                              webSocketSession = session
-                           )
+                           simulation.runOnSimulationThreadAndWait(
+                              debugInfo = "Handle ConnectionRequest"
+                           ) {
+                              simulation.handleNewWebSocketClient(
+                                 clientId = connectionRequest.clientId,
+                                 userId = connectionRequest.userId,
+                                 userSecret = connectionRequest.userSecret,
+                                 webSocketSession = session
+                              )
+                           }
                         } else {
                            throw Exception("Simulation not found")
                         }
@@ -104,7 +110,7 @@ fun Application.configureSockets(simulationContainer: SimulationContainer) {
                         }
 
                         if (simulation != null) {
-                           synchronized(simulation) {
+                           simulation.runOnSimulationThreadAndWait {
                               simulation.handleWebSocketMessage(
                                  session = session,
                                  messageType = messageType,
