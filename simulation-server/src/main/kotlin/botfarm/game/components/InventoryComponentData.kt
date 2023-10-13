@@ -193,12 +193,12 @@ fun Entity.takeInventoryItem(
    return true
 }
 
-fun Entity.giveInventoryItem(itemConfigKey: String, amount: Int) {
+fun Entity.giveInventoryItem(itemConfig: ItemConfig, amount: Int) {
+
    if (amount == 0) {
       return
    }
 
-   val itemConfig = this.simulation.getConfig<ItemConfig>(itemConfigKey)
    val inventoryComponent = this.getComponent<InventoryComponentData>()
 
    if (amount < 0) {
@@ -214,12 +214,12 @@ fun Entity.giveInventoryItem(itemConfigKey: String, amount: Int) {
       val maxStackSize = itemConfig.storableConfig?.maxStackSize
 
       if (maxStackSize != null && maxStackSize <= 0) {
-         throw Exception("Invalid maxStackSize would cause infinite loop: $itemConfigKey ${maxStackSize}")
+         throw Exception("Invalid maxStackSize would cause infinite loop: ${itemConfig.key} $maxStackSize")
       }
 
       while (true) {
          val smallestNotFullExistingStack = itemStacks
-            .filter { it.itemConfigKey == itemConfigKey }
+            .filter { it.itemConfigKey == itemConfig.key }
             .filter { maxStackSize == null || it.amount < maxStackSize }
             .sortedBy { it.amount }
             .firstOrNull()
@@ -245,7 +245,7 @@ fun Entity.giveInventoryItem(itemConfigKey: String, amount: Int) {
             } else {
                itemStacks.add(
                   ItemStack(
-                     itemConfigKey = itemConfigKey,
+                     itemConfigKey = itemConfig.key,
                      amount = amountToAdd
                   )
                )
@@ -266,3 +266,8 @@ fun Entity.giveInventoryItem(itemConfigKey: String, amount: Int) {
       )
    }
 }
+
+fun Entity.giveInventoryItem(itemConfigKey: String, amount: Int) = this.giveInventoryItem(
+   itemConfig = this.simulation.getConfig<ItemConfig>(itemConfigKey),
+   amount = amount
+)

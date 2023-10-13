@@ -94,6 +94,10 @@ export function renderCharacter(
     }
   }
 
+  if (statusSuffix !== "") {
+    statusSuffix = " " + statusSuffix
+  }
+
   const userControlledComponent = entity.getComponentDataOrNull<UserControlledComponentData>("UserControlledComponentData")
 
   if (fogOfWarAlpha > 0.01) {
@@ -101,16 +105,19 @@ export function renderCharacter(
     const botColor = "#BCEBD2"
     const playerColor = "white"
 
+    const agentSuffix = agentControlledComponentData != null ? "\n<Agent>" : ""
+
     renderContext.renderText("character-name:" + entity.entityId, {
       depth: scene.calculateDepthForPosition(position),
       layer: scene.characterNameLayer,
-      text: (emoji != null ? (emoji + " ") : "") + characterComponentData.name + statusSuffix,
+      text: (emoji != null ? (emoji + " ") : "") + characterComponentData.name + statusSuffix + agentSuffix,
       strokeThickness: 3,
       fontSize: 20,
       useUiCamera: false,
       position: Vector2.plus(position, new Vector2(0, 15)),
       origin: new Vector2(0.5, 0),
       scale: Vector2.timesScalar(Vector2.one, 1.0 / mainCamera.zoom),
+      align: "center",
       color: entity.entityId === perspectiveEntity?.entityId
         ? perspectiveColor
         : userControlledComponent == null

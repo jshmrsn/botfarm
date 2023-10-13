@@ -978,14 +978,27 @@ class AgentIntegration(
 
       if (craftItem != null) {
          val itemConfigKey = craftItem.itemConfigKey
+         val itemConfig = simulation.getConfig<ItemConfig>(itemConfigKey)
 
          val craftItemResult = simulation.craftItem(
             entity = entity,
-            itemConfigKey = itemConfigKey
+            itemConfig = itemConfig
          )
 
          if (craftItemResult != GameSimulation.CraftItemResult.Success) {
-            simulation.broadcastAlertAsGameMessage("Unable to use craft item for agent ${itemConfigKey} ($debugInfo): actionUniqueId = $actionUniqueId, result ${craftItemResult.name}")
+            simulation.addActivityStreamEntry(
+               actionType = ActionType.Craft,
+               agentUniqueActionId = actionUniqueId,
+               actionResultType = when (craftItemResult) {
+                  GameSimulation.CraftItemResult.CannotAfford -> ActionResultType.CannotAfford
+                  GameSimulation.CraftItemResult.ItemCannotBeCrafted -> ActionResultType.ItemCannotBeCrafted
+                  else -> ActionResultType.Failed
+               },
+               sourceLocation = entity.resolvePosition(),
+               sourceEntityId = entity.entityId,
+               targetItemConfig = itemConfig,
+               onlyShowForPerspectiveEntity = true
+            )
          }
 
          addActionResult()
@@ -1009,6 +1022,7 @@ class AgentIntegration(
 
             simulation.addActivityStreamEntry(
                actionType = ActionType.UseEquippedTool,
+               agentUniqueActionId = actionUniqueId,
                actionResultType = when (result) {
                   GameSimulation.UseEquippedItemResult.UnexpectedEquippedItem -> ActionResultType.UnexpectedEquippedItem
                   GameSimulation.UseEquippedItemResult.NoActionForEquippedTool -> ActionResultType.NoActionForEquippedTool
@@ -1048,6 +1062,7 @@ class AgentIntegration(
                   GameSimulation.EquipItemResult.UnexpectedItemInStack -> ActionResultType.UnexpectedItemInStack
                   else -> ActionResultType.Failed
                },
+               agentUniqueActionId = actionUniqueId,
                sourceLocation = entity.resolvePosition(),
                sourceEntityId = entity.entityId,
                actionType = ActionType.EquipItem,
@@ -1135,6 +1150,7 @@ class AgentIntegration(
             if (destroyedTargetEntity != null) {
                simulation.addActivityStreamEntry(
                   actionType = expectedActionType,
+                  agentUniqueActionId = actionUniqueId,
                   actionResultType = ActionResultType.TargetNoLongerExists,
                   sourceEntityId = entity.entityId,
                   onlySourceEntityCanObserve = true,
@@ -1144,6 +1160,7 @@ class AgentIntegration(
             } else {
                simulation.addActivityStreamEntry(
                   actionType = expectedActionType,
+                  agentUniqueActionId = actionUniqueId,
                   actionResultType = ActionResultType.InvalidTargetEntityId,
                   sourceEntityId = entity.entityId,
                   onlySourceEntityCanObserve = true,
@@ -1162,6 +1179,7 @@ class AgentIntegration(
                if (actionResult != ActionResultType.Success) {
                   simulation.addActivityStreamEntry(
                      actionType = expectedActionType,
+                     agentUniqueActionId = actionUniqueId,
                      actionResultType = actionResult,
                      sourceEntityId = entity.entityId,
                      onlySourceEntityCanObserve = true,

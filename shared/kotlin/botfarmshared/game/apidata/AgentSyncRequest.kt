@@ -140,7 +140,9 @@ enum class ActionResultType {
    Obstructed,
    NoActionForEquippedTool,
    ItemNotInInventory,
-   UnexpectedAutoAction
+   UnexpectedAutoAction,
+   CannotAfford,
+   ItemCannotBeCrafted
 }
 
 

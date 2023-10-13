@@ -59,7 +59,7 @@ class AgentService(
          val agentServerEndpoint = this.agentServerEndpoint
 
 
-         val shouldLogAgentSyncRequests = true
+         val shouldLogAgentSyncRequests = false
 
          if (shouldLogAgentSyncRequests) {
             val jsonFormat = Json {

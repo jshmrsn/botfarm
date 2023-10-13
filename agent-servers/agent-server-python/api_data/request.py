@@ -47,6 +47,8 @@ class ActionResultType(Enum):
     NoActionForEquippedTool = "NoActionForEquippedTool"
     ItemNotInInventory = "ItemNotInInventory"
     UnexpectedAutoAction = "UnexpectedAutoAction"
+    CannotAfford = "CannotAfford"
+    ItemCannotBeCrafted = "ItemCannotBeCrafted"
 
 class ItemCollectionEntry(BaseModel):
     itemConfigKey: str

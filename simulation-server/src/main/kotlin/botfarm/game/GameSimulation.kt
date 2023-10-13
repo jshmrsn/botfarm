@@ -525,9 +525,15 @@ class GameSimulation(
    fun craftItem(
       entity: Entity,
       itemConfigKey: String
-   ): CraftItemResult {
-      val itemConfig = this.getConfig<ItemConfig>(itemConfigKey)
+   ) = this.craftItem(
+      entity = entity,
+      itemConfig = this.getConfig(itemConfigKey)
+   )
 
+   fun craftItem(
+      entity: Entity,
+      itemConfig: ItemConfig
+   ): CraftItemResult {
       val craftableConfig = itemConfig.craftableConfig
 
       if (craftableConfig == null) {
@@ -557,12 +563,12 @@ class GameSimulation(
 
       if (itemConfig.storableConfig != null) {
          entity.giveInventoryItem(
-            itemConfigKey = itemConfigKey,
+            itemConfig = itemConfig,
             amount = craftableConfig.craftingAmount
          )
       } else {
          this.spawnItems(
-            itemConfigKey = itemConfigKey,
+            itemConfig = itemConfig,
             baseLocation = entityPosition,
             quantity = RandomItemQuantity.amount(craftableConfig.craftingAmount),
             randomLocationScale = 30.0
