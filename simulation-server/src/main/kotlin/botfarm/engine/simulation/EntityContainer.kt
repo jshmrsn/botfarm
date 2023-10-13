@@ -5,7 +5,10 @@ import botfarmshared.misc.buildShortRandomIdentifier
 
 class EntityContainer(
    val simulation: Simulation,
-   val sendWebSocketMessage: ((WebSocketMessage) -> Unit)? = null
+   val onEntityCreated: ((Entity) -> Unit)? = null,
+   val onComponentChanged: ((EntityComponent<*>, previousData: Any, newData: Any) -> Unit)? = null,
+   val onEntityChanged: ((Entity) -> Unit)? = null,
+   val onEntityDestroyed: ((Entity) -> Unit)? = null
 ) {
    private val mutableEntities: MutableList<Entity> = mutableListOf()
    val entities: List<Entity> = this.mutableEntities
@@ -45,6 +48,8 @@ class EntityContainer(
                setEntityIsStale(thisEntity, false)
                notifySourceEntityIsVisible(thisEntity, true)
 
+               var anyComponentChanged = false
+
                sourceEntity.components.forEach { sourceComponent ->
                   val thisComponent = thisEntity.getComponent(sourceComponent.componentDataClass)
 
@@ -53,6 +58,15 @@ class EntityContainer(
 
                   if (thisData != sourceData) {
                      thisComponent.setData(sourceData)
+                     anyComponentChanged = true
+                  }
+               }
+
+               if (anyComponentChanged) {
+                  val onEntityChanged = this.onEntityChanged
+
+                  if (onEntityChanged != null) {
+                     onEntityChanged(thisEntity)
                   }
                }
             }
@@ -81,21 +95,16 @@ class EntityContainer(
       val entity = Entity(
          data = initialEntityData,
          simulation = this.simulation,
-         sendWebSocketMessage = this.sendWebSocketMessage
+         onComponentChanged = this.onComponentChanged
       )
 
       this.mutableEntities.add(entity)
       this.mutableEntitiesById[entityId] = entity
 
-      val sendWebSocketMessage = this.sendWebSocketMessage
+      val onEntityCreated = this.onEntityCreated
 
-      if (sendWebSocketMessage != null && !skipSendForSnapshot) {
-         sendWebSocketMessage(
-            EntityCreatedWebSocketMessage(
-               entityData = entity.buildData(),
-               simulationTime = simulation.simulationTime
-            )
-         )
+      if (onEntityCreated != null && !skipSendForSnapshot) {
+         onEntityCreated(entity)
       }
 
       return entity
@@ -107,15 +116,10 @@ class EntityContainer(
 
       this.mutableDestroyedEntitiesById[entity.entityId] = entity
 
-      val sendWebSocketMessage = this.sendWebSocketMessage
+      val onEntityDestroyed = this.onEntityDestroyed
 
-      if (sendWebSocketMessage != null) {
-         sendWebSocketMessage(
-            EntityDestroyedWebSocketMessage(
-               entityId = entity.entityId,
-               simulationTime = this.simulation.simulationTime
-            )
-         )
+      if (onEntityDestroyed != null) {
+         onEntityDestroyed(entity)
       }
    }
 }

@@ -57,6 +57,7 @@ class ScriptExecutionAgent(
       val newObservations = input.newObservations
 
       val newShortTermMemories = buildAutomaticShortTermMemoriesForNewObservations(
+         entitiesById = this.entitiesById,
          newObservations = newObservations,
          selfEntityId = input.selfInfo.entityInfoWrapper.entityInfo.entityId
       )
@@ -358,7 +359,7 @@ class ScriptExecutionAgent(
 
       newActivitySection.also {
          val headerDidFit =
-            it.addLine("## NEW_OBSERVED_ACTIVITY (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
+            it.addLine("## NEW_OBSERVED_ACTIVITY (THESE ARE WRITTEN FROM YOUR PERSPECTIVE) (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
 
          if (headerDidFit) {
             if (newActivity.isEmpty()) {
@@ -382,7 +383,7 @@ class ScriptExecutionAgent(
       if (previousActivity.isNotEmpty()) {
          recentActivitySection.also {
             val headerDidFit = it.addLine(
-               "## PREVIOUS_OBSERVED_ACTIVITY (YOU MAY HAVE ALREADY REACTED TO THESE)",
+               "## PREVIOUS_OBSERVED_ACTIVITY (THESE ARE WRITTEN FROM YOUR PERSPECTIVE) (YOU MAY HAVE ALREADY REACTED TO THESE)",
                optional = true
             ).didFit
 
@@ -467,8 +468,7 @@ class ScriptExecutionAgent(
 
       selfSection.addLine("const ${selfInfo.entityInfoWrapper.javaScriptVariableName}: Entity = ${selfInfo.entityInfoWrapper.serializedAsJavaScript}")
 
-
-      val groupedSortedEntities = getGroupedSortedObservedEntities(input, selfInfo)
+      val groupedSortedEntities = getGroupedSortedObservedEntities(this.entitiesById, selfInfo)
 
       uniqueEntityListSection.addLine("// Nearby entities in the world:")
       var nextEntityIndex = 0
@@ -550,7 +550,7 @@ class ScriptExecutionAgent(
       val text = builder.buildText()
       println("prompt: $text")
 
-      val promptSendTime = getCurrentUnixTimeSeconds()
+
       val promptId = buildShortRandomIdentifier()
 
       run {

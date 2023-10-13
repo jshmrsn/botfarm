@@ -14,6 +14,12 @@ interface Entity {
   readonly entityId: string
   readonly location: Vector2
 
+  // isVisible indicates if the entity currently visible (i.e. within observation distance)
+  readonly isVisible: Vector2
+
+  // isStale indicates that this entity's last seen location is again within observation distance, but it was observed the entity is no longer present in its last known location
+  readonly isStale: Vector2
+
   readonly character: CharacterComponent | null
   readonly damageable: DamageableComponent | null
   readonly itemOnGround: ItemOnGroundComponent | null

@@ -1,10 +1,8 @@
 package botfarmagent.game
 
 import botfarmagent.misc.LanguageModelService
-import botfarmshared.game.apidata.ActionResult
-import botfarmshared.game.apidata.AgentId
-import botfarmshared.game.apidata.AgentSyncInput
-import botfarmshared.game.apidata.AgentSyncOutput
+import botfarmshared.engine.apidata.EntityId
+import botfarmshared.game.apidata.*
 
 class AgentContext(
    val agentContainer: AgentContainer,
@@ -29,6 +27,8 @@ abstract class Agent(
    private val pendingOutputs = mutableListOf<AgentSyncOutput>()
    val receivedActionStartedIds = mutableSetOf<String>()
    val receivedActionResultById = mutableMapOf<String, ActionResult>()
+
+   val entitiesById = mutableMapOf<EntityId, EntityInfoWrapper>()
 
    fun addPendingInput(input: AgentSyncInput) {
       synchronized(this) {
@@ -58,6 +58,18 @@ abstract class Agent(
       this.mostRecentSyncInput = input
 
       val newObservations = input.newObservations
+
+      for (entityObservationEvent in newObservations.entityObservationEvents) {
+         if (entityObservationEvent.newEntity != null) {
+            val entityId = entityObservationEvent.newEntity.entityInfoWrapper.entityInfo.entityId
+            this.entitiesById[entityId] = entityObservationEvent.newEntity.entityInfoWrapper
+         } else if (entityObservationEvent.entityChanged != null) {
+            val entityId = entityObservationEvent.entityChanged.entityInfoWrapper.entityInfo.entityId
+            this.entitiesById[entityId] = entityObservationEvent.entityChanged.entityInfoWrapper
+         } else if (entityObservationEvent.entityDestroyed != null) {
+            this.entitiesById.remove(entityObservationEvent.entityDestroyed.entityId)
+         }
+      }
 
       newObservations.startedActionUniqueIds.forEach {
          println("Got action started: $it")

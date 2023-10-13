@@ -103,6 +103,7 @@ class GameSimulation(
    private val perspectiveEntityContainersByCharacterEntityId = mutableMapOf<EntityId, EntityContainer>()
    val pendingAutoInteractCallbackByEntityId = mutableMapOf<EntityId, (ActionResultType) -> Unit>()
 
+
    init {
       this.gameSimulationConfig = this.getConfig<GameSimulationConfig>(GameSimulationConfig.defaultKey)
       this.worldBounds = this.gameSimulationConfig.worldBounds
@@ -148,6 +149,10 @@ class GameSimulation(
 
          this.broadcastAlertAsGameMessage("Pausing AI because this simulation was not created by an admin")
       }
+   }
+
+   fun getPerspectiveEntityContainerForCharacterEntityId(characterEntityId: EntityId): EntityContainer? {
+      return this.perspectiveEntityContainersByCharacterEntityId[characterEntityId]
    }
 
    override fun syncClientEntityContainer(
@@ -642,7 +647,7 @@ class GameSimulation(
       return EquipItemResult.Success
    }
 
-   fun syncPerspectiveEntityContainer(
+   private fun syncPerspectiveEntityContainer(
       perspectiveEntity: Entity,
       perspectiveEntityContainer: EntityContainer
    ) {
@@ -1070,7 +1075,6 @@ class GameSimulation(
 
       val characterComponent = interactingEntity.getComponent<CharacterComponentData>()
       val characterComponentData = characterComponent.data
-      val interactingEntityName = characterComponentData.name
 
       val spawnItemOnUseConfig = equippedToolItemConfig.spawnItemOnUseConfig
       if (spawnItemOnUseConfig != null) {
@@ -1114,18 +1118,14 @@ class GameSimulation(
                   randomLocationScale = spawnItemOnUseConfig.randomDistanceScale
                )
 
-               val spawnedItem = spawnedItems.firstOrNull()
-
                this.addActivityStreamEntry(
                   actionType = ActionType.UseEquippedTool,
-
-                  sourceLocation = entityLocation,
-                  sourceEntityId = interactingEntity.entityId,
+                  actionResultType = ActionResultType.Success,
 
                   targetItemConfig = equippedToolItemConfig,
 
-                  resultItemConfig = spawnItemConfig,
-                  resultEntityId = spawnedItem?.entityId,
+                  sourceLocation = entityLocation,
+                  sourceEntityId = interactingEntity.entityId,
 
                   spawnedItems = spawnedItems.map {
                      SpawnedItemEntity(
@@ -1307,7 +1307,10 @@ class GameSimulation(
                      actionType = ActionType.PlaceGrowableInGrower,
                      actionResultType = ActionResultType.Success,
 
-                     targetItemConfig = equippedToolItemConfig
+                     actionItemConfig = equippedToolItemConfig,
+
+                     targetItemConfig = targetItemConfig,
+                     targetEntityId = targetEntity.entityId
                   )
 
                   growerComponent.modifyData {
@@ -1455,8 +1458,6 @@ class GameSimulation(
       )
 
       targetEntity.destroy()
-
-      val characterComponentData = pickingUpEntity.getComponentOrNull<CharacterComponentData>()?.data
 
       this.applyPerformedAction(
          entity = pickingUpEntity,

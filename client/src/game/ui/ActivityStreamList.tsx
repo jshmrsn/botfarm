@@ -249,6 +249,14 @@ export function ActivityStreamList(props: {
       keySuffix: "action"
     })
 
+    const spawnedItemInfos = entry.spawnedItems != null ? entry.spawnedItems.map((spawnedItem, spawnedItemIndex) => {
+      return resolveInfo({
+        entityId: spawnedItem.entityId,
+        itemConfigKey: spawnedItem.itemConfigKey,
+        keySuffix: "spawned-item:" + spawnedItemIndex
+      })
+    }) : []
+
     function buildMessageBubbleDiv(message: string | null): ReactElement | null {
       if (message == null) {
         return null
@@ -296,7 +304,7 @@ export function ActivityStreamList(props: {
       } else if (actionType === ActionTypes.UseToolToDamageEntity) {
         actionTitle = `${sourceInfo.nameOrYou} damage a ${targetInfo.name} using a ${actionInfo.name}`
       } else if (actionType === ActionTypes.PlaceGrowableInGrower) {
-        actionTitle = `${sourceInfo.nameOrYou} planted ${resultInfo.name} using a ${actionInfo.name}`
+        actionTitle = `${sourceInfo.nameOrYou} planted ${actionInfo.name} in a ${targetInfo.name}`
       } else if (actionType === ActionTypes.DropItem) {
         actionTitle = `${sourceInfo.nameOrYou} dropped a ${targetInfo.name}`
       } else if (actionType === ActionTypes.PickUpItem) {
@@ -304,13 +312,8 @@ export function ActivityStreamList(props: {
       } else if (actionType === ActionTypes.UseEquippedTool) {
         actionTitle = `${sourceInfo.nameOrYou} used a ${targetInfo.name}`
 
-        if (entry.spawnedItems != null && entry.spawnedItems.length > 0) {
-          const spawnedItemInfo = resolveInfo({
-            entityId: entry.spawnedItems[0].entityId,
-            itemConfigKey: entry.spawnedItems[0].itemConfigKey,
-            keySuffix: "first-spawned-item"
-          })
-
+        if (spawnedItemInfos.length > 0) {
+          const spawnedItemInfo = spawnedItemInfos[0]
           actionTitle += ` to create a ${spawnedItemInfo.name}`
         }
       } else if (actionType === ActionTypes.EquipItem) {

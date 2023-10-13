@@ -3,12 +3,14 @@ package botfarmagent.game.common
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.ActionResultType
 import botfarmshared.game.apidata.ActionType
+import botfarmshared.game.apidata.EntityInfoWrapper
 import botfarmshared.game.apidata.Observations
 
 val String.quotedAndEscaped: String
    get() = "\"${this.replace("\"", "")}\""
 
 fun buildAutomaticShortTermMemoriesForNewObservations(
+   entitiesById: Map<EntityId, EntityInfoWrapper>,
    newObservations: Observations,
    selfEntityId: EntityId
 ): List<AutomaticShortTermMemory> {
@@ -17,15 +19,15 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
          return itemConfigKey ?: "?"
       }
 
-      if (itemConfigKey != null) {
-         return "'${itemConfigKey}' item entity '${entityId.value}'"
+      return if (itemConfigKey != null) {
+         "'${itemConfigKey}' (${entityId.value})"
       } else {
-         val entity = newObservations.entitiesById[entityId]
+         val entity = entitiesById[entityId]
 
          if (entity != null && entity.entityInfo.characterInfo != null) {
-            return "human named '${entity.entityInfo.characterInfo.name}' '${entityId.value}'"
+            "human named '${entity.entityInfo.characterInfo.name}' (${entityId.value})"
          } else {
-            return "entity '${entityId.value}'"
+            "entity (${entityId.value})"
          }
       }
    }
@@ -73,6 +75,19 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                } else {
                   "I attempted to pick up an entity item '${entry.targetItemConfigKey}' '${entry.targetEntityId?.value}', but got failure ${entry.actionResultType?.name}"
                }
+            } else if (entry.actionType == ActionType.PlaceGrowableInGrower) {
+               if (entry.actionResultType == ActionResultType.Success) {
+                  val shared =
+                     "a ${entry.actionItemConfigKey} inventory item in a ${getNameForEntityId(entry.targetEntityId, entry.targetItemConfigKey)}"
+
+                  if (entry.sourceEntityId == selfEntityId) {
+                     "I planted $shared"
+                  } else {
+                     "I saw ${getNameForEntityId(entry.sourceEntityId, entry.sourceItemConfigKey)} plant $shared"
+                  }
+               } else {
+                  "I attempted to plant a ${entry.actionItemConfigKey} inventory item in a ${getNameForEntityId(entry.targetEntityId, entry.targetItemConfigKey)}, but got failure ${entry.actionResultType?.name}"
+               }
             } else if (entry.actionType == ActionType.UseEquippedTool) {
                if (entry.actionResultType == ActionResultType.Success) {
                   val spawnedItemsString = (entry.spawnedItems ?: listOf()).map {
@@ -80,7 +95,7 @@ fun buildAutomaticShortTermMemoriesForNewObservations(
                   }.joinToString(", ")
 
                   val shared =
-                     "an ${entry.targetItemConfigKey} inventory item to create entity items: $spawnedItemsString"
+                     "a ${entry.targetItemConfigKey} inventory item to create entity items: $spawnedItemsString"
 
                   if (entry.sourceEntityId == selfEntityId) {
                      "I used $shared"

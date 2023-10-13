@@ -1,3 +1,5 @@
+from turtle import isvisible
+from xmlrpc.client import Boolean
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from enum import Enum
@@ -16,9 +18,10 @@ SimulationId = str
 
 class ActionType(Enum):
     UseToolToDamageEntity = "UseToolToDamageEntity"
+    UseToolToKillEntity = "UseToolToKillEntity"
     PlaceGrowableInGrower = "PlaceGrowableInGrower"
     DropItem = "DropItem"
-    PickupItem = "PickupItem"
+    PickUpItem = "PickUpItem"
     UseEquippedTool = "UseEquippedTool"
     EquipItem = "EquipItem"
     UnequipItem = "UnequipItem"
@@ -111,9 +114,15 @@ class EntityInfo(BaseModel):
     damageableInfo: Optional[DamageableEntityInfo] = None
     characterInfo: Optional[CharacterEntityInfo] = None
     growerInfo: Optional[GrowerEntityInfo] = None
+    isStale: bool
+    isVisible: bool
+
+class EntityInfoWrapper(BaseModel):
+    entityInfo: EntityInfo
+    serializedAsJavaScript: str
+    javaScriptVariableName: str
 
 class SpawnedItemEntity(BaseModel):
-    name: str
     amount: int
     itemConfigKey: str
     entityId: EntityId
@@ -123,32 +132,23 @@ class ActivityStreamEntry(BaseModel):
     title: Optional[str] = None
     message: Optional[str] = None
     longMessage: Optional[str] = None
+    shouldReportToAi: bool
+    agentReason: Optional[str] = None
+    agentUniqueActionId: Optional[str] = None
     actionType: Optional[ActionType] = None
     actionResultType: Optional[ActionResultType] = None
-    actionIconPath: Optional[str] = None
-    actionItemName: Optional[str] = None
     actionItemConfigKey: Optional[str] = None
-    shouldReportToAi: bool = True
+    sourceItemConfigKey: Optional[str] = None
     sourceLocation: Optional[Vector2] = None
-    sourceName: Optional[str] = None
-    sourceIconPath: Optional[str] = None
     sourceEntityId: Optional[EntityId] = None
-    targetIconPath: Optional[str] = None
     targetEntityId: Optional[EntityId] = None
-    targetName: Optional[str] = None
-    targetConfigKey: Optional[str] = None
-    resultName: Optional[str] = None
-    resultIconPath: Optional[str] = None
+    targetItemConfigKey: Optional[str] = None
+    resultItemConfigKey: Optional[str] = None
     resultEntityId: Optional[EntityId] = None
-    agentReason: Optional[str] = None
     onlyShowForPerspectiveEntity: bool
     observedByEntityIds: Optional[List[EntityId]] = None
     spawnedItems: Optional[List[SpawnedItemEntity]] = None
 
-class EntityInfoWrapper(BaseModel):
-    entityInfo: EntityInfo
-    serializedAsJavaScript: str
-    javaScriptVariableName: str
 
 class ScriptExecutionError(BaseModel):
     error: str
@@ -157,10 +157,23 @@ class ScriptExecutionError(BaseModel):
 class ActionResult(BaseModel):
     actionUniqueId: str
 
+class ObservedNewEntity(BaseModel):
+    entityInfoWrapper: EntityInfoWrapper
+
+class ObservedEntityChanged(BaseModel):
+    entityInfoWrapper: EntityInfoWrapper
+
+class ObservedEntityDestroyed(BaseModel):
+    entityId: EntityId
+
+class EntityObservationEvent(BaseModel):
+    newEntity: Optional[ObservedNewEntity] = None
+    entityChanged: Optional[ObservedEntityChanged] = None
+    entityDestroyed: Optional[ObservedEntityDestroyed] = None
 
 class Observations(BaseModel):
+    entityObservationEvents: List[EntityObservationEvent]
     scriptExecutionErrors: List[ScriptExecutionError]
-    entitiesById: Dict[EntityId, EntityInfoWrapper]
     movementRecords: List[MovementRecord]
     activityStreamEntries: List[ActivityStreamEntry]
     actionResults: List[ActionResult]

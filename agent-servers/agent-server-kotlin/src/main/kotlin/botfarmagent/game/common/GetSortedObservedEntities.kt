@@ -1,5 +1,6 @@
 package botfarmagent.game.common
 
+import botfarmshared.engine.apidata.EntityId
 import botfarmshared.game.apidata.AgentSyncInput
 import botfarmshared.game.apidata.EntityInfo
 import botfarmshared.game.apidata.EntityInfoWrapper
@@ -11,7 +12,7 @@ class SortedEntitiesResult(
 )
 
 fun getGroupedSortedObservedEntities(
-   inputs: AgentSyncInput,
+   entitiesById: Map<EntityId, EntityInfoWrapper>,
    selfInfo: SelfInfo
 ): SortedEntitiesResult {
    // jshmrsn: Sort order:
@@ -19,7 +20,7 @@ fun getGroupedSortedObservedEntities(
    // Nearest entity of each item type, by distance
    // All other entities, by distance
 
-   val entitiesSortedByDistance = inputs.newObservations.entitiesById.values
+   val entitiesSortedByDistance = entitiesById.values
       .sortedBy {
          it.entityInfo.location.distance(selfInfo.entityInfoWrapper.entityInfo.location)
       }
@@ -68,11 +69,11 @@ fun getGroupedSortedObservedEntities(
 }
 
 fun getSortedObservedEntities(
-   inputs: AgentSyncInput,
+   entitiesById: Map<EntityId, EntityInfoWrapper>,
    selfInfo: SelfInfo
 ): List<EntityInfoWrapper> {
    val grouped = getGroupedSortedObservedEntities(
-      inputs = inputs,
+      entitiesById = entitiesById,
       selfInfo = selfInfo
    )
 

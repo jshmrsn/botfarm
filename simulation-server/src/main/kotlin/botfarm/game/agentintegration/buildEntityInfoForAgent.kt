@@ -1,5 +1,6 @@
 package botfarm.game.agentintegration
 
+import botfarm.common.FogOfWarComponentData
 import botfarm.common.resolvePosition
 import botfarmshared.game.apidata.*
 import botfarm.engine.simulation.Entity
@@ -91,6 +92,8 @@ fun buildEntityInfoForAgent(
       growerEntityInfo = null
    }
 
+   val fogOfWarComponentData = entity.getComponent<FogOfWarComponentData>().data
+
    return EntityInfo(
       observedAtSimulationTime = simulationTime,
       entityId = entity.entityId,
@@ -98,6 +101,8 @@ fun buildEntityInfoForAgent(
       itemInfo = itemEntityInfo,
       characterInfo = characterEntityInfo,
       growerInfo = growerEntityInfo,
-      damageableInfo = damageableEntityInfo
+      damageableInfo = damageableEntityInfo,
+      isVisible = fogOfWarComponentData.isVisible,
+      isStale = fogOfWarComponentData.isStale
    )
 }

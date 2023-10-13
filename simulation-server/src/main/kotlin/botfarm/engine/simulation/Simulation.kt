@@ -16,6 +16,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.io.path.Path
@@ -78,6 +79,10 @@ class SimulationContext(
    val shouldMinimizeSleep: Boolean
 )
 
+val excludeDefaultsJsonFormat = Json {
+   encodeDefaults = false
+}
+
 open class Simulation(
    val context: SimulationContext,
    val systems: Systems = Systems.default,
@@ -114,8 +119,37 @@ open class Simulation(
 
    val rootEntityContainer = EntityContainer(
       simulation = this,
-      sendWebSocketMessage = {
-         this.recordMessageForReplay(it)
+      onEntityCreated = { entity ->
+         this.recordMessageForReplay(EntityCreatedWebSocketMessage(
+            entityData = entity.buildData(),
+            simulationTime = this.simulationTime
+         ))
+      },
+      onComponentChanged = { component, previousData, newData ->
+         val diff = DynamicSerialization.serializeDiff(
+            previous = previousData,
+            new = newData
+         )
+
+         if (diff != null) {
+            // jshmrsn: Pre-serialize so we can exclude defaults for less network data
+            val serializedDiff = excludeDefaultsJsonFormat.encodeToJsonElement(diff)
+
+            this.recordMessageForReplay(
+               EntityComponentWebSocketMessage(
+                  entityId = component.entity.entityId,
+                  componentTypeName = DynamicSerialization.getSerializationNameForClass(component.componentDataClass),
+                  diff = serializedDiff,
+                  simulationTime = this.simulationTime
+               )
+            )
+         }
+      },
+      onEntityDestroyed = { entity ->
+         this.recordMessageForReplay(EntityDestroyedWebSocketMessage(
+            entityId = entity.entityId,
+            simulationTime = this.simulationTime
+         ))
       }
    )
 

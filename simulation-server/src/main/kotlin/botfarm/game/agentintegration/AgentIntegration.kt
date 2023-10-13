@@ -4,10 +4,7 @@ import botfarm.common.PositionComponentData
 import botfarm.common.isMoving
 import botfarm.common.resolvePosition
 import botfarm.engine.ktorplugins.ServerEnvironmentGlobals
-import botfarm.engine.simulation.AlertMode
-import botfarm.engine.simulation.CoroutineSystemContext
-import botfarm.engine.simulation.Entity
-import botfarm.engine.simulation.EntityComponent
+import botfarm.engine.simulation.*
 import botfarm.game.GameSimulation
 import botfarm.game.components.*
 import botfarm.game.config.EquipmentSlot
@@ -25,6 +22,7 @@ import kotlinx.serialization.json.Json
 import org.graalvm.polyglot.PolyglotException
 import org.graalvm.polyglot.Source
 import kotlin.concurrent.thread
+
 
 class AgentIntegration(
    val simulation: GameSimulation,
@@ -50,6 +48,90 @@ class AgentIntegration(
    private val pendingActions = mutableListOf<Action>()
 
    private val agentJavaScriptApi = AgentJavaScriptApi(this, shouldMinimizeSleep = this.fastJavaScriptThreadSleep)
+
+   private fun buildEntityInfoWrapper(entity: Entity): EntityInfoWrapper {
+      val entityInfo = buildEntityInfoForAgent(
+         entity = entity,
+         simulationTime = this.simulation.simulationTime
+      )
+
+      val variableTypeName = if (entityInfo.characterInfo != null) {
+         "character"
+      } else if (entityInfo.itemInfo != null) {
+         entityInfo.itemInfo.itemConfigKey.replace("-", "_")
+      } else {
+         ""
+      }
+
+      val entityVariableName = "${variableTypeName}_entity_${entityInfo.entityId.value}"
+
+      return EntityInfoWrapper(
+         serializedAsJavaScript = JavaScriptCodeSerialization.serialize(
+            JsEntity(
+               api = null,
+               entityInfo = entityInfo
+            )
+         ),
+         javaScriptVariableName = entityVariableName,
+         entityInfo = entityInfo
+      )
+   }
+
+   private val cachedEntityInfoWrappersByEntityId = mutableMapOf<EntityId, EntityInfoWrapper>()
+
+   val entityContainer = EntityContainer(
+      simulation = this.simulation,
+      onEntityCreated = { entity ->
+         if (entity.getComponentOrNull<PositionComponentData>() != null &&
+            entity.entityId != this.entity.entityId) {
+            val entityInfoWrapper = this.buildEntityInfoWrapper(
+               entity = entity
+            )
+
+            this.cachedEntityInfoWrappersByEntityId[entity.entityId] = entityInfoWrapper
+
+            this.pendingObservations.entityObservationEvents.add(
+               EntityObservationEvent(
+                  newEntity = ObservedNewEntity(
+                     entityInfoWrapper = entityInfoWrapper
+                  )
+               )
+            )
+         }
+      },
+      onEntityChanged = { entity ->
+         if (entity.getComponentOrNull<PositionComponentData>() != null &&
+            entity.entityId != this.entity.entityId) {
+            val entityInfoWrapper = this.buildEntityInfoWrapper(
+               entity = entity
+            )
+
+            this.cachedEntityInfoWrappersByEntityId[entity.entityId] = entityInfoWrapper
+
+            this.pendingObservations.entityObservationEvents.add(
+               EntityObservationEvent(
+                  entityChanged = ObservedEntityChanged(
+                     entityInfoWrapper = entityInfoWrapper
+                  )
+               )
+            )
+         }
+      },
+      onEntityDestroyed = { entity ->
+         if (entity.getComponentOrNull<PositionComponentData>() != null &&
+            entity.entityId != this.entity.entityId) {
+            this.cachedEntityInfoWrappersByEntityId.remove(entity.entityId)
+
+            this.pendingObservations.entityObservationEvents.add(
+               EntityObservationEvent(
+                  entityDestroyed = ObservedEntityDestroyed(
+                     entityId = entity.entityId
+                  )
+               )
+            )
+         }
+      }
+   )
 
    class RunningScript(
       val thread: Thread,
@@ -153,6 +235,36 @@ class AgentIntegration(
       }
    }
 
+   fun recordDynamicEntityChanges() {
+      // jshmrsn: This handles the special case that entity resolved locations change over time via the
+      // PositionComponent's animation functionality, even if the underlying component data hasn't changed
+      for (cachedEntityInfoWrapper in this.cachedEntityInfoWrappersByEntityId.values) {
+         if (cachedEntityInfoWrapper.entityInfo.isVisible) {
+            val knownEntity = this.entityContainer.entitiesById[cachedEntityInfoWrapper.entityInfo.entityId]
+
+            if (knownEntity != null) {
+               val entityLocation = knownEntity.resolvePosition()
+
+               if (entityLocation.distance(cachedEntityInfoWrapper.entityInfo.location) > 0.01) {
+                  val updatedEntityInfoWrapper = this.buildEntityInfoWrapper(
+                     entity = knownEntity
+                  )
+
+                  this.cachedEntityInfoWrappersByEntityId[knownEntity.entityId] = updatedEntityInfoWrapper
+
+                  this.pendingObservations.entityObservationEvents.add(
+                     EntityObservationEvent(
+                        entityChanged = ObservedEntityChanged(
+                           entityInfoWrapper = updatedEntityInfoWrapper
+                        )
+                     )
+                  )
+               }
+            }
+         }
+      }
+   }
+
    suspend fun syncWithAgent(
       coroutineSystemContext: CoroutineSystemContext,
       simulation: GameSimulation,
@@ -161,14 +273,24 @@ class AgentIntegration(
       val entity = this.entity
       val agentId = this.agentId
 
+      val perspectiveEntityContainer = simulation.getPerspectiveEntityContainerForCharacterEntityId(
+         characterEntityId = entity.entityId
+      ) ?: throw Exception("No perspective entity container for agent's character entity")
+
+      this.entityContainer.sync(
+         source = perspectiveEntityContainer,
+         hasVisibilityOfEntity = {
+            true
+         }
+      )
+
+      this.recordDynamicEntityChanges()
+
       val agentServerIntegration = simulation.agentService
 
       val simulationTime = simulation.getCurrentSimulationTime()
 
       coroutineSystemContext.unwindIfNeeded()
-
-      val newObservationsForInput = this.pendingObservations.toObservations()
-      this.pendingObservations = PendingObservations()
 
       val agentControlledComponent = this.agentControlledComponent
 
@@ -182,6 +304,9 @@ class AgentIntegration(
 
          return
       }
+
+      val newObservationsForInput = this.pendingObservations.toObservations()
+      this.pendingObservations = PendingObservations()
 
       val selfEntityInfo = buildEntityInfoForAgent(
          entity = entity,
@@ -362,33 +487,10 @@ class AgentIntegration(
    fun recordObservationsForAgent() {
       val entity = this.entity
       val simulation = this.simulation
-      val characterComponent = this.characterComponent
-
-      val positionComponent = entity.getComponent<PositionComponentData>()
 
       val simulationTimeForStep: Double
 
-      val observationRadius = characterComponent.data.observationRadius
-
       simulationTimeForStep = simulation.getCurrentSimulationTime()
-      val currentLocation = positionComponent.data.positionAnimation.resolve(simulationTimeForStep)
-
-      simulation.entities.forEach { otherEntity ->
-         val otherPositionComponent = otherEntity.getComponentOrNull<PositionComponentData>()
-
-         if (otherEntity != entity && otherPositionComponent != null) {
-            val otherPosition = otherPositionComponent.data.positionAnimation.resolve(simulationTimeForStep)
-
-            val distance = otherPosition.distance(currentLocation)
-
-            if (distance <= observationRadius) {
-               this.pendingObservations.entitiesById[otherEntity.entityId] = buildEntityInfoForAgent(
-                  entity = otherEntity,
-                  simulationTime = simulationTimeForStep
-               )
-            }
-         }
-      }
 
       val activityStream = simulation.getActivityStream()
 
@@ -403,7 +505,6 @@ class AgentIntegration(
 
       this.pendingObservations.activityStreamEntries.addAll(newActivityStreamEntries.map {
 //         println("Adding observed activity stream entry: " + it.actionType?.name)
-
          it.copy(
             // jshmrsn: Agents should not have awareness of internal observation system
             // Ideally, this would be a different class to explicitly omit this field
@@ -633,11 +734,11 @@ class AgentIntegration(
 
                bindings.putMember("self", selfJsEntity)
 
-               for (entityInfoWrapper in agentSyncInput.newObservations.entitiesById.values) {
-                  val entityInfo = entityInfoWrapper.entityInfo
-                  val jsEntity = agentJavaScriptApi.buildJsEntity(entityInfo)
+               for (cachedEntityInfoWrapper in this.cachedEntityInfoWrappersByEntityId.values) {
 
-                  val entityVariableName = entityInfoWrapper.javaScriptVariableName
+                  val entityInfo = cachedEntityInfoWrapper.entityInfo
+                  val jsEntity = agentJavaScriptApi.buildJsEntity(entityInfo)
+                  val entityVariableName = cachedEntityInfoWrapper.javaScriptVariableName
 
                   bindings.putMember(entityVariableName, jsEntity)
                }

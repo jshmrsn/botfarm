@@ -56,6 +56,7 @@ class JsonActionAgent(
       val newObservations = input.newObservations
 
       val newShortTermMemories = buildAutomaticShortTermMemoriesForNewObservations(
+         entitiesById = this.entitiesById,
          newObservations = newObservations,
          selfEntityId = input.selfInfo.entityInfoWrapper.entityInfo.entityId
       )
@@ -302,7 +303,7 @@ class JsonActionAgent(
       builder.addSection("observedEntities", reserveTokens = 1000) {
          it.addLine("## OBSERVED_ENTITIES")
 
-         val sortedEntities = getSortedObservedEntities(input, selfInfo)
+         val sortedEntities = getSortedObservedEntities(this.entitiesById, selfInfo)
 
          var entityIndex = 0
          for (entityInfoWrapper in sortedEntities) {
@@ -364,7 +365,7 @@ class JsonActionAgent(
 
       newActivitySection.also {
          val headerDidFit =
-            it.addLine("## NEW_OBSERVED_ACTIVITY (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
+            it.addLine("## NEW_OBSERVED_ACTIVITY (THESE ARE WRITTEN FROM YOUR PERSPECTIVE) (YOU SHOULD CONSIDER REACTING TO THIS)", optional = true).didFit
 
          if (headerDidFit) {
             if (newActivity.isEmpty()) {
@@ -388,7 +389,7 @@ class JsonActionAgent(
       if (previousActivity.isNotEmpty()) {
          recentActivitySection.also {
             val headerDidFit = it.addLine(
-               "## PREVIOUS_OBSERVED_ACTIVITY (YOU MAY HAVE ALREADY REACTED TO THESE)",
+               "## PREVIOUS_OBSERVED_ACTIVITY (THESE ARE WRITTEN FROM YOUR PERSPECTIVE) (YOU MAY HAVE ALREADY REACTED TO THESE)",
                optional = true
             ).didFit
 

@@ -6,7 +6,7 @@ import kotlin.reflect.full.isSubclassOf
 class Entity(
    data: EntityData,
    val simulation: Simulation,
-   val sendWebSocketMessage: ((WebSocketMessage) -> Unit)?
+   val onComponentChanged: ((EntityComponent<*>, previousData: Any, newData: Any) -> Unit)?
 ) {
    val entityId = data.entityId
 
@@ -24,7 +24,7 @@ class Entity(
          data = it,
          entity = this,
          componentDataClass = it.javaClass.kotlin,
-         sendWebSocketMessage = this.sendWebSocketMessage
+         onComponentChanged = this.onComponentChanged
       )
    }.toMutableList()
 

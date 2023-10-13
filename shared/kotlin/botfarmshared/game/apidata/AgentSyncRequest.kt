@@ -38,17 +38,6 @@ class ItemCollection(
 )
 
 @Serializable
-class ObservedSpokenMessage(
-   val entityId: EntityId,
-   val messageId: String,
-   val characterName: String,
-   val message: String,
-   val time: Double,
-   val speakerLocation: Vector2,
-   val myLocation: Vector2
-)
-
-@Serializable
 class MovementRecord(
    val startedAtTime: Double,
    val endPoint: Vector2,
@@ -109,6 +98,10 @@ class EntityInfo(
    val observedAtSimulationTime: Double,
    val entityId: EntityId,
    val location: Vector2,
+   // isVisible indicates if the entity currently visible (i.e. within observation distance)
+   val isVisible: Boolean,
+   // isStale indicates that this entity's last seen location is again within observation distance, but it was observed the entity is no longer present in its last known location
+   val isStale: Boolean,
    val itemInfo: ItemEntityInfo?,
    val damageableInfo: DamageableEntityInfo?,
    val characterInfo: CharacterEntityInfo?,
@@ -204,8 +197,8 @@ class ActionResult(
 
 @Serializable
 class Observations(
+   val entityObservationEvents: List<EntityObservationEvent>,
    val scriptExecutionErrors: List<ScriptExecutionError>,
-   val entitiesById: Map<EntityId, EntityInfoWrapper>,
    val movementRecords: List<MovementRecord>,
    val activityStreamEntries: List<ActivityStreamEntry>,
    val actionResults: List<ActionResult>,
@@ -282,4 +275,26 @@ class GameConstants(
 class GameSimulationInfo(
    val worldBounds: Vector2,
    val craftingRecipeInfoWrappers: List<CraftingRecipeInfoWrapper>
+)
+
+@Serializable
+class ObservedNewEntity(
+   val entityInfoWrapper: EntityInfoWrapper
+)
+
+@Serializable
+class ObservedEntityChanged(
+   val entityInfoWrapper: EntityInfoWrapper
+)
+
+@Serializable
+class ObservedEntityDestroyed(
+   val entityId: EntityId
+)
+
+@Serializable
+class EntityObservationEvent(
+   val newEntity: ObservedNewEntity? = null,
+   val entityChanged: ObservedEntityChanged? = null,
+   val entityDestroyed: ObservedEntityDestroyed? = null
 )

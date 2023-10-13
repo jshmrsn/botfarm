@@ -19,6 +19,14 @@ class JsEntity(
 
    @HostAccess.Export
    @JvmField
+   val isVisible = this.entityInfo.isVisible
+
+   @HostAccess.Export
+   @JvmField
+   val isStale = this.entityInfo.isStale
+
+   @HostAccess.Export
+   @JvmField
    val grower: JsGrowerComponent? = this.entityInfo.growerInfo?.let { growerInfo ->
       JsGrowerComponent(
          api = this.api,

@@ -5,15 +5,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.reflect.KClass
 
-private val excludeDefaultsJsonFormat = Json {
-   encodeDefaults = false
-}
 
 class EntityComponent<COMPONENT_DATA : EntityComponentData>(
    data: COMPONENT_DATA,
    val componentDataClass: KClass<COMPONENT_DATA>,
    val entity: Entity,
-   val sendWebSocketMessage: ((WebSocketMessage) -> Unit)?
+   val onComponentChanged: ((EntityComponent<*>, previousData: Any, newData: Any) -> Unit)?
 ) {
    val simulation = this.entity.simulation
    private var previousSentData = data
@@ -32,28 +29,10 @@ class EntityComponent<COMPONENT_DATA : EntityComponentData>(
       @Suppress("UNCHECKED_CAST")
       this.data = data as COMPONENT_DATA
 
-      val sendWebSocketMessage = this.sendWebSocketMessage
+      val onComponentChanged = this.onComponentChanged
 
-      if (sendWebSocketMessage != null) {
-         val diff = DynamicSerialization.serializeDiff(
-            previous = this.previousSentData,
-            new = data
-         )
-
-         if (diff != null) {
-//         println("Broadcasting entity component message: entityId = $entityId, ${componentData::class}")
-            // jshmrsn: Pre-serialize so we can exclude defaults for less network data
-            val serializedDiff = excludeDefaultsJsonFormat.encodeToJsonElement(diff)
-
-            sendWebSocketMessage(
-               EntityComponentWebSocketMessage(
-                  entityId = this.entity.entityId,
-                  componentTypeName = DynamicSerialization.getSerializationNameForClass(this.componentDataClass),
-                  diff = serializedDiff,
-                  simulationTime = this.simulation.simulationTime
-               )
-            )
-         }
+      if (onComponentChanged != null) {
+         onComponentChanged(this, this.previousSentData, data)
       }
 
       this.previousSentData = data
