@@ -8,6 +8,8 @@
 ## Mission
 Provide a game simulation platform that can be easily used to embody generative agents built with any technology stack via an API.
 
+https://github.com/jshmrsn/botfarm/assets/753364/7ba0415c-d8ac-43ef-887d-e39f475e27db
+
 ## Long-Term Research Motivation
 Imagine a simulation where characters need both food and shelter to survive, but individual characters are only able to specialize in the production of a certain subset of goods.
 
@@ -22,10 +24,7 @@ Given service costs, rate limits, and generation speeds, is it practical to run 
 ## Demo
 You can [play in the browser](https://botfarm.app) (with AI agents disabled due to high API costs).
 
-You can also [watch a replay in the browser](https://botfarm.app/simulation/744F5DA1) of an example interaction with a GPT-4 powered agent (Joe is an agent in this replay).
-
-
-![Demo Screenshot](https://github.com/jshmrsn/botfarm/blob/main/docs/screenshots/screenshot-1.png?raw=true)
+You can also [watch a replay in the browser](https://botfarm.app/simulation/4F29D45F) of an example interaction with a GPT-4 powered agent (Joe is an agent in this replay).
 
 ## How to Play
 See [How to Play](docs/how-to-play.md)
