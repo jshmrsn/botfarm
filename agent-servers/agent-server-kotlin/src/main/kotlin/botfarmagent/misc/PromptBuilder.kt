@@ -268,7 +268,7 @@ class PromptBuilder(
          didFit = fits,
          previousTokenCount = currentRootRecursiveTokenCount,
          addingTokenCount = addingTokenCount,
-         reservedOutputTokens = reservedOutputTokens,
+         reservedOutputTokens = this.reservedOutputTokens,
          previousAvailableTokens = previousAvailableTokens,
          newAvailableTokens = newAvailableTokens
       )

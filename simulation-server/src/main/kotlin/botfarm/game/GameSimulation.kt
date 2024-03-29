@@ -38,6 +38,28 @@ class MoveToPointRequest(
 )
 
 @Serializable
+class SetTradeProposalOutboundOfferingRequest(
+   val itemCollection: ItemCollection
+)
+
+@Serializable
+class StartTradeProposalRequest(
+   val targetEntityId: EntityId
+)
+
+@Serializable
+class ApproveTradeProposalRequest(
+   val tradeId: TradeId,
+   val expectedTargetProposalVersion: TradeVersion
+)
+
+@Serializable
+class RejectTradeProposalRequest(
+   val tradeId: TradeId
+)
+
+
+@Serializable
 class UseEquippedToolItemRequest(
    val expectedItemConfigKey: String
 )
@@ -1973,6 +1995,12 @@ class GameSimulation(
             this.handleMoveToPointRequest(client, request)
          }
 
+         "StartTradeProposalRequest" -> {
+            client.notifyInteractionReceived()
+            val request = Json.decodeFromJsonElement<StartTradeProposalRequest>(messageData)
+            this.handleStartTradeProposalRequest(client, request)
+         }
+
          "SetShouldSpectateByDefaultRequest" -> {
             client.notifyInteractionReceived()
             val request = Json.decodeFromJsonElement<SetShouldSpectateByDefaultRequest>(messageData)
@@ -2082,6 +2110,155 @@ class GameSimulation(
 
          else -> throw Exception("Unhandled client message type: $messageType")
       }
+   }
+
+   enum class RejectTradeProposalResult {
+      Success,
+      SourceIsNotTrader,
+      SourceHasNoActiveTrade,
+      SourceActiveTradeProposalDoesNotMatch
+   }
+
+   private fun rejectTradeProposal(
+      sourceEntity: Entity,
+      tradeId: TradeId
+   ): RejectTradeProposalResult {
+      val sourceTrader = sourceEntity.getComponentOrNull<TraderComponentData>()
+         ?: return RejectTradeProposalResult.SourceIsNotTrader
+
+      val sourceActiveTradeProposal = sourceTrader.data.activeTradeProposal
+         ?: return RejectTradeProposalResult.SourceHasNoActiveTrade
+
+      if (sourceActiveTradeProposal.tradeId != tradeId) {
+         return RejectTradeProposalResult.SourceActiveTradeProposalDoesNotMatch
+      }
+
+      sourceTrader.modifyData {
+         it.copy(
+            activeTradeProposal = null
+         )
+      }
+
+      val targetEntity = this.getEntityOrNull(sourceActiveTradeProposal.targetEntityId)
+
+      if (targetEntity != null) {
+         val targetTrader = targetEntity.getComponent<TraderComponentData>()
+         val targetTraderData = targetTrader.data
+
+         if (targetTraderData.activeTradeProposal != null && targetTraderData.activeTradeProposal.tradeId == tradeId) {
+            targetTrader.modifyData {
+               it.copy(
+                  activeTradeProposal = null
+               )
+            }
+         }
+      }
+
+      return RejectTradeProposalResult.Success
+   }
+
+   sealed class ApproveTradeProposalResult {
+      data class Approved(val didTrade: Boolean) : ApproveTradeProposalResult()
+      data object SourceIsNotTrader : ApproveTradeProposalResult()
+      data object SourceHasNoActiveTrade : ApproveTradeProposalResult()
+      data object SourceActiveTradeProposalDoesNotMatch : ApproveTradeProposalResult()
+   }
+
+   private fun approveTradeProposal(
+      sourceEntity: Entity,
+      tradeId: TradeId,
+      expectedTradeVersion: TradeVersion
+   ): ApproveTradeProposalResult {
+      val sourceTrader = sourceEntity.getComponentOrNull<TraderComponentData>()
+         ?: return ApproveTradeProposalResult.SourceIsNotTrader
+
+      val sourceActiveTradeProposal = sourceTrader.data.activeTradeProposal
+         ?: return ApproveTradeProposalResult.SourceHasNoActiveTrade
+
+      if (sourceActiveTradeProposal.tradeId != tradeId) {
+         return ApproveTradeProposalResult.SourceActiveTradeProposalDoesNotMatch
+      }
+
+      sourceTrader.modifyData {
+         it.copy(
+            activeTradeProposal = null
+         )
+      }
+
+      val targetEntity = this.getEntityOrNull(sourceActiveTradeProposal.targetEntityId)
+         ?: return ApproveTradeProposalResult.TargetDoesNotExist
+
+      val targetTrader = targetEntity.getComponent<TraderComponentData>()
+      val targetTraderData = targetTrader.data
+
+      if (targetTraderData.activeTradeProposal != null && targetTraderData.activeTradeProposal.tradeId == tradeId) {
+         targetTrader.modifyData {
+            it.copy(
+               activeTradeProposal = null
+            )
+         }
+      }
+
+      return RejectTradeProposalResult.Success
+   }
+
+   enum class StartTradeProposalResult {
+      Success,
+      SourceIsNotTrader,
+      TargetIsNotTrader,
+      SourceHasActiveTrade,
+      TargetHasActiveTrade
+   }
+
+   private fun startTradeProposal(
+      sourceEntity: Entity,
+      targetEntity: Entity
+   ): StartTradeProposalResult {
+      val sourceTrader = sourceEntity.getComponentOrNull<TraderComponentData>()
+         ?: return StartTradeProposalResult.SourceIsNotTrader
+
+      val targetTrader = targetEntity.getComponentOrNull<TraderComponentData>()
+         ?: return StartTradeProposalResult.TargetIsNotTrader
+
+      val sourceActiveTradeProposal = sourceTrader.data.activeTradeProposal
+      val targetActiveTradeProposal = targetTrader.data.activeTradeProposal
+
+      if (sourceActiveTradeProposal != null) {
+         return StartTradeProposalResult.SourceHasActiveTrade
+      }
+
+      if (targetActiveTradeProposal != null) {
+         return StartTradeProposalResult.TargetHasActiveTrade
+      }
+
+      val tradeId = TradeId(buildShortRandomIdentifier())
+
+      sourceTrader.modifyData {
+         it.copy(
+            activeTradeProposal = TradeProposal(
+               startedBySelf = true,
+               targetEntityId = targetEntity.entityId,
+               tradeId = tradeId
+            )
+         )
+      }
+
+      targetTrader.modifyData {
+         it.copy(
+            activeTradeProposal = TradeProposal(
+               startedBySelf = false,
+               targetEntityId = sourceEntity.entityId,
+               tradeId = tradeId
+            )
+         )
+      }
+
+      return StartTradeProposalResult.Success
+   }
+
+   private fun handleStartTradeProposalRequest(client: Client, request: StartTradeProposalRequest) {
+      val targetEntityId = request.targetEntityId
+      this.getEntityOrNull(targetEntityId)
    }
 
    private fun handleAddCharacterMessageRequest(

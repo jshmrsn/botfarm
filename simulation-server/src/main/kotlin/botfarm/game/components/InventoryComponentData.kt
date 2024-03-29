@@ -1,12 +1,15 @@
 package botfarm.game.components
 
-import botfarmshared.game.apidata.ItemCollection
-import botfarmshared.misc.removed
-import botfarmshared.misc.replaced
 import botfarm.engine.simulation.Entity
 import botfarm.engine.simulation.EntityComponentData
 import botfarm.game.config.EquipmentSlot
 import botfarm.game.config.ItemConfig
+import botfarmshared.engine.apidata.EntityId
+import botfarmshared.game.apidata.ItemCollection
+import botfarmshared.misc.removed
+import botfarmshared.misc.replaced
+import kotlinx.serialization.Serializable
+
 
 data class ItemStack(
    val itemConfigKey: String,
