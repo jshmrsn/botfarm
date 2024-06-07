@@ -37,7 +37,7 @@ repositories {
 
 dependencies {
    implementation("com.knuddels:jtokkit:0.6.1")
-   implementation("com.aallam.openai:openai-client:3.4.1")
+   implementation("com.aallam.openai:openai-client:3.7.0")
    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.5")
    implementation("io.ktor:ktor-server-core-jvm")
    implementation("io.ktor:ktor-server-websockets-jvm")

@@ -9,6 +9,7 @@ import com.aallam.openai.api.http.Timeout
 import com.aallam.openai.api.logging.LogLevel
 import com.aallam.openai.client.LoggingConfig
 import com.aallam.openai.client.OpenAI
+import com.aallam.openai.client.OpenAIHost
 import io.ktor.server.application.Application
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -24,12 +25,23 @@ fun main() {
 }
 
 fun Application.module() {
-   val aiLanguageModelService = System.getenv("BOTFARM_OPENAI_API_KEY")?.let {
+   val aiLanguageModelService = System.getenv("BOTFARM_OPENAI_API_KEY")?.let { apiKey ->
       OpenAiLanguageModelService(OpenAI(
-         token = it,
+         token = apiKey,
          timeout = Timeout(socket = 120.seconds),
          logging = LoggingConfig(
             logLevel = LogLevel.None
+         )
+      ))
+   } ?: System.getenv("BOTFARM_LOCAL_LLM_ENDPOINT")?.let { baseUrl ->
+      OpenAiLanguageModelService(OpenAI(
+         token = "local",
+         timeout = Timeout(socket = 30.seconds),
+         logging = LoggingConfig(
+            logLevel = LogLevel.None
+         ),
+         host = OpenAIHost(
+            baseUrl = baseUrl
          )
       ))
    } ?: MockLanguageModelService(

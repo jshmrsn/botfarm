@@ -14,12 +14,20 @@ class ModelInfo(
 ) {
    val maxTokenCount = this.closestTikTokenModelType.maxContextLength
    companion object {
-      val gpt_4 = ModelInfo(
+      val gpt_4_turbo = ModelInfo(
+         modelId = "gpt-4-turbo-preview",
+         costPer1kInput = 0.01,
+         costPer1kOutput = 0.03,
+         closestTikTokenModelType = ModelType.GPT_4
+      )
+
+      val gpt_4_classic = ModelInfo(
          modelId = "gpt-4",
          costPer1kInput = 0.03,
          costPer1kOutput = 0.06,
          closestTikTokenModelType = ModelType.GPT_4
       )
+
 
       val gpt_3_5_turbo = ModelInfo(
          modelId = "gpt-3.5-turbo",

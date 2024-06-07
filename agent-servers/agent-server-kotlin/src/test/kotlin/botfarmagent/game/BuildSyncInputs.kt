@@ -2,12 +2,9 @@ package botfarmagent.game
 
 import botfarmshared.engine.apidata.EntityId
 import botfarmshared.engine.apidata.SimulationId
-import botfarmshared.game.GameConstants
-import botfarmshared.game.GameSimulationInfo
 import botfarmshared.game.apidata.*
 import botfarmshared.misc.Vector2
 
-val x = EntityInfoWrapper
 fun buildSyncInputs(
    syncId: String = "test-sync-1",
    agentType: String = "script"
@@ -26,7 +23,9 @@ fun buildSyncInputs(
             itemInfo = null,
             damageableInfo = null,
             characterInfo = null,
-            growerInfo = null
+            growerInfo = null,
+            isVisible = true,
+            isStale = false
          ),
          javaScriptVariableName = "test",
          serializedAsJavaScript = "?"
@@ -38,20 +37,14 @@ fun buildSyncInputs(
       equippedItemConfigKey = null
    ),
    newObservations = Observations(
-      spokenMessages = listOf(),
-      selfSpokenMessages = listOf(),
-      entitiesById = mapOf(),
       movementRecords = listOf(),
-      actionOnEntityRecords = listOf(),
-      actionOnInventoryItemActionRecords = listOf(),
-      craftItemActionRecords = listOf(),
       activityStreamEntries = listOf(),
       actionResults = listOf(),
       startedActionUniqueIds = listOf(),
-      selfThoughts = listOf(),
-      scriptExecutionErrors = listOf()
+      scriptExecutionErrors = listOf(),
+      entityObservationEvents = listOf()
    ),
-   gameConstants = GameConstants,
+   gameConstants = GameConstants.default,
    gameSimulationInfo = GameSimulationInfo(
       worldBounds = Vector2(
          x = 0.0,

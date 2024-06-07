@@ -71,7 +71,7 @@ class JsonActionAgent(
       val worldBounds = gameSimulationInfo.worldBounds
 
       val modelInfo = if (this.useGpt4) {
-         ModelInfo.gpt_4
+         ModelInfo.gpt_4_turbo
       } else {
          if (this.useFunctionCalling) {
             ModelInfo.gpt_3_5_turbo

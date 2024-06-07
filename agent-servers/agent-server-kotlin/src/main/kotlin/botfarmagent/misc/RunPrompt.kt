@@ -3,7 +3,6 @@ package botfarmagent.misc
 import botfarmshared.engine.apidata.PromptUsage
 import botfarmshared.misc.JsonSchema
 import botfarmshared.misc.buildShortRandomIdentifier
-import com.aallam.openai.api.LegacyOpenAI
 import com.aallam.openai.api.chat.*
 import com.aallam.openai.api.completion.CompletionRequest
 import com.aallam.openai.api.core.FinishReason
@@ -31,7 +30,6 @@ sealed class RunPromptResult {
    class UnknownApiError(val errorId: String, val exception: Exception) : RunPromptResult()
 }
 
-@OptIn(LegacyOpenAI::class)
 suspend fun runPrompt(
    debugInfo: String,
    languageModelService: LanguageModelService,

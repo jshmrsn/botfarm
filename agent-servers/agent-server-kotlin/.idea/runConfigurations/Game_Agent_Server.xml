@@ -10,6 +10,9 @@
     <option name="shortenCommandLine" value="NONE" />
     <option name="vmParameters" value="" />
     <option name="workingDirectory" value="" />
+    <envs>
+      <env name="BOTFARM_LOCAL_LLM_ENDPOINT" value="http://localhost:1234/v1/" />
+    </envs>
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

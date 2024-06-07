@@ -1,6 +1,5 @@
 package botfarmagent.misc
 
-import com.aallam.openai.api.LegacyOpenAI
 import com.aallam.openai.api.chat.ChatCompletion
 import com.aallam.openai.api.chat.ChatCompletionRequest
 import com.aallam.openai.api.completion.CompletionRequest
@@ -19,7 +18,6 @@ interface LanguageModelService {
 class OpenAiLanguageModelService(
    val openAI: OpenAI
 ) : LanguageModelService {
-   @OptIn(LegacyOpenAI::class)
    override suspend fun completion(request: CompletionRequest): TextCompletion =
       this.openAI.completion(request)
 

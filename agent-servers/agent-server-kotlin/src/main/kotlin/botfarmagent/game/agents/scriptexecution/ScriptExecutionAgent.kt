@@ -65,7 +65,7 @@ class ScriptExecutionAgent(
       val simulationTimeForStep = input.simulationTime
 
       val modelInfo = if (this.shouldUseGpt4) {
-         ModelInfo.gpt_4
+         ModelInfo.gpt_4_turbo
       } else {
          ModelInfo.gpt_3_5_turbo
       }
